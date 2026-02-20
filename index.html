@@ -1,51 +1,424 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>KidsPOD Tool</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>KidsPOD 管理后台</title>
 
-  <!-- React 18 -->
-  <script src="https://cdn.jsdelivr.net/npm/react@18/umd/react.production.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/react-dom@18/umd/react-dom.production.min.js"></script>
+  <!-- Tailwind（带备用镜像） -->
+  <script src="https://cdn.tailwindcss.com" onerror="this.onerror=null;this.src='https://lf6-cdn-tos.bytecdntp.com/cdn/expire-1-M/tailwindcss/3.4.1/tailwindcss.min.js'"></script>
 
-  <!-- Babel -->
-  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone/babel.min.js"></script>
-
-  <!-- Tailwind CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-
+  <style>
+    body { background:#f7f7fb; }
+    .btn { @apply px-3 py-2 rounded-lg font-medium; }
+  </style>
 </head>
-<body class="bg-gray-100">
 
-  <div id="root"></div>
+<body class="min-h-screen">
+  <div class="flex min-h-screen">
 
-  <script type="text/babel">
+    <!-- 左侧菜单 -->
+    <aside class="w-64 bg-white border-r border-gray-200 p-4">
+      <div class="text-xl font-bold mb-6">KidsPOD 后台</div>
 
-    function App() {
-      return (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="bg-white shadow-xl rounded-xl p-8 w-full max-w-lg text-center">
-            <h1 className="text-2xl font-bold mb-4">
-              KidsPOD Tool 已成功加载 🎉
-            </h1>
-            <p className="text-gray-600 mb-6">
-              页面已经正常运行，不再触发 CDN 错误检测。
-            </p>
-            <button
-              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition"
-              onClick={() => alert("工具正常运行")}
-            >
-              点击测试
+      <div class="space-y-2">
+        <button id="navRules" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 font-medium">
+          Rules 管理
+        </button>
+        <button id="navCases" class="w-full text-left px-3 py-2 rounded-lg hover:bg-gray-100 font-medium">
+          Copyright Cases 管理
+        </button>
+      </div>
+
+      <div class="mt-8 pt-6 border-t">
+        <div class="text-sm font-semibold mb-2">Apps Script WebApp URL</div>
+        <input id="apiBase" class="w-full border rounded-lg px-3 py-2 text-sm"
+               placeholder="粘贴你的 /exec URL"
+               value="https://script.google.com/macros/s/AKfycbziwiquHTSLyQAXd3iQzo3LGzbz2ExCwTf4YlU8QmYLew4abphfvB8O-Al_i0PXL_cAEw/exec" />
+
+        <div class="text-sm font-semibold mt-4 mb-2">管理员密钥（ADMIN_KEY）</div>
+        <input id="adminKey" class="w-full border rounded-lg px-3 py-2 text-sm"
+               placeholder="输入后会保存在本机浏览器" />
+
+        <button id="btnSaveConfig"
+                class="w-full mt-3 bg-black text-white rounded-lg px-3 py-2 text-sm hover:opacity-90">
+          保存配置
+        </button>
+
+        <div id="configTip" class="mt-3 text-xs text-gray-500"></div>
+      </div>
+    </aside>
+
+    <!-- 主体 -->
+    <main class="flex-1 p-6">
+      <div class="max-w-6xl mx-auto">
+
+        <div class="flex items-center justify-between mb-4">
+          <h1 id="pageTitle" class="text-2xl font-bold">Rules 管理</h1>
+          <div class="flex items-center gap-2">
+            <button id="btnRefresh" class="px-3 py-2 rounded-lg bg-white border hover:bg-gray-50">
+              刷新
             </button>
           </div>
         </div>
-      );
+
+        <!-- 提示 -->
+        <div id="toast" class="hidden mb-4 p-3 rounded-lg border"></div>
+
+        <!-- Rules 页面 -->
+        <section id="pageRules" class="space-y-4">
+          <div class="bg-white border rounded-xl p-4">
+            <div class="flex items-center justify-between mb-3">
+              <div class="font-semibold">规则列表</div>
+              <button id="btnAddRule" class="px-3 py-2 rounded-lg bg-black text-white hover:opacity-90 text-sm">
+                新增规则项
+              </button>
+            </div>
+
+            <div class="overflow-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="text-left p-2 w-56">key</th>
+                    <th class="text-left p-2">content</th>
+                    <th class="text-left p-2 w-40">updated_at</th>
+                    <th class="text-left p-2 w-32">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="rulesTbody"></tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        <!-- Cases 页面 -->
+        <section id="pageCases" class="hidden space-y-4">
+          <div class="bg-white border rounded-xl p-4">
+            <div class="flex items-center justify-between mb-3">
+              <div class="font-semibold">侵权库（copyright_cases）</div>
+              <button id="btnOpenAddCase" class="px-3 py-2 rounded-lg bg-black text-white hover:opacity-90 text-sm">
+                新增 Case
+              </button>
+            </div>
+
+            <div class="overflow-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-gray-50">
+                  <tr>
+                    <th class="text-left p-2 w-28">id</th>
+                    <th class="text-left p-2 w-60">title</th>
+                    <th class="text-left p-2 w-44">lawFirm</th>
+                    <th class="text-left p-2 w-44">caseNo</th>
+                    <th class="text-left p-2 w-60">authors</th>
+                    <th class="text-left p-2 w-60">elements</th>
+                    <th class="text-left p-2 w-60">keywords</th>
+                    <th class="text-left p-2 w-44">addedAt</th>
+                    <th class="text-left p-2 w-28">操作</th>
+                  </tr>
+                </thead>
+                <tbody id="casesTbody"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- 新增 Case 弹窗 -->
+          <div id="caseModal" class="hidden fixed inset-0 bg-black/40 items-center justify-center p-4">
+            <div class="bg-white rounded-xl w-full max-w-2xl p-4">
+              <div class="flex items-center justify-between mb-3">
+                <div class="font-bold text-lg">新增 Case</div>
+                <button id="btnCloseCaseModal" class="px-3 py-1 rounded-lg border">关闭</button>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3 text-sm">
+                <input id="c_id" class="border rounded-lg px-3 py-2" placeholder="id（可空，自动生成也行）">
+                <input id="c_title" class="border rounded-lg px-3 py-2" placeholder="title">
+                <input id="c_lawFirm" class="border rounded-lg px-3 py-2" placeholder="lawFirm">
+                <input id="c_caseNo" class="border rounded-lg px-3 py-2" placeholder="caseNo">
+                <input id="c_authors" class="border rounded-lg px-3 py-2 col-span-2" placeholder="authors（逗号分隔）">
+                <input id="c_elements" class="border rounded-lg px-3 py-2 col-span-2" placeholder="elements（逗号分隔）">
+                <input id="c_keywords" class="border rounded-lg px-3 py-2 col-span-2" placeholder="keywords（逗号分隔）">
+                <input id="c_mjWords" class="border rounded-lg px-3 py-2 col-span-2" placeholder="mjWords（可选）">
+                <textarea id="c_notes" class="border rounded-lg px-3 py-2 col-span-2" placeholder="notes（可选）" rows="3"></textarea>
+              </div>
+
+              <div class="mt-4 flex justify-end gap-2">
+                <button id="btnSubmitCase" class="px-4 py-2 rounded-lg bg-black text-white hover:opacity-90">
+                  保存
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+<script>
+  // ========== 基础配置 ==========
+  const LS_KEY = "kidspod_admin_config_v1";
+  let state = {
+    page: "rules",
+    rules: [],
+    cases: [],
+  };
+
+  function getConfig() {
+    try { return JSON.parse(localStorage.getItem(LS_KEY) || "{}"); }
+    catch { return {}; }
+  }
+  function setConfig(cfg) {
+    localStorage.setItem(LS_KEY, JSON.stringify(cfg));
+  }
+
+  function apiBase() {
+    const v = document.getElementById("apiBase").value.trim();
+    return v.replace(/\/$/, "");
+  }
+  function adminKey() {
+    return document.getElementById("adminKey").value.trim();
+  }
+
+  // ========== UI 辅助 ==========
+  function toast(msg, type="ok") {
+    const el = document.getElementById("toast");
+    el.className = "mb-4 p-3 rounded-lg border";
+    if (type === "ok") el.classList.add("bg-green-50","border-green-200","text-green-900");
+    if (type === "warn") el.classList.add("bg-yellow-50","border-yellow-200","text-yellow-900");
+    if (type === "err") el.classList.add("bg-red-50","border-red-200","text-red-900");
+    el.textContent = msg;
+    el.classList.remove("hidden");
+    setTimeout(() => el.classList.add("hidden"), 3500);
+  }
+
+  function switchPage(page) {
+    state.page = page;
+    document.getElementById("pageRules").classList.toggle("hidden", page !== "rules");
+    document.getElementById("pageCases").classList.toggle("hidden", page !== "cases");
+    document.getElementById("pageTitle").textContent = page === "rules" ? "Rules 管理" : "Copyright Cases 管理";
+  }
+
+  // ========== API ==========
+  async function apiGet(action) {
+    const url = `${apiBase()}?action=${encodeURIComponent(action)}`;
+    const res = await fetch(url, { method: "GET" });
+    if (!res.ok) throw new Error("GET 失败: " + res.status);
+    return await res.json();
+  }
+
+  async function apiPost(action, data) {
+    const key = adminKey();
+    if (!key) throw new Error("请先输入管理员密钥（ADMIN_KEY）");
+    const res = await fetch(apiBase(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, action, data }),
+    });
+    if (!res.ok) throw new Error("POST 失败: " + res.status);
+    return await res.json();
+  }
+
+  // ========== Rules 渲染 & 操作 ==========
+  function renderRules() {
+    const tbody = document.getElementById("rulesTbody");
+    tbody.innerHTML = "";
+
+    const rows = state.rules || [];
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td class="p-3 text-gray-500" colspan="4">暂无数据（rules 表可能是空的）</td></tr>`;
+      return;
     }
 
-    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+    for (const r of rows) {
+      const tr = document.createElement("tr");
+      tr.className = "border-t";
 
-  </script>
+      tr.innerHTML = `
+        <td class="p-2 align-top">
+          <input class="w-full border rounded-lg px-2 py-1 text-sm rule-key" value="${escapeHtml(r.key||"")}" />
+        </td>
+        <td class="p-2 align-top">
+          <textarea class="w-full border rounded-lg px-2 py-1 text-sm rule-content" rows="3">${escapeHtml(r.content||"")}</textarea>
+        </td>
+        <td class="p-2 align-top text-gray-600">
+          ${escapeHtml(r.updated_at||"")}
+        </td>
+        <td class="p-2 align-top">
+          <div class="flex gap-2">
+            <button class="px-3 py-1 rounded-lg bg-black text-white text-xs btn-save">保存</button>
+          </div>
+        </td>
+      `;
+
+      tr.querySelector(".btn-save").addEventListener("click", async () => {
+        const key = tr.querySelector(".rule-key").value.trim();
+        const content = tr.querySelector(".rule-content").value;
+        if (!key) return toast("key 不能为空", "warn");
+        try {
+          await apiPost("update_rule", { key, content });
+          toast("保存成功");
+          await loadRules();
+        } catch (e) {
+          toast(e.message || "保存失败", "err");
+        }
+      });
+
+      tbody.appendChild(tr);
+    }
+  }
+
+  async function loadRules() {
+    const data = await apiGet("get_rules");
+    state.rules = Array.isArray(data) ? data : (data?.data || []);
+    renderRules();
+  }
+
+  // ========== Cases 渲染 & 操作 ==========
+  function renderCases() {
+    const tbody = document.getElementById("casesTbody");
+    tbody.innerHTML = "";
+
+    const rows = state.cases || [];
+    if (!rows.length) {
+      tbody.innerHTML = `<tr><td class="p-3 text-gray-500" colspan="9">暂无数据（copyright_cases 表可能是空的）</td></tr>`;
+      return;
+    }
+
+    for (const c of rows) {
+      const tr = document.createElement("tr");
+      tr.className = "border-t";
+
+      tr.innerHTML = `
+        <td class="p-2 align-top">${escapeHtml(c.id||"")}</td>
+        <td class="p-2 align-top">${escapeHtml(c.title||"")}</td>
+        <td class="p-2 align-top">${escapeHtml(c.lawFirm||"")}</td>
+        <td class="p-2 align-top">${escapeHtml(c.caseNo||"")}</td>
+        <td class="p-2 align-top">${escapeHtml(c.authors||"")}</td>
+        <td class="p-2 align-top">${escapeHtml(c.elements||"")}</td>
+        <td class="p-2 align-top">${escapeHtml(c.keywords||"")}</td>
+        <td class="p-2 align-top text-gray-600">${escapeHtml(c.addedAt||"")}</td>
+        <td class="p-2 align-top">
+          <button class="px-3 py-1 rounded-lg border text-xs hover:bg-gray-50 btn-del">删除</button>
+        </td>
+      `;
+
+      tr.querySelector(".btn-del").addEventListener("click", async () => {
+        if (!confirm("确认删除这个 case 吗？")) return;
+        try {
+          await apiPost("delete_case", { id: c.id });
+          toast("删除成功");
+          await loadCases();
+        } catch (e) {
+          toast(e.message || "删除失败", "err");
+        }
+      });
+
+      tbody.appendChild(tr);
+    }
+  }
+
+  async function loadCases() {
+    const data = await apiGet("get_cases");
+    state.cases = Array.isArray(data) ? data : (data?.data || []);
+    renderCases();
+  }
+
+  // ========== 新增 Case ==========
+  function openCaseModal(open=true) {
+    const m = document.getElementById("caseModal");
+    m.classList.toggle("hidden", !open);
+    m.classList.toggle("flex", open);
+  }
+
+  async function submitCase() {
+    const payload = {
+      id: document.getElementById("c_id").value.trim(),
+      title: document.getElementById("c_title").value.trim(),
+      lawFirm: document.getElementById("c_lawFirm").value.trim(),
+      caseNo: document.getElementById("c_caseNo").value.trim(),
+      authors: document.getElementById("c_authors").value.trim(),
+      elements: document.getElementById("c_elements").value.trim(),
+      keywords: document.getElementById("c_keywords").value.trim(),
+      mjWords: document.getElementById("c_mjWords").value.trim(),
+      notes: document.getElementById("c_notes").value.trim(),
+    };
+
+    if (!payload.title) return toast("title 不能为空", "warn");
+
+    try {
+      await apiPost("add_case", payload);
+      toast("新增成功");
+      openCaseModal(false);
+      // 清空
+      ["c_id","c_title","c_lawFirm","c_caseNo","c_authors","c_elements","c_keywords","c_mjWords","c_notes"].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = "";
+      });
+      await loadCases();
+    } catch (e) {
+      toast(e.message || "新增失败", "err");
+    }
+  }
+
+  // ========== 工具 ==========
+  function escapeHtml(s) {
+    return String(s ?? "")
+      .replaceAll("&","&amp;")
+      .replaceAll("<","&lt;")
+      .replaceAll(">","&gt;")
+      .replaceAll('"',"&quot;")
+      .replaceAll("'","&#39;");
+  }
+
+  // ========== 事件绑定 ==========
+  document.getElementById("navRules").addEventListener("click", async () => {
+    switchPage("rules");
+    try { await loadRules(); } catch(e){ toast(e.message||"加载失败","err"); }
+  });
+
+  document.getElementById("navCases").addEventListener("click", async () => {
+    switchPage("cases");
+    try { await loadCases(); } catch(e){ toast(e.message||"加载失败","err"); }
+  });
+
+  document.getElementById("btnRefresh").addEventListener("click", async () => {
+    try {
+      if (state.page === "rules") await loadRules();
+      else await loadCases();
+      toast("刷新完成");
+    } catch (e) {
+      toast(e.message || "刷新失败", "err");
+    }
+  });
+
+  document.getElementById("btnAddRule").addEventListener("click", async () => {
+    // 前端新增一行空白（保存时会写入）
+    state.rules = [{ key:"", content:"", updated_at:"" }, ...(state.rules||[])];
+    renderRules();
+  });
+
+  document.getElementById("btnOpenAddCase").addEventListener("click", () => openCaseModal(true));
+  document.getElementById("btnCloseCaseModal").addEventListener("click", () => openCaseModal(false));
+  document.getElementById("btnSubmitCase").addEventListener("click", submitCase);
+
+  document.getElementById("btnSaveConfig").addEventListener("click", () => {
+    const cfg = { apiBase: apiBase(), adminKey: adminKey() };
+    setConfig(cfg);
+    document.getElementById("configTip").textContent = "✅ 已保存到本机浏览器（localStorage）";
+    toast("配置已保存");
+  });
+
+  // ========== 初始化 ==========
+  (async function init(){
+    const cfg = getConfig();
+    if (cfg.apiBase) document.getElementById("apiBase").value = cfg.apiBase;
+    if (cfg.adminKey) document.getElementById("adminKey").value = cfg.adminKey;
+
+    switchPage("rules");
+    try { await loadRules(); }
+    catch (e) { toast(e.message || "首次加载失败（请检查 Apps Script URL / 权限 / 表名）", "err"); }
+  })();
+</script>
 
 </body>
 </html>
