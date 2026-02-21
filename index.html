@@ -300,32 +300,110 @@
 
     // ========== Claude API调用 ==========
     const callClaudeAPI = async (prompt, systemPrompt = "") => {
-      const apiKey = getApiKey();
-      if (!apiKey) throw new Error('请先设置 API Key');
-      try {
-        const response = await fetch("https://api.anthropic.com/v1/messages", {
+  // ---- Global throttling & queue to avoid 429 (rate limit: input tokens/min) ----
+  window.__claudeQueue = window.__claudeQueue || Promise.resolve();
+  window.__claudeUsage = window.__claudeUsage || { windowStart: Date.now(), usedTokens: 0 };
+
+  const EST_TOKENS = (s) => Math.ceil((String(s || "").length) / 4); // rough but good enough
+  const normalize = (s) => String(s || "").replace(/\s+/g, " ").trim();
+
+  // Hard caps to avoid sending huge prompts accidentally
+  const MAX_INPUT_TOKENS_PER_REQ = 6000;   // keep each request modest
+  const MAX_INPUT_TOKENS_PER_MIN = 28000;  // leave margin under 30k
+
+  const trimToTokens = (s, maxTokens) => {
+    s = String(s || "");
+    if (EST_TOKENS(s) <= maxTokens) return s;
+    const maxChars = maxTokens * 4;
+    // Keep head+tail so we preserve instructions + critical data
+    const head = s.slice(0, Math.floor(maxChars * 0.7));
+    const tail = s.slice(-Math.floor(maxChars * 0.3));
+    return `${head}\n\n[...内容过长已截断（为避免429），仅保留前后关键片段...]\n\n${tail}`;
+  };
+
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+  const doCall = async () => {
+    const apiKey = localStorage.getItem("CLAUDE_API_KEY") || "";
+    if (!apiKey) throw new Error("未配置 CLAUDE_API_KEY（请在设置里填写并保存）");
+
+    // Reduce unnecessary input tokens
+    const sys = trimToTokens(normalize(systemPrompt), 1200);
+    const user = trimToTokens(normalize(prompt), MAX_INPUT_TOKENS_PER_REQ);
+
+    // Throttle by estimated input tokens/min window
+    const now = Date.now();
+    const usage = window.__claudeUsage;
+    if (now - usage.windowStart >= 60_000) {
+      usage.windowStart = now;
+      usage.usedTokens = 0;
+    }
+    const reqTokens = EST_TOKENS(sys) + EST_TOKENS(user) + 50; // overhead margin
+    if (usage.usedTokens + reqTokens > MAX_INPUT_TOKENS_PER_MIN) {
+      const waitMs = 60_000 - (now - usage.windowStart) + 250;
+      await sleep(Math.max(250, waitMs));
+      usage.windowStart = Date.now();
+      usage.usedTokens = 0;
+    }
+    usage.usedTokens += reqTokens;
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 80_000);
+
+    try {
+      let attempt = 0;
+      let backoff = 1200;
+
+      while (true) {
+        attempt += 1;
+        const resp = await fetch("https://api.anthropic.com/v1/messages", {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01",
-            "anthropic-dangerous-direct-browser-access": "true"
+            "anthropic-version": "2023-06-01"
           },
           body: JSON.stringify({
-            model: "claude-sonnet-4-5-20250929",
-            max_tokens: 4000,
-            system: systemPrompt,
-            messages: [{ role: "user", content: prompt }]
-          })
+            model: "claude-sonnet-4-20250929",
+            max_tokens: 1200,      // keep output small (input is the real limiter, but this helps overall load)
+            temperature: 0.2,
+            system: sys,
+            messages: [{ role: "user", content: user }]
+          }),
+          signal: controller.signal
         });
-        const data = await response.json();
-        if (data.error) throw new Error(data.error.message);
-        return data.content.map(item => item.type === "text" ? item.text : "").join("\n");
-      } catch (error) {
-        console.error("API调用失败:", error);
-        throw error;
+
+        if (resp.ok) {
+          const data = await resp.json();
+          return data?.content?.[0]?.text ?? "";
+        }
+
+        // Handle 429/5xx with retry + backoff
+        const isRetryable = resp.status === 429 || resp.status >= 500;
+        let errText = "";
+        try { errText = await resp.text(); } catch (e) {}
+
+        if (isRetryable && attempt < 6) {
+          const retryAfter = Number(resp.headers.get("retry-after") || "0");
+          const wait = retryAfter > 0 ? retryAfter * 1000 : backoff;
+          await sleep(wait);
+          backoff = Math.min(backoff * 1.8, 12_000);
+          continue;
+        }
+
+        throw new Error(`HTTP ${resp.status}: ${errText || resp.statusText}`);
       }
-    };
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
+
+  // Serialize calls to avoid bursts
+  const task = window.__claudeQueue.then(doCall, doCall);
+  // Keep chain alive even if one request fails
+  window.__claudeQueue = task.catch(() => {});
+  return task;
+};;
 
     // ========== 主应用组件 ==========
     // ========== API Key 设置组件 ==========
