@@ -324,8 +324,8 @@
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   const doCall = async () => {
-    const apiKey = localStorage.getItem("CLAUDE_API_KEY") || "";
-    if (!apiKey) throw new Error("未配置 CLAUDE_API_KEY（请在设置里填写并保存）");
+    const apiKey = (localStorage.getItem("pod_api_key") || localStorage.getItem("CLAUDE_API_KEY") || "").trim();
+    if (!apiKey) throw new Error("未配置 API Key（请在左侧设置里填写并保存）");
 
     // Reduce unnecessary input tokens
     const sys = trimToTokens(normalize(systemPrompt), 1200);
