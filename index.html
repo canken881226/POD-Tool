@@ -1,0 +1,1578 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>POD多品类SOP系统 v3.1</title>
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f8fafc; color: #1e293b; }
+    .card { background: white; border-radius: 12px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); border: 1px solid #e2e8f0; }
+    .btn { padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.2s; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .nav-tab { padding: 12px 18px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; border-bottom: 3px solid transparent; background: none; white-space: nowrap; color: #64748b; transition: all 0.2s; }
+    .spinner { width: 28px; height: 28px; border: 3px solid #e2e8f0; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; margin: 20px auto; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .tag { display: inline-block; padding: 2px 10px; margin: 2px; border-radius: 20px; font-size: 11px; font-weight: 500; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; }
+    .code-block { background: #0f172a; color: #e2e8f0; padding: 12px; border-radius: 8px; font-family: monospace; font-size: 11px; line-height: 1.6; position: relative; word-break: break-all; }
+    .copy-btn-abs { position: absolute; top: 6px; right: 6px; padding: 2px 8px; background: #334155; color: #94a3b8; border: none; border-radius: 4px; font-size: 10px; cursor: pointer; }
+    label.sel-opt { display: flex; align-items: center; gap: 8px; padding: 10px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; cursor: pointer; font-size: 13px; transition: all 0.2s; }
+    label.sel-opt.on { border-color: var(--ac,#667eea); background: rgba(102,126,234,0.08); }
+    .step-dot { width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; flex-shrink: 0; }
+    .priority-row { padding: 12px 16px; border-radius: 10px; border-left: 4px solid; margin-bottom: 8px; display: flex; align-items: center; justify-content: space-between; }
+    .task-row { padding: 12px 16px; border-radius: 10px; border: 1.5px solid #e2e8f0; margin-bottom: 8px; display: flex; align-items: center; gap: 12px; }
+    .listing-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    @media (max-width: 768px) { .listing-grid { grid-template-columns: 1fr; } }
+    .listing-panel { border: 2px solid #e2e8f0; border-radius: 12px; padding: 16px; }
+    .research-card { border: 2px solid #e2e8f0; border-radius: 12px; margin-bottom: 14px; overflow: hidden; }
+    .combo-card { border: 2px solid #e2e8f0; border-radius: 12px; padding: 16px; cursor: pointer; transition: all 0.2s; margin-bottom: 12px; }
+    input[type=text], input[type=password], input[type=number], textarea, select { width: 100%; padding: 9px 12px; border: 1.5px solid #e2e8f0; border-radius: 8px; font-size: 14px; outline: none; background: white; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- ═══ POD数据加载 - 修改data/pod_data.js即可同步所有人数据 ═══ -->
+  <script src="data/pod_data.js"></script>
+  <!-- ═════════════════════════════════════════════════════════════ -->
+
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    // ════════════════════════════════════════════════════════════════
+    // 数据引用 - 自动从 data/pod_data.js 加载（GitHub统一管理）
+    // 更新数据：修改 data/pod_data.js → 上传GitHub → 所有人刷新即可
+    // ════════════════════════════════════════════════════════════════
+    const SYSTEM_DATA = window.POD_DATA.SYSTEM_DATA;
+    const ELEMENT_LIBRARY = window.POD_DATA.ELEMENT_LIBRARY;
+    const MJ_STYLES = window.POD_DATA.MJ_STYLES;
+    const CAT_COLORS = window.POD_DATA.CAT_COLORS;
+    const CROSS_REF = window.POD_DATA.CROSS_REF;
+    const KW_DB = window.POD_DATA.KW_DB;
+    const THEME_ELEMENTS = window.POD_DATA.THEME_ELEMENTS;
+    const DEFAULT_CP_DB = window.POD_DATA.DEFAULT_CP_DB;
+
+    // ── API Key & Storage ─────────────────────────────────────────
+    // Key存在每人自己的浏览器本地，不放在任何文件里，安全无泄露风险
+    const getApiKey = function() { return localStorage.getItem('pod_api_key')||''; };
+    const setApiKeyStore = function(k) { localStorage.setItem('pod_api_key', k); };
+
+    function checkCpRisk(text) {
+      const db = S.g('cp_db')||DEFAULT_CP_DB;
+      const t = (text||'').toLowerCase();
+      return db.reduce(function(acc,e) {
+        const elHits=(e.banned_elements||[]).filter(function(el){return t.indexOf(el.toLowerCase())>=0;});
+        const stHits=(e.style_keywords||[]).filter(function(sk){return t.indexOf(sk.toLowerCase())>=0;});
+        if(elHits.length>0||stHits.length>=2) acc.push({entry:e,elHits:elHits,stHits:stHits,level:elHits.length>0?'high':'medium'});
+        return acc;
+      },[]);
+    }
+
+    // ── Helpers ──────────────────────────────────────────────────────
+    function Spinner() { return <div className="spinner"></div>; }
+    function CopyBtn({text,label}) {
+      const [copied,setCopied] = useState(false);
+      return (
+        <button onClick={function(){navigator.clipboard.writeText(text);setCopied(true);setTimeout(function(){setCopied(false);},1500);}}
+          style={{padding:'4px 10px',borderRadius:6,border:'1px solid #e2e8f0',background:'white',fontSize:11,cursor:'pointer',fontWeight:600,color:'#475569'}}>
+          {copied?'✓ 已复制':(label||'📋 复制')}
+        </button>
+      );
+    }
+    function UrgBadge({urgency}) {
+      const c = urgency>=9?{bg:'#fee2e2',tc:'#dc2626',t:'🔥 紧急'}
+        :urgency>=7?{bg:'#ffedd5',tc:'#ea580c',t:'⚡ 高'}
+        :urgency>=5?{bg:'#dbeafe',tc:'#2563eb',t:'📌 中'}
+        :{bg:'#dcfce7',tc:'#16a34a',t:'🌿 常青'};
+      return <span className="badge" style={{background:c.bg,color:c.tc}}>{c.t}</span>;
+    }
+    function TagList({items,color}) {
+      if(!items||!items.length) return null;
+      return <div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:6}}>
+        {items.map(function(e,i){return <span key={i} className="tag" style={{background:color+'20',color:color}}>{e}</span>;})}
+      </div>;
+    }
+
+    // ── ApiKeyBanner ──────────────────────────────────────────────────
+    function ApiKeyBanner() {
+      const [key,setKey] = useState(getApiKey());
+      const [editing,setEditing] = useState(!getApiKey());
+      const [saved,setSaved] = useState(false);
+      function save() {
+        if(!key.trim()){alert('请输入API Key');return;}
+        setApiKeyStore(key.trim());setEditing(false);setSaved(true);
+        setTimeout(function(){setSaved(false);},2000);
+      }
+      if(!editing&&getApiKey()) return (
+        <div style={{background:'#1e293b',padding:'8px 20px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <span style={{color:'#94a3b8',fontSize:12}}>🔑 API Key: <span style={{color:'#34d399'}}>已设置 ✓</span></span>
+          <button onClick={function(){setEditing(true);}} style={{color:'#94a3b8',fontSize:11,background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>修改</button>
+        </div>
+      );
+      return (
+        <div style={{background:'#fef9c3',borderBottom:'2px solid #fde047',padding:'10px 20px',display:'flex',alignItems:'center',gap:10,flexWrap:'wrap'}}>
+          <span style={{fontWeight:700,fontSize:13,color:'#854d0e'}}>🔑 请输入 Anthropic API Key：</span>
+          <input type="password" value={key} onChange={function(e){setKey(e.target.value);}} onKeyDown={function(e){if(e.key==='Enter')save();}}
+            placeholder="sk-ant-api03-..." style={{flex:1,minWidth:220,padding:'7px 12px',border:'2px solid #fde047',borderRadius:8,fontSize:13}} />
+          <button onClick={save} style={{padding:'8px 20px',background:'#eab308',color:'white',border:'none',borderRadius:8,fontWeight:700,cursor:'pointer'}}>
+            {saved?'✓ 已保存！':'保存'}
+          </button>
+          <a href="https://console.anthropic.com/settings/keys" target="_blank" style={{fontSize:11,color:'#92400e',textDecoration:'underline'}}>获取Key →</a>
+        </div>
+      );
+    }
+
+    // ── App ───────────────────────────────────────────────────────────
+    function App() {
+      const [page,setPage] = useState(S.g('cur_page')||'dashboard');
+      const [cat,setCat] = useState(S.g('active_cat')||'童装');
+      const [priorities,setPriorities] = useState([]);
+      const [tasks,setTasks] = useState(S.g('confirmed_tasks')||[]);
+
+      useEffect(function(){setPriorities(calculatePriorities());},[]);
+
+      function navTo(p){setPage(p);S.s('cur_page',p);}
+      function switchCat(c){setCat(c);S.s('active_cat',c);}
+      function addTask(task){const u=[...tasks,task];setTasks(u);S.s('confirmed_tasks',u);navTo('dashboard');}
+      function toggleTask(id){const u=tasks.map(function(t){return t.id===id?{...t,done:!t.done}:t;});setTasks(u);S.s('confirmed_tasks',u);}
+      function delTask(id){const u=tasks.filter(function(t){return t.id!==id;});setTasks(u);S.s('confirmed_tasks',u);}
+
+      const colors = CAT_COLORS[cat]||CAT_COLORS['童装'];
+      const navItems = [
+        {id:'dashboard',label:'📊 看板'},
+        {id:'research',label:'📈 市场调研'},
+        {id:'workflow',label:'⚙️ 开发流程'},
+        {id:'listing',label:'📝 Listing'},
+        {id:'database',label:'🗄️ 数据库'},
+        {id:'feedback',label:'💡 反馈学习'}
+      ];
+
+      return (
+        <div style={{minHeight:'100vh',background:'#f8fafc'}}>
+          <ApiKeyBanner />
+          <div style={{background:colors.grad,padding:'12px 20px',color:'white',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:10}}>
+            <div>
+              <div style={{fontWeight:800,fontSize:18}}>🛍️ POD多品类SOP系统 v3.1</div>
+              <div style={{fontSize:12,opacity:0.8}}>童装 & 家居 · 全流程AI驱动 · 数据持久化</div>
+            </div>
+            <div style={{display:'flex',gap:4,padding:4,borderRadius:12,background:'rgba(255,255,255,0.2)'}}>
+              {['童装','家居'].map(function(c){
+                return <button key={c} onClick={function(){switchCat(c);}}
+                  style={{padding:'6px 16px',borderRadius:8,border:'none',cursor:'pointer',fontWeight:700,fontSize:13,
+                    background:cat===c?'white':'transparent',color:cat===c?colors.ac:'rgba(255,255,255,0.85)'}}>
+                  {c==='童装'?'👶 童装':'🏠 家居'}
+                </button>;
+              })}
+            </div>
+          </div>
+          <div style={{background:'white',borderBottom:'1px solid #e2e8f0',overflowX:'auto'}}>
+            <div style={{display:'flex',minWidth:'max-content'}}>
+              {navItems.map(function(item){
+                const active = page===item.id;
+                return <button key={item.id} className="nav-tab"
+                  style={active?{borderBottomColor:colors.ac,color:colors.ac,fontWeight:700}:{}}
+                  onClick={function(){navTo(item.id);}}>
+                  {item.label}
+                </button>;
+              })}
+            </div>
+          </div>
+          <div style={{maxWidth:1100,margin:'0 auto',padding:'20px 16px'}}>
+            {page==='dashboard' && <PageDashboard priorities={priorities} tasks={tasks} colors={colors} onToggle={toggleTask} onDelete={delTask} onNav={navTo} />}
+            {page==='research'  && <PageResearch cat={cat} colors={colors} />}
+            {page==='workflow'  && <PageWorkflow cat={cat} colors={colors} priorities={priorities} onConfirm={addTask} />}
+            {page==='listing'   && <PageListing cat={cat} colors={colors} />}
+            {page==='database'  && <PageDatabase colors={colors} />}
+            {page==='feedback'  && <PageFeedback colors={colors} tasks={tasks} />}
+          </div>
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // PAGE: DASHBOARD
+    // ════════════════════════════════════════════════════════════════
+    function PageDashboard({priorities,tasks,colors,onToggle,onDelete,onNav}) {
+      const now = new Date();
+      const wStart = new Date(now); wStart.setDate(now.getDate()-now.getDay());
+      const mStart = new Date(now.getFullYear(),now.getMonth(),1);
+      const stats = {
+        week:  tasks.filter(function(t){return t.confirmedAt&&new Date(t.confirmedAt)>=wStart;}).length,
+        month: tasks.filter(function(t){return t.confirmedAt&&new Date(t.confirmedAt)>=mStart;}).length,
+        total: tasks.length,
+        done:  tasks.filter(function(t){return t.done;}).length
+      };
+      const urgent = priorities.filter(function(p){return p.urgency>=8;});
+      const active = tasks.filter(function(t){return !t.done;});
+      const done   = tasks.filter(function(t){return t.done;});
+      return (
+        <div style={{display:'flex',flexDirection:'column',gap:16}}>
+
+          {/* ── 任务区（置顶显示） ── */}
+          {(active.length>0||done.length>0) && <div className="card" style={{border:'2px solid '+colors.ac+'40'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+              <div style={{fontWeight:700,fontSize:15}}>📋 开发任务</div>
+              <div style={{display:'flex',gap:8,fontSize:12,color:'#64748b'}}>
+                <span style={{padding:'2px 10px',background:'#fef3c7',borderRadius:20,color:'#92400e',fontWeight:600}}>待完成 {active.length}</span>
+                <span style={{padding:'2px 10px',background:'#dcfce7',borderRadius:20,color:'#16a34a',fontWeight:600}}>已完成 {done.length}</span>
+              </div>
+            </div>
+            {active.map(function(t){
+              return <div key={t.id} className="task-row" style={{background:'#fffbeb',border:'1.5px solid #fde68a',marginBottom:6,flexDirection:'column',alignItems:'flex-start',gap:6}}>
+                <div style={{display:'flex',alignItems:'center',gap:10,width:'100%'}}>
+                  <input type="checkbox" checked={false} onChange={function(){onToggle(t.id);}} style={{width:18,height:18,cursor:'pointer',flexShrink:0}} />
+                  <span style={{fontSize:20}}>{t.emoji||'📦'}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:700,fontSize:13}}>{t.themeName}</div>
+                    <div style={{fontSize:11,color:'#64748b'}}>{t.cat} · {t.confirmedAt?(t.confirmedAt.slice(0,10)):''}</div>
+                  </div>
+                  <span className="badge" style={{background:'#fef3c7',color:'#92400e'}}>{t.mjCount||0}条咒语</span>
+                  <button onClick={function(){onDelete(t.id);}} style={{background:'none',border:'none',color:'#94a3b8',cursor:'pointer',fontSize:18,lineHeight:1}}>×</button>
+                </div>
+                {(t.comboNames||[]).length>0&&<div style={{paddingLeft:46,display:'flex',flexWrap:'wrap',gap:4}}>
+                  {(t.comboNames||[]).map(function(cn,ci){return <span key={ci} className="tag" style={{background:'#667eea20',color:'#667eea',fontSize:10,border:'1px solid #667eea40'}}>🎨 {cn}</span>;})}
+                </div>}
+              </div>;
+            })}
+            {done.length>0 && <div style={{marginTop:active.length>0?12:0}}>
+              <div style={{fontSize:12,color:'#94a3b8',fontWeight:600,marginBottom:6,paddingTop:active.length>0?10:0,borderTop:active.length>0?'1px solid #f1f5f9':'none'}}>✅ 已完成（最近5条）</div>
+              {done.slice(-5).reverse().map(function(t){
+                return <div key={t.id} className="task-row" style={{opacity:0.55,marginBottom:4}}>
+                  <input type="checkbox" checked={true} onChange={function(){onToggle(t.id);}} style={{width:18,height:18,cursor:'pointer',flexShrink:0}} />
+                  <span style={{fontSize:18}}>{t.emoji||'📦'}</span>
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:600,fontSize:12,textDecoration:'line-through',color:'#64748b'}}>{t.themeName}</div>
+                    <div style={{fontSize:10,color:'#94a3b8'}}>{t.cat} · {t.confirmedAt?(t.confirmedAt.slice(0,10)):''}</div>
+                  </div>
+                </div>;
+              })}
+            </div>}
+            {active.length===0&&done.length===0 && <div style={{textAlign:'center',padding:'20px',color:'#94a3b8',fontSize:13}}>暂无任务，去「开发流程」创建第一个任务 →</div>}
+          </div>}
+
+          {/* ── 统计卡片 ── */}
+          <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>
+            {[['本周开发',stats.week,'📅'],['本月开发',stats.month,'📆'],['累计任务',stats.total,'📦'],['已完成',stats.done,'✅']].map(function(x){
+              return <div key={x[0]} className="card" style={{textAlign:'center',padding:'14px 8px'}}>
+                <div style={{fontSize:20}}>{x[2]}</div>
+                <div style={{fontSize:26,fontWeight:800,color:colors.ac,margin:'4px 0'}}>{x[1]}</div>
+                <div style={{fontSize:12,color:'#64748b'}}>{x[0]}</div>
+              </div>;
+            })}
+          </div>
+
+          {/* ── 开发提醒 ── */}
+          {urgent.length>0 && <div className="card">
+            <div style={{fontWeight:700,fontSize:15,marginBottom:12}}>🔔 开发提醒</div>
+            {urgent.slice(0,4).map(function(p,i){
+              const bc=p.urgency>=9?'#ef4444':'#f97316';
+              const bg=p.urgency>=9?'#fef2f2':'#fff7ed';
+              return <div key={i} className="priority-row" style={{background:bg,borderLeftColor:bc}}>
+                <div style={{display:'flex',alignItems:'center',gap:12}}>
+                  <span style={{fontSize:22}}>{p.theme.emoji}</span>
+                  <div><div style={{fontWeight:600,fontSize:13}}>{p.theme.name||p.theme.en}</div>
+                  <div style={{fontSize:11,color:'#64748b'}}>{p.reason}</div></div>
+                </div>
+                <div style={{display:'flex',gap:8,alignItems:'center'}}>
+                  <UrgBadge urgency={p.urgency} />
+                  <button onClick={function(){onNav('workflow');}} style={{padding:'4px 12px',background:colors.ac,color:'white',border:'none',borderRadius:6,fontSize:12,cursor:'pointer',fontWeight:600}}>开始开发</button>
+                </div>
+              </div>;
+            })}
+          </div>}
+
+          {/* ── 本周优先级 ── */}
+          <div className="card">
+            <div style={{fontWeight:700,fontSize:15,marginBottom:12}}>🎯 本周优先级</div>
+            {priorities.slice(0,6).map(function(p,i){
+              const bc=p.urgency>=9?'#ef4444':p.urgency>=7?'#f97316':p.urgency>=5?'#3b82f6':'#10b981';
+              const bg=p.urgency>=9?'#fef2f2':p.urgency>=7?'#fff7ed':p.urgency>=5?'#eff6ff':'#f0fdf4';
+              return <div key={i} className="priority-row" style={{background:bg,borderLeftColor:bc}}>
+                <div style={{display:'flex',alignItems:'center',gap:12}}>
+                  <span style={{fontSize:22}}>{p.theme.emoji}</span>
+                  <div><div style={{fontWeight:600,fontSize:13}}>{p.theme.name||p.theme.en}</div>
+                  <div style={{fontSize:11,color:'#64748b'}}>{p.reason}</div></div>
+                </div>
+                <UrgBadge urgency={p.urgency} />
+              </div>;
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // PAGE: RESEARCH
+    // ════════════════════════════════════════════════════════════════
+    function PageResearch({cat,colors}) {
+      const SK = 'research_'+cat;
+      const init = S.g(SK)||{};
+      const [status,setStatus] = useState(init.status||{});
+      const [results,setResults] = useState(init.results||{});
+      const [summary,setSummary] = useState(init.summary||'');
+      const [lastTime,setLastTime] = useState(init.lastTime||'');
+      const [running,setRunning] = useState(false);
+      const [sumLoading,setSumLoading] = useState(false);
+
+      function persist(ns,nr,ns2) {
+        const d={status:ns,results:nr,summary:ns2,lastTime:new Date().toLocaleString('zh-CN')};
+        S.s(SK,d); setLastTime(d.lastTime);
+      }
+
+      function buildPrompt(sid) {
+        const today = new Date().toLocaleDateString('zh-CN');
+        const cross = (CROSS_REF[cat]||[]).slice(0,4).join('、');
+        if(sid===1) return {
+          sys:'你是POD图案市场调研专家。',
+          usr:'搜索'+cat+'POD当前流行图案趋势。输出JSON(不要markdown)：{"trending_elements":["元素1","元素2","元素3","元素4","元素5"],"trending_styles":["风格1","风格2","风格3"],"trending_colors":["配色1","配色2","配色3"],"dev_insight":"建议","summary":"一句话"}'
+        };
+        if(sid===2) return {
+          sys:'你是Amazon POD销售分析专家。',
+          usr:'搜索'+cat+'POD产品Amazon热卖图案特征。输出JSON(不要markdown)：{"hot_elements":["元素1","元素2","元素3"],"common_styles":["风格1","风格2"],"price_range":"价格区间","market_gap":"市场空白","summary":"一句话"}'
+        };
+        return {
+          sys:'你是跨品类图案研究专家。',
+          usr:'搜索'+cross+'热卖产品图案，寻找可移植到'+cat+'的灵感。输出JSON(不要markdown)：{"universal_elements":["元素1","元素2","元素3"],"transferable_styles":["风格1","风格2"],"innovation_directions":["方向1","方向2"],"summary":"一句话"}'
+        };
+      }
+
+      async function runStep(sid) {
+        const ns={...status,[sid]:'running'}; setStatus(ns);
+        const pr=buildPrompt(sid);
+        try {
+          const raw=await callClaudeWithSearch(pr.sys,pr.usr);
+          let parsed=null;
+          try{
+            const c=raw.replace(/```json[\s\S]*?```/g,function(m){return m.replace(/```json|```/g,'');}).replace(/```/g,'').trim();
+            const si=c.indexOf('{'),ei=c.lastIndexOf('}');
+            if(si>=0&&ei>=0){const j=JSON.parse(c.slice(si,ei+1));if(typeof j==='object'&&j!==null)parsed=j;}
+          }catch(e){}
+          if(!parsed){
+            try{
+              const c2=raw.trim();const m=c2.match(/\{[\s\S]+\}/);
+              if(m)parsed=JSON.parse(m[0]);
+            }catch(e2){}
+          }
+          const result=parsed||{summary:raw.slice(0,300)};
+          const nr={...results,[sid]:result};const nd={...ns,[sid]:'done'};
+          setResults(nr);setStatus(nd);persist(nd,nr,summary);
+          // Auto-trigger summary when all 3 steps succeed via individual buttons
+          const allDone=[1,2,3].every(function(id){return (id===sid)?true:(nd[id]==='done');});
+          if(allDone&&!running){
+            setTimeout(function(){genSummaryWith(nr);},800);
+          }
+          return result;
+        } catch(err) {
+          const nd={...ns,[sid]:'error'};const nr={...results,[sid]:{error:'失败：'+err.message}};
+          setStatus(nd);setResults(nr);persist(nd,nr,summary);return null;
+        }
+      }
+
+      async function runAll() {
+        setRunning(true);setStatus({});setResults({});setSummary('');S.s(SK,{});
+        const allR={};
+        for(let i=1;i<=3;i++){
+          const r=await runStep(i);if(r)allR[i]=r;
+          if(i<3)await new Promise(function(res){setTimeout(res,18000);});
+        }
+        setSumLoading(true);
+        try {
+          const r1=allR[1]||{};const r2=allR[2]||{};const r3=allR[3]||{};
+          const sp=[
+            '根据以下'+cat+' POD三方向市场调研数据，生成开发建议报告：',
+            '【趋势】流行元素：'+JSON.stringify(r1.trending_elements||[]),
+            '流行风格：'+JSON.stringify(r1.trending_styles||[]),
+            '流行配色：'+JSON.stringify(r1.trending_colors||[]),
+            '【销量】热卖元素：'+JSON.stringify(r2.hot_elements||[]),
+            '风格：'+JSON.stringify(r2.common_styles||[])+' 空白：'+(r2.market_gap||''),
+            '【跨界】通用元素：'+JSON.stringify(r3.universal_elements||[]),
+            '请输出：①市场判断 ②TOP3图案融合方向（含主题+流行元素+风格+配色）③安全底盘元素 ④本周行动建议'
+          ].join(' ');
+          const sum=await callClaudeAPI(sp,'你是'+cat+' POD开发策略师');
+          setSummary(sum);persist({...status,[1]:'done',[2]:'done',[3]:'done'},allR,sum);
+        } catch(err){setSummary('汇总生成失败，请手动点击生成');}
+        setSumLoading(false);setRunning(false);
+      }
+
+      async function genSummaryWith(resultsArg) {
+        const res=resultsArg||results;
+        setSumLoading(true);
+        try {
+          const r1=res[1]||{};const r2=res[2]||{};const r3=res[3]||{};
+          const sp=[
+            '根据'+cat+' POD三方向调研，生成开发建议：',
+            '趋势：'+JSON.stringify(r1.trending_elements||[])+' '+JSON.stringify(r1.trending_styles||[])+' '+JSON.stringify(r1.trending_colors||[]),
+            '销量：'+JSON.stringify(r2.hot_elements||[])+' 空白：'+(r2.market_gap||''),
+            '跨界：'+JSON.stringify(r3.universal_elements||[]),
+            '输出格式：①市场判断 ②TOP3图案融合方向（主题+元素+风格+配色）③安全底盘元素 ④本周行动建议'
+          ].join(' ');
+          const sum=await callClaudeAPI(sp,'你是'+cat+' POD开发策略师，给出简洁实用的开发建议');
+          setSummary(sum);persist(status,resultsArg||results,sum);
+        } catch(err){alert('生成失败：'+err.message);}
+        setSumLoading(false);
+      }
+
+      async function genSummary(){await genSummaryWith(null);}
+
+      const doneCount=Object.values(status).filter(function(s){return s==='done';}).length;
+      const steps=[
+        {id:1,emoji:'📈',title:'市场趋势',desc:'Google Trends / Pinterest / TikTok 流行元素&风格&配色'},
+        {id:2,emoji:'💰',title:'销量验证',desc:'Amazon Best Sellers / Etsy 热卖图案特征&市场空白'},
+        {id:3,emoji:'🔀',title:'跨界借鉴',desc:(CROSS_REF[cat]||[]).slice(0,3).join('/')+' 等类目热卖灵感'}
+      ];
+
+      return (
+        <div style={{display:'flex',flexDirection:'column',gap:16}}>
+          <div className="card" style={{background:colors.grad,color:'white',border:'none',padding:'16px 20px'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12}}>
+              <div>
+                <div style={{fontWeight:800,fontSize:17}}>📈 市场调研中心</div>
+                <div style={{fontSize:12,opacity:0.85,marginTop:2}}>三方向并行 · 数据自动保存 · 结果同步开发流程</div>
+                {lastTime&&<div style={{fontSize:11,opacity:0.7,marginTop:2}}>上次调研：{lastTime}</div>}
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'flex-end'}}>
+                {!running
+                  ? <button onClick={runAll} style={{padding:'10px 24px',background:'white',color:colors.ac,border:'none',borderRadius:8,fontWeight:800,cursor:'pointer',fontSize:13}}>🚀 一键全部调研</button>
+                  : <div style={{textAlign:'center'}}><div style={{fontSize:22,fontWeight:800}}>{doneCount}/3</div><div style={{fontSize:11,opacity:0.8}}>进行中...</div></div>
+                }
+                {!running&&doneCount>0&&<button onClick={function(){setStatus({});setResults({});setSummary('');S.s(SK,{});}}
+                  style={{background:'rgba(255,255,255,0.2)',border:'none',color:'white',fontSize:11,padding:'3px 10px',borderRadius:6,cursor:'pointer'}}>🔄 重新调研</button>}
+              </div>
+            </div>
+            {(running||doneCount>0)&&<div style={{display:'flex',gap:6,marginTop:12}}>
+              {steps.map(function(s){
+                const bg=status[s.id]==='done'?'rgba(255,255,255,0.9)':status[s.id]==='running'?'rgba(255,255,255,0.5)':status[s.id]==='error'?'#fca5a5':'rgba(255,255,255,0.2)';
+                return <div key={s.id} style={{flex:1,height:4,borderRadius:4,background:bg,transition:'background 0.5s'}}></div>;
+              })}
+            </div>}
+          </div>
+
+          {steps.map(function(step){
+            const st=status[step.id];const res=results[step.id];
+            const bc=st==='done'?'#10b981':st==='running'?'#8b5cf6':st==='error'?'#ef4444':'#e2e8f0';
+            const hbg=st==='done'?'#f0fdf4':st==='running'?'#f5f3ff':st==='error'?'#fef2f2':'#f8fafc';
+            const nb=st==='done'?'#10b981':st==='running'?'#8b5cf6':st==='error'?'#ef4444':'#e2e8f0';
+            const nc=st?'white':'#94a3b8';
+            const nt=st==='done'?'✓':st==='running'?'…':st==='error'?'!':String(step.id);
+            return (
+              <div key={step.id} className="research-card" style={{borderColor:bc}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 18px',background:hbg}}>
+                  <div style={{display:'flex',alignItems:'center',gap:12,flex:1}}>
+                    <div style={{width:34,height:34,borderRadius:'50%',background:nb,color:nc,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:13,flexShrink:0}}>{nt}</div>
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:700,fontSize:14}}>
+                        {step.emoji} {step.title}
+                        {st==='running'&&<span style={{marginLeft:8,color:'#8b5cf6',fontSize:11}}> 实时抓取中...</span>}
+                        {st==='done'&&<span style={{marginLeft:8,color:'#10b981',fontSize:11}}>✅ 完成</span>}
+                        {st==='error'&&<span style={{marginLeft:8,color:'#ef4444',fontSize:11}}>⚠️ 失败</span>}
+                      </div>
+                      <div style={{fontSize:11,color:'#64748b',marginTop:2}}>{step.desc}</div>
+                    </div>
+                  </div>
+                  {!running&&st!=='running'&&<button onClick={function(){runStep(step.id);}}
+                    style={{padding:'6px 14px',background:st==='error'?'#ef4444':st==='done'?'#64748b':colors.ac,color:'white',border:'none',borderRadius:6,fontSize:12,cursor:'pointer',fontWeight:600,flexShrink:0}}>
+                    {st==='error'?'🔄 重试':st==='done'?'🔄 重新执行':'▶ 单独执行'}
+                  </button>}
+                </div>
+                {st==='running'&&!res&&<div style={{padding:'30px',textAlign:'center',background:'white'}}><Spinner /><div style={{color:'#64748b',fontSize:12,marginTop:8}}>正在联网抓取实时数据...</div></div>}
+                {res&&!res.error&&<div style={{padding:'16px 18px',background:'white'}}>
+                  {res.summary&&<div style={{padding:'10px 14px',background:colors.ac+'15',borderRadius:8,fontSize:13,fontWeight:600,marginBottom:12,color:colors.ac}}>💡 {res.summary}</div>}
+                  {step.id===1&&<div>
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:10}}>
+                      {[['🔑 流行元素',res.trending_elements,'#667eea'],['🎨 流行风格',res.trending_styles,'#7c3aed'],['🌈 流行配色',res.trending_colors,'#0d9488']].map(function(x){
+                        return <div key={x[0]}>
+                          <div style={{fontSize:11,fontWeight:700,color:'#64748b',marginBottom:4}}>{x[0]}</div>
+                          <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
+                            {(x[1]||[]).map(function(e,i){return <span key={i} className="tag" style={{background:x[2]+'20',color:x[2],fontSize:10}}>{e}</span>;})}
+                            {(!x[1]||!x[1].length)&&<span style={{color:'#94a3b8',fontSize:11}}>暂无数据</span>}
+                          </div>
+                        </div>;
+                      })}
+                    </div>
+                    {res.dev_insight&&<div style={{padding:'8px 12px',background:'#f0fdf4',borderRadius:6,fontSize:12,color:'#16a34a',border:'1px solid #bbf7d0'}}>📌 开发洞察：{res.dev_insight}</div>}
+                  </div>}
+                  {step.id===2&&<div>
+                    <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:10}}>
+                      <div>
+                        <div style={{fontSize:11,fontWeight:700,color:'#64748b',marginBottom:4}}>🔥 热卖元素</div>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:3}}>{(res.hot_elements||[]).map(function(e,i){return <span key={i} className="tag" style={{background:'#fee2e2',color:'#dc2626',fontSize:10}}>{e}</span>;})}{(!res.hot_elements||!res.hot_elements.length)&&<span style={{color:'#94a3b8',fontSize:11}}>暂无</span>}</div>
+                      </div>
+                      <div>
+                        <div style={{fontSize:11,fontWeight:700,color:'#64748b',marginBottom:4}}>🎨 共同风格</div>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:3}}>{(res.common_styles||[]).map(function(e,i){return <span key={i} className="tag" style={{background:colors.ac+'20',color:colors.ac,fontSize:10}}>{e}</span>;})}{(!res.common_styles||!res.common_styles.length)&&<span style={{color:'#94a3b8',fontSize:11}}>暂无</span>}</div>
+                      </div>
+                      <div>
+                        <div style={{fontSize:11,fontWeight:700,color:'#64748b',marginBottom:4}}>💰 价格带</div>
+                        <div style={{fontSize:12,color:'#475569',marginTop:4,fontWeight:600}}>{res.price_range||'-'}</div>
+                      </div>
+                    </div>
+                    {res.market_gap&&<div style={{padding:'8px 12px',background:'#fff7ed',borderRadius:6,fontSize:12,color:'#ea580c',border:'1px solid #fed7aa'}}>🎯 市场空白：{res.market_gap}</div>}
+                  </div>}
+                  {step.id===3&&<div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+                      <div>
+                        <div style={{fontSize:11,fontWeight:700,color:'#64748b',marginBottom:4}}>🌐 通用热卖元素</div>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:3}}>{(res.universal_elements||[]).map(function(e,i){return <span key={i} className="tag" style={{background:colors.ac+'20',color:colors.ac,fontSize:10}}>{e}</span>;})}{(!res.universal_elements||!res.universal_elements.length)&&<span style={{color:'#94a3b8',fontSize:11}}>暂无</span>}</div>
+                      </div>
+                      <div>
+                        <div style={{fontSize:11,fontWeight:700,color:'#64748b',marginBottom:4}}>🔀 可移植风格</div>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:3}}>{(res.transferable_styles||[]).map(function(e,i){return <span key={i} className="tag" style={{background:'#f5f3ff',color:'#7c3aed',fontSize:10}}>{e}</span>;})}{(!res.transferable_styles||!res.transferable_styles.length)&&<span style={{color:'#94a3b8',fontSize:11}}>暂无</span>}</div>
+                      </div>
+                    </div>
+                    {(res.innovation_directions||[]).length>0&&<div>
+                      <div style={{fontSize:11,fontWeight:700,color:'#64748b',marginBottom:6}}>🚀 创新方向</div>
+                      {res.innovation_directions.map(function(d,i){return <div key={i} style={{fontSize:12,padding:'5px 10px',background:'#fff7ed',borderRadius:6,marginBottom:4,color:'#92400e',border:'1px solid #fed7aa'}}>→ {d}</div>;})}
+                    </div>}
+                  </div>}
+                </div>}
+                {res&&res.error&&<div style={{padding:'12px 18px',background:'#fef2f2',color:'#dc2626',fontSize:12}}>{res.error}</div>}
+              </div>
+            );
+          })}
+
+          <div className="card" style={{border:'2px solid '+colors.ac+'40'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+              <div style={{fontWeight:700,fontSize:15}}>💡 AI综合报告</div>
+              <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
+                {sumLoading&&<span style={{fontSize:11,color:colors.ac,fontWeight:600,animation:'pulse 1s infinite'}}>⏳ AI正在生成报告...</span>}
+                {doneCount>0&&!sumLoading&&<button onClick={function(){genSummaryWith(null);}} style={{padding:'6px 14px',background:colors.ac,color:'white',border:'none',borderRadius:6,fontSize:12,cursor:'pointer',fontWeight:600}}>{summary?'🔄 重新生成':'🤖 生成综合报告'}</button>}
+                {summary&&!sumLoading&&<CopyBtn text={summary} label="📋 复制" />}
+                {summary&&!sumLoading&&<button onClick={function(){const blob=new Blob([summary],{type:'text/plain;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='市调报告_'+cat+'_'+new Date().toISOString().slice(0,10)+'.txt';a.click();URL.revokeObjectURL(url);}} style={{padding:'6px 14px',background:'#16a34a',color:'white',border:'none',borderRadius:6,fontSize:12,cursor:'pointer',fontWeight:600}}>📥 下载</button>}
+              </div>
+            </div>
+            {sumLoading&&<Spinner />}
+            {summary&&!sumLoading&&<div style={{background:'#f8fafc',borderRadius:8,padding:14,fontSize:13,lineHeight:1.8,whiteSpace:'pre-wrap'}}>{summary}</div>}
+            {!summary&&!sumLoading&&<div style={{textAlign:'center',padding:24,color:'#94a3b8',fontSize:13}}>{doneCount>0?'点击「生成综合报告」':'先执行调研，AI将自动生成建议'}</div>}
+          </div>
+        </div>
+      );
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // PAGE: WORKFLOW (5步)
+    // ════════════════════════════════════════════════════════════════
+    function PageWorkflow({cat,colors,priorities,onConfirm}) {
+      const SK='workflow_'+cat;
+      const [step,setStep] = useState(0);
+      const [data,setData] = useState(function(){return S.g(SK)||{};});
+      function upd(k,v){setData(function(prev){const next={...prev,[k]:v};S.s(SK,next);return next;});}
+      const stepDefs=['人群&场景','选择主题','元素融合','MJ咒语','确认任务'];
+      function handleConfirm(task){S.s(SK,{});setData({});setStep(0);onConfirm(task);}
+      const research = S.g('research_'+cat)||{};
+      const Comps=[WFStep0,WFStep1,WFStep2,WFStep3,WFStep4];
+      const Comp=Comps[step];
+      return (
+        <div style={{display:'flex',flexDirection:'column',gap:16}}>
+          <div className="card" style={{padding:'16px 20px'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'center',overflowX:'auto',gap:0}}>
+              {stepDefs.map(function(label,i){
+                const done=i<step;const active=i===step;
+                const dotBg=done?colors.ac:active?'white':'#e2e8f0';
+                const dotC=done?'white':active?colors.ac:'#94a3b8';
+                const dotBorder=active?'2px solid '+colors.ac:'none';
+                return <div key={i} style={{display:'flex',alignItems:'center'}}>
+                  <div style={{display:'flex',flexDirection:'column',alignItems:'center',cursor:i<=step?'pointer':'default'}}
+                    onClick={function(){if(i<=step)setStep(i);}}>
+                    <div className="step-dot" style={{background:dotBg,color:dotC,border:dotBorder}}>{done?'✓':i+1}</div>
+                    <div style={{fontSize:10,marginTop:4,color:active?colors.ac:'#94a3b8',fontWeight:active?700:400,whiteSpace:'nowrap'}}>{label}</div>
+                  </div>
+                  {i<stepDefs.length-1&&<div style={{width:24,height:2,background:done?colors.ac:'#e2e8f0',margin:'0 2px',marginBottom:16}}></div>}
+                </div>;
+              })}
+            </div>
+          </div>
+          <div className="card">
+            <Comp data={data} upd={upd} cat={cat} colors={colors} priorities={priorities} research={research}
+              onNext={function(){setStep(function(s){return Math.min(s+1,4);});}}
+              onBack={function(){setStep(function(s){return Math.max(s-1,0);});}}
+              onConfirm={handleConfirm} />
+          </div>
+        </div>
+      );
+    }
+
+    function WFStep0({data,upd,cat,colors,onNext}) {
+      const isHome=cat==='家居';
+      function sel(k,v){upd(k,v);}
+      function tog(k,v){const cur=data[k]||[];upd(k,cur.indexOf(v)>=0?cur.filter(function(x){return x!==v;}):[...cur,v]);}
+      function isS(k,v){return data[k]===v;}
+      function isC(k,v){return (data[k]||[]).indexOf(v)>=0;}
+      const canNext=isHome?!!data.buyMotivation:(!!data.ageGroup&&!!data.buyerPerspective);
+      const ROW=function({name,val,label}){return <label className={'sel-opt'+(isS(name,val)?' on':'')} style={isS(name,val)?{'--ac':colors.ac}:{}}><input type="radio" name={name} checked={isS(name,val)} onChange={function(){sel(name,val);}} style={{width:15,height:15}} />{label}</label>;};
+      const CHK=function({k,val}){return <label className={'sel-opt'+(isC(k,val)?' on':'')} style={isC(k,val)?{'--ac':colors.ac}:{}}><input type="checkbox" checked={isC(k,val)} onChange={function(){tog(k,val);}} style={{width:14,height:14}} />{val}</label>;};
+      return <div style={{display:'flex',flexDirection:'column',gap:16}}>
+        <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>Step 1 — {isHome?'类目&场景':'人群&场景'}</div>
+        {!isHome&&<>
+          <div><div style={{fontWeight:600,fontSize:13,marginBottom:8}}>年龄段 <span style={{color:'#ef4444'}}>*</span></div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
+              {[['newborn','👶 Newborn 0-2岁'],['toddler','🧒 Toddler 2-5岁'],['littleKid','👦 Little Kid 6-10岁'],['bigKid','🧑 Big Kid 11-14岁']].map(function(o){return <ROW key={o[0]} name="ageGroup" val={o[0]} label={o[1]} />;})}</div></div>
+          <div><div style={{fontWeight:600,fontSize:13,marginBottom:8}}>性别倾向</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+              {[['unisex','💛 通用'],['boy','💙 男童'],['girl','💗 女童']].map(function(o){return <ROW key={o[0]} name="gender" val={o[0]} label={o[1]} />;})}</div></div>
+          <div><div style={{fontWeight:600,fontSize:13,marginBottom:8}}>使用场景</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6}}>
+              {['日常穿','幼儿园','生日主题','节日','睡衣','外出','拍照','运动'].map(function(s){return <CHK key={s} k="scenes" val={s} />;})}</div></div>
+          <div><div style={{fontWeight:600,fontSize:13,marginBottom:8}}>购买视角 <span style={{color:'#ef4444'}}>*</span></div>
+            <div style={{display:'flex',flexDirection:'column',gap:6}}>
+              <ROW name="buyerPerspective" val="mom" label="妈妈审美优先（柔和安全精致）" />
+              <ROW name="buyerPerspective" val="kid" label="小孩喜欢（鲜艳有趣酷炫）" /></div></div>
+        </>}
+        {isHome&&<>
+          <div><div style={{fontWeight:600,fontSize:13,marginBottom:8}}>适用空间</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6}}>
+              {['客厅','卧室','玄关/走廊','厨房/餐厅','浴室','儿童房','办公室','户外'].map(function(r){return <CHK key={r} k="rooms" val={r} />;})}</div></div>
+          <div><div style={{fontWeight:600,fontSize:13,marginBottom:8}}>空间氛围</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6}}>
+              {[['cozy','🕯️ 温馨居家'],['minimal','✨ 简约极简'],['boho','🌿 波西米亚'],['coastal','🌊 海岸度假'],['farmhouse','🌾 乡村农舍'],['luxe','💎 轻奢高级']].map(function(a){return <CHK key={a[0]} k="homeAtm" val={a[0]} />;})}</div></div>
+          <div><div style={{fontWeight:600,fontSize:13,marginBottom:8}}>购买动机 <span style={{color:'#ef4444'}}>*</span></div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+              {[['self','🏡 自用升级'],['gift','🎁 送礼'],['rental','🏠 租房友好']].map(function(o){return <ROW key={o[0]} name="buyMotivation" val={o[0]} label={o[1]} />;})}</div></div>
+        </>}
+        <div><div style={{fontWeight:600,fontSize:13,marginBottom:8}}>目标价位</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+            {[['low','💰 低价走量'],['mid','💰💰 中价利润'],['high','💰💰💰 高价溢价']].map(function(o){return <ROW key={o[0]} name="priceRange" val={o[0]} label={o[1]} />;})}</div></div>
+        <button className="btn" onClick={function(){if(!canNext){alert('请完成必填项');return;}onNext();}}
+          style={{background:colors.ac,color:'white',width:'100%',padding:'12px',fontSize:15}}>确认并继续 →</button>
+      </div>;
+    }
+
+    function WFStep1({data,upd,colors,priorities,onNext,onBack}) {
+      return <div style={{display:'flex',flexDirection:'column',gap:12}}>
+        <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>Step 2 — 选择主题</div>
+        <div style={{fontSize:13,color:'#64748b'}}>系统已按节日紧急度、季节窗口、常青轮换自动排序</div>
+        {priorities.slice(0,9).map(function(p,i){
+          const isSel=data.theme&&(data.theme.key===p.theme.key||data.theme.id===p.theme.id);
+          const bc=p.urgency>=9?'#ef4444':p.urgency>=7?'#f97316':p.urgency>=5?'#3b82f6':'#10b981';
+          const bg=p.urgency>=9?'#fef2f2':p.urgency>=7?'#fff7ed':p.urgency>=5?'#eff6ff':'#f0fdf4';
+          return <div key={i} onClick={function(){upd('theme',p.theme);setTimeout(onNext,180);}}
+            style={{padding:'14px 16px',borderRadius:10,border:'2px solid '+(isSel?colors.ac:bc),background:bg,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',transition:'all 0.2s'}}>
+            <div style={{display:'flex',alignItems:'center',gap:12}}>
+              <span style={{fontSize:24}}>{p.theme.emoji}</span>
+              <div><div style={{fontWeight:600,fontSize:14}}>{p.theme.name||p.theme.en}</div>
+              <div style={{fontSize:11,color:'#64748b'}}>{p.reason}</div></div>
+            </div>
+            <UrgBadge urgency={p.urgency} />
+          </div>;
+        })}
+        <button className="btn" onClick={onBack} style={{background:'#f1f5f9',color:'#475569',width:'100%'}}>← 上一步</button>
+      </div>;
+    }
+
+    function WFStep2({data,upd,cat,colors,research,onNext,onBack}) {
+      const [combos,setCombos] = useState(data.elementCombos||[]);
+      const [loading,setLoading] = useState(false);
+      const [selected,setSelected] = useState(data.selectedCombos||[]);
+      const theme=data.theme||{};
+      const themeKey=theme.name||theme.en||'';
+      const themeElems=THEME_ELEMENTS[themeKey]||{hot:[],avoid:[]};
+      const rs=(research.results)||{};
+      const r1=rs[1]||{};const r2=rs[2]||{};const r3=rs[3]||{};
+
+      async function gen() {
+        setLoading(true);
+        const ageInfo=cat==='家居'
+          ?'适用空间：'+(data.rooms||[]).join('、')+'，氛围：'+(data.homeAtm||[]).join('、')
+          :'年龄：'+(data.ageGroup||'toddler')+'，性别：'+(data.gender||'通用')+'，场景：'+(data.scenes||[]).join('、');
+        const parts=[
+          '你是'+cat+' POD爆款图案设计专家。',
+          '目标：'+themeKey+'主题，'+cat+'品类，'+ageInfo,
+          '【主题热卖元素】'+JSON.stringify(themeElems.hot)+'，避免：'+JSON.stringify(themeElems.avoid),
+          '【市调流行元素】'+JSON.stringify(r1.trending_elements||[]),
+          '【市调流行风格】'+JSON.stringify(r1.trending_styles||[]),
+          '【市调流行配色】'+JSON.stringify(r1.trending_colors||[]),
+          '【Amazon热卖元素】'+JSON.stringify(r2.hot_elements||[]),
+          '【跨界通用元素】'+JSON.stringify(r3.universal_elements||[]),
+          'Formula: trending style + trending color + trending elements + theme hot elements = hit pattern. Generate 4 combos, 40% core + 30% trend + 30% connecting elements, max 6 colors, 100% original.',
+          'Output JSON array ONLY (no markdown, no explanation): [{"name":"English name","nameCN":"中文名","core_elements":["English element"],"trend_elements":["English element"],"connect_elements":["English element"],"style":"English style","colors":["#hex1","#hex2","#hex3"],"market_fit":"reason","formula_note":"how formula applied"}]'
+        ];
+        try {
+          const raw=await callClaudeAPI(parts.join(' '),'You are a '+cat+' POD design expert. Output JSON array ONLY in English.');
+          const c=raw.replace(/```json|```/g,'').trim();
+          const si=c.indexOf('['),ei=c.lastIndexOf(']');
+          if(si>=0&&ei>=0){const p=JSON.parse(c.slice(si,ei+1));setCombos(p);upd('elementCombos',p);}
+          else alert('AI格式错误，请重试');
+        }catch(err){alert('生成失败：'+err.message);}
+        setLoading(false);
+      }
+
+      function toggleSel(c) {
+        setSelected(function(prev){
+          const ex=prev.find(function(x){return x.name===c.name;});
+          const next=ex?prev.filter(function(x){return x.name!==c.name;}):[...prev,c];
+          upd('selectedCombos',next);return next;
+        });
+      }
+
+      const hasResearch=Object.keys(rs).length>0;
+      return <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>Step 3 — 元素融合设计</div>
+        <div style={{padding:'12px 16px',borderRadius:10,background:colors.ac+'10',border:'1px solid '+colors.ac+'30'}}>
+          <div style={{fontWeight:600,fontSize:13,marginBottom:6}}>📊 市调数据（自动读取）</div>
+          {hasResearch?<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,fontSize:11}}>
+            {[['流行元素',r1.trending_elements||[],'🔑'],['流行风格',r1.trending_styles||[],'🎨'],['流行配色',r1.trending_colors||[],'🌈']].map(function(x){
+              return <div key={x[0]}><div style={{color:'#64748b',fontWeight:600,marginBottom:4}}>{x[2]} {x[0]}</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:3}}>{x[1].slice(0,3).map(function(e,i){return <span key={i} className="tag" style={{background:colors.ac+'20',color:colors.ac,fontSize:10}}>{e}</span>;})}{x[1].length===0&&<span style={{color:'#94a3b8'}}>无数据</span>}</div></div>;
+            })}
+          </div>:<div style={{fontSize:12,color:'#64748b'}}>⚠️ 建议先完成「市场调研」获得更精准方案</div>}
+          <div style={{marginTop:8,fontSize:11,color:'#64748b'}}>🎯 主题热卖元素库：<span style={{color:colors.ac}}>{themeElems.hot.slice(0,5).join('、')||'通用'}</span></div>
+        </div>
+        <div style={{padding:'10px 14px',borderRadius:8,background:'#fef3c7',border:'1px solid #fde68a',fontSize:12}}>
+          <strong>💡 融合公式：</strong>流行风格 + 流行配色 + 流行元素 + 主题热卖元素 = 爆款图案
+        </div>
+        <button className="btn" onClick={gen} disabled={loading} style={{background:colors.ac,color:'white',width:'100%',padding:'12px',fontSize:14,opacity:loading?0.5:1}}>
+          {loading?'🔄 AI生成融合方案中...':'🤖 AI生成元素融合方案'}
+        </button>
+        {loading&&<Spinner />}
+        {combos.length>0&&<div>
+          <div style={{fontSize:13,color:'#64748b',marginBottom:8}}>选择要开发的方案（可多选）：</div>
+          {combos.map(function(c,i){
+            const isSel=!!selected.find(function(x){return x.name===c.name;});
+            return <div key={i} className="combo-card" onClick={function(){toggleSel(c);}}
+              style={isSel?{borderColor:colors.ac,background:colors.ac+'08'}:{}}>
+              <div style={{display:'flex',alignItems:'flex-start',gap:10}}>
+                <input type="checkbox" checked={isSel} onChange={function(){toggleSel(c);}} style={{width:18,height:18,marginTop:2,flexShrink:0}} />
+                <div style={{flex:1}}>
+                  <div style={{fontWeight:700,fontSize:15,color:colors.ac}}>{c.name}</div>
+                  <div style={{fontSize:12,color:'#64748b',marginBottom:6}}>{c.nameCN} · {c.style}</div>
+                  {c.formula_note&&<div style={{fontSize:11,padding:'6px 10px',background:colors.ac+'12',borderRadius:6,marginBottom:8,color:colors.ac}}>✨ {c.formula_note}</div>}
+                  <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6,fontSize:11}}>
+                    {[['🔵 常规',c.core_elements,'#2563eb'],['🟣 流行',c.trend_elements,'#7c3aed'],['⚪ 连接',c.connect_elements,'#64748b']].map(function(row){
+                      return <div key={row[0]}><div style={{fontWeight:600,color:row[2],marginBottom:3}}>{row[0]}</div>
+                        <div style={{display:'flex',flexWrap:'wrap',gap:3}}>{(row[1]||[]).map(function(e,j){return <span key={j} className="tag" style={{background:row[2]+'15',color:row[2],fontSize:10}}>{e}</span>;})}</div></div>;
+                    })}
+                  </div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:4,marginTop:8}}>{(c.colors||[]).map(function(cl,j){return <span key={j} className="tag" style={{background:'#f1f5f9',color:'#475569',fontSize:10}}>🎨 {cl}</span>;})}</div>
+                  {c.market_fit&&<div style={{marginTop:8,fontSize:11,padding:'6px 10px',background:'#f8fafc',borderRadius:6,color:'#475569'}}>💡 {c.market_fit}</div>}
+                </div>
+              </div>
+            </div>;
+          })}
+          {selected.length>0&&<button className="btn" onClick={function(){upd('selectedCombos',selected);onNext();}}
+            style={{background:colors.ac,color:'white',width:'100%',padding:'12px',marginTop:8}}>
+            已选 {selected.length} 个方案，生成MJ咒语 →
+          </button>}
+        </div>}
+        <button className="btn" onClick={onBack} style={{background:'#f1f5f9',color:'#475569',width:'100%'}}>← 上一步</button>
+      </div>;
+    }
+
+    function WFStep3({data,upd,cat,colors,onNext,onBack}) {
+      const [prompts,setPrompts] = useState(data.mjPrompts||{});
+      const [loading,setLoading] = useState(false);
+      const combos=data.selectedCombos||[];
+      const theme=data.theme||{};
+      const isHome=cat==='家居';
+
+      function gen() {
+        setLoading(true);
+        const ag=data.ageGroup||'toddler';const gd=data.gender||'unisex';
+        const ageCfg={newborn:{mod:'extra large design whitespace 40%',sty:180},toddler:{mod:'playful medium density',sty:200},littleKid:{mod:'detailed school style',sty:220},bigKid:{mod:'trendy teenager style',sty:250}};
+        const cfg=isHome?{mod:'home decor style minimal',sty:200}:(ageCfg[ag]||ageCfg.toddler);
+        const gMod=isHome?'':gd==='boy'?', boys theme':gd==='girl'?', girls cute theme':', gender neutral';
+        const tTag=isHome?'HOME DECOR '+(theme.name||''):(ag==='newborn'?'NEWBORN':ag==='toddler'?'TODDLER':ag==='littleKid'?'LITTLE KID 6-10y':'BIG KID 11-14y')+' '+(theme.name||theme.en||'');
+        const allP={};
+        combos.forEach(function(combo){
+          const core=combo.core_elements||[];const trend=combo.trend_elements||[];const conn=combo.connect_elements||[];
+          const all=[...core,...trend,...conn];
+          const colorStr=(combo.colors||[]).slice(0,3).join(', ')||'soft pastel colors';
+          const sty=combo.style||'';const ps=[];
+          for(let i=0;i<5;i++){
+            const mjs=MJ_STYLES[i]||'';const els=[];
+            if(core.length>0)els.push(core[i%core.length]);
+            const fill=all.filter(function(e){return els.indexOf(e)<0;});
+            if(fill.length>0)els.push(fill[i%fill.length]);
+            if(conn.length>0&&els.indexOf(conn[0])<0)els.push(conn[0]);
+            ps.push('/imagine prompt: '+els.join(', ')+', '+sty+', FOR '+tTag+gMod+', '+cfg.mod+', '+colorStr+', seamless repeat pattern, '+mjs+' --tile --no watermark text --ar 1:1 --v 6 --stylize '+cfg.sty);
+          }
+          for(let j=5;j<10;j++){
+            const mjs2=MJ_STYLES[j]||'';const els2=[];
+            for(let k=0;k<3&&k<all.length;k++){const el=all[(j*2+k)%all.length];if(els2.indexOf(el)<0)els2.push(el);}
+            ps.push('/imagine prompt: '+els2.join(', ')+', '+sty+', FOR '+tTag+gMod+', '+cfg.mod+', '+colorStr+', centered single design, '+mjs2+' --no watermark text pattern --ar 1:1 --v 6 --stylize '+cfg.sty);
+          }
+          allP[combo.name]=ps;
+        });
+        setPrompts(allP);upd('mjPrompts',allP);setLoading(false);
+      }
+
+      return <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>Step 4 — 生成MJ咒语</div>
+        <div style={{fontSize:13,color:'#64748b'}}>每个方案10条：前5条无缝图（--tile），后5条单独设计图，风格各不同</div>
+        <div style={{display:'flex',gap:10}}>
+          <button className="btn" onClick={gen} disabled={loading} style={{background:colors.ac,color:'white',flex:1,padding:'12px',opacity:loading?0.5:1}}>
+            {loading?'🔄 生成中...':'🎨 生成MJ咒语（10条/方案）'}
+          </button>
+          {Object.keys(prompts).length>0&&!loading&&<button className="btn" onClick={function(){setPrompts({});upd('mjPrompts',{});setTimeout(gen,100);}} style={{background:'#f1f5f9',color:'#475569'}}>🔄 重新生成</button>}
+        </div>
+        {Object.entries(prompts).map(function(entry){
+          const name=entry[0];const list=entry[1];
+          return <div key={name} style={{border:'2px solid '+colors.ac+'50',borderRadius:12,overflow:'hidden'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',background:colors.ac+'10'}}>
+              <div style={{fontWeight:700,fontSize:15,color:colors.ac}}>{name}</div>
+              <CopyBtn text={list.join('\n\n')} label="📋 复制全部10条" />
+            </div>
+            <div style={{padding:12,background:'white',display:'flex',flexDirection:'column',gap:8}}>
+              <div style={{fontSize:11,padding:'6px 10px',background:'#f8fafc',borderRadius:6,color:'#64748b'}}>前5条 🔲 无缝图（--tile）｜ 后5条 🖼️ 单独设计图</div>
+              {list.map(function(p,i){
+                return <div key={i} className="code-block">
+                  <div style={{color:'#94a3b8',fontSize:10,marginBottom:4}}>#{i+1} {i<5?'🔲 无缝图':'🖼️ 单独图'}</div>
+                  <div style={{paddingRight:50}}>{p}</div>
+                  <button className="copy-btn-abs" onClick={function(){navigator.clipboard.writeText(p);}}>复制</button>
+                </div>;
+              })}
+            </div>
+          </div>;
+        })}
+        {Object.keys(prompts).length>0&&<button className="btn" onClick={onNext} style={{background:colors.ac,color:'white',width:'100%',padding:'12px'}}>拿去MJ生成图片 → 前往Listing →</button>}
+        <button className="btn" onClick={onBack} style={{background:'#f1f5f9',color:'#475569',width:'100%'}}>← 上一步</button>
+      </div>;
+    }
+
+    function WFStep4({data,colors,cat,onConfirm,onBack}) {
+      const theme=data.theme||{};
+      const combos=data.selectedCombos||[];
+      const mjCount=Object.values(data.mjPrompts||{}).reduce(function(s,l){return s+l.length;},0);
+      return <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>Step 5 — 确认任务</div>
+        <div style={{borderRadius:12,padding:24,background:colors.ac+'12',textAlign:'center'}}>
+          <div style={{fontSize:48}}>{theme.emoji}</div>
+          <div style={{fontWeight:800,fontSize:20,marginTop:8}}>{theme.name||theme.en}</div>
+          <div style={{color:'#64748b',fontSize:13,marginTop:4}}>{cat}</div>
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
+          {[['元素方案',combos.length,'🎨'],['MJ咒语',mjCount,'✏️'],['版权','上传检查','🛡️']].map(function(x){
+            return <div key={x[0]} className="card" style={{textAlign:'center',padding:'14px 8px'}}>
+              <div style={{fontSize:20}}>{x[2]}</div>
+              <div style={{fontSize:22,fontWeight:800,color:colors.ac}}>{x[1]}</div>
+              <div style={{fontSize:11,color:'#64748b'}}>{x[0]}</div>
+            </div>;
+          })}
+        </div>
+        <div style={{padding:'12px 16px',background:'#fff7ed',borderRadius:8,fontSize:13,color:'#92400e',border:'1px solid #fed7aa'}}>
+          ⚠️ 确认后请前往「Listing」页面，上传MJ生成的图片进行侵权检查和文案生成
+        </div>
+        <button className="btn" onClick={function(){onConfirm({id:Date.now().toString(),themeName:theme.name||theme.en,emoji:theme.emoji||'📦',cat:cat,combos:combos,comboNames:combos.map(function(c){return c.nameCN||c.name||'方案';}),mjCount:mjCount,confirmedAt:new Date().toISOString(),done:false});}}
+          style={{background:colors.ac,color:'white',width:'100%',padding:'14px',fontSize:16,fontWeight:800}}>
+          ✅ 确认任务，同步到看板
+        </button>
+        <button className="btn" onClick={onBack} style={{background:'#f1f5f9',color:'#475569',width:'100%'}}>← 上一步</button>
+      </div>;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // PAGE: LISTING (4栏可视化)
+    // ════════════════════════════════════════════════════════════════
+
+    // ════════════════════════════════════════════════════════════════
+    // APLUS CANVAS COMPONENT
+    // ════════════════════════════════════════════════════════════════
+    function AplusCanvas({images,colors,cat}) {
+      const [layout,setLayout] = useState('left-right');
+      const [bgColor,setBgColor] = useState('#FFFFFF');
+      const [acColor,setAcColor] = useState(colors.ac);
+      const [headline,setHeadline] = useState('');
+      const [subtext,setSubtext] = useState('');
+      const [selImg,setSelImg] = useState(0);
+      const [fontSize,setFontSize] = useState(32);
+      const [ownImgs,setOwnImgs] = useState([]);
+      const [selOwnImg,setSelOwnImg] = useState(0);
+      const canvasRef = React.useRef(null);
+      // Canvas size: Amazon A+ recommended 970x600 or 1464x600
+      const CW=1464,CH=600;
+
+      const layouts=[
+        {id:'left-right',label:'◧ 左图右文'},
+        {id:'overlay',label:'⬛ 全图叠字'},
+        {id:'top-bottom',label:'⬒ 上图下文'},
+        {id:'split',label:'⬕ 分栏对比'},
+        {id:'banner',label:'▬ 横幅Banner'},
+      ];
+
+      const allImages = ownImgs.length>0 ? ownImgs : images;
+      const curImg = allImages[selOwnImg]||allImages[selImg];
+
+      React.useEffect(function(){drawCanvas();},[layout,bgColor,acColor,headline,subtext,selImg,selOwnImg,fontSize,images,ownImgs]);
+
+      function handleOwnUpload(e){
+        const files=Array.from(e.target.files);
+        const readers=files.map(function(f){
+          return new Promise(function(resolve){
+            const r=new FileReader();
+            r.onload=function(ev){resolve({name:f.name,dataUrl:ev.target.result});};
+            r.readAsDataURL(f);
+          });
+        });
+        Promise.all(readers).then(function(imgs){setOwnImgs(function(prev){return [...prev,...imgs];});setSelOwnImg(0);});
+      }
+
+      function drawCanvas(){
+        const canvas=canvasRef.current;
+        if(!canvas)return;
+        const ctx=canvas.getContext('2d');
+        const W=canvas.width,H=canvas.height;
+        ctx.clearRect(0,0,W,H);
+        ctx.fillStyle=bgColor;
+        ctx.fillRect(0,0,W,H);
+        const hl=headline||(cat==='童装'?'Premium Kids Design':'Quality Home Decor');
+        const sub=subtext||'Unique Handcrafted Pattern';
+
+        function finishText(){
+          if(layout==='left-right'){
+            ctx.fillStyle=acColor+'12';ctx.fillRect(0,0,W*0.5,H);
+            ctx.fillStyle=acColor;ctx.fillRect(W*0.5,0,3,H);
+            ctx.fillStyle=acColor;ctx.font='bold '+fontSize+'px Arial';ctx.textAlign='center';
+            ctx.fillText(hl,W*0.75,H*0.38,W*0.44);
+            ctx.fillRect(W*0.55,H*0.28,80,4);
+            ctx.fillStyle='#475569';ctx.font=(fontSize*0.55)+'px Arial';
+            wrapText(ctx,sub,W*0.75,H*0.52,W*0.44,fontSize*0.72);
+          } else if(layout==='overlay'){
+            const grad=ctx.createLinearGradient(0,H*0.45,0,H);
+            grad.addColorStop(0,'transparent');grad.addColorStop(1,acColor+'EE');
+            ctx.fillStyle=grad;ctx.fillRect(0,0,W,H);
+            ctx.fillStyle='white';ctx.font='bold '+fontSize+'px Arial';ctx.textAlign='center';
+            ctx.fillText(hl,W/2,H*0.72,W*0.9);
+            ctx.font=(fontSize*0.5)+'px Arial';
+            wrapText(ctx,sub,W/2,H*0.84,W*0.85,fontSize*0.65);
+          } else if(layout==='top-bottom'){
+            ctx.fillStyle=acColor+'10';ctx.fillRect(0,H*0.62,W,H*0.38);
+            ctx.strokeStyle=acColor;ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(40,H*0.62);ctx.lineTo(W-40,H*0.62);ctx.stroke();
+            ctx.fillStyle=acColor;ctx.font='bold '+fontSize+'px Arial';ctx.textAlign='center';
+            ctx.fillText(hl,W/2,H*0.74,W*0.9);
+            ctx.fillStyle='#475569';ctx.font=(fontSize*0.52)+'px Arial';
+            wrapText(ctx,sub,W/2,H*0.86,W*0.85,fontSize*0.65);
+          } else if(layout==='split'){
+            ctx.strokeStyle='#cbd5e1';ctx.lineWidth=2;ctx.setLineDash([8,4]);
+            ctx.beginPath();ctx.moveTo(W/2,30);ctx.lineTo(W/2,H-30);ctx.stroke();ctx.setLineDash([]);
+            ctx.fillStyle=acColor;ctx.font='bold '+(fontSize*0.65)+'px Arial';ctx.textAlign='center';
+            ctx.fillText('BEFORE',W*0.25,H*0.14,W*0.44);ctx.fillText('AFTER',W*0.75,H*0.14,W*0.44);
+            ctx.fillStyle='#64748b';ctx.font=(fontSize*0.45)+'px Arial';
+            wrapText(ctx,sub,W/2,H*0.9,W*0.9,fontSize*0.58);
+          } else if(layout==='banner'){
+            ctx.fillStyle=acColor;ctx.fillRect(0,0,W,H*0.16);ctx.fillRect(0,H*0.84,W,H*0.16);
+            ctx.fillStyle='white';ctx.font='bold '+(fontSize*0.65)+'px Arial';ctx.textAlign='center';
+            ctx.fillText(hl,W/2,H*0.11,W*0.85);ctx.font=(fontSize*0.45)+'px Arial';
+            ctx.fillText(sub,W/2,H*0.91,W*0.85);
+          }
+        }
+
+        // Draw image maintaining aspect ratio (contain mode)
+        function drawContain(ctx, img, x, y, w, h, padding) {
+          const p = padding||0;
+          const dx=x+p, dy=y+p, dw=w-p*2, dh=h-p*2;
+          const scale = Math.min(dw/img.width, dh/img.height);
+          const sw = img.width*scale, sh = img.height*scale;
+          const ox = dx+(dw-sw)/2, oy = dy+(dh-sh)/2;
+          ctx.drawImage(img, ox, oy, sw, sh);
+        }
+
+        const imgSrc=curImg?curImg.dataUrl:null;
+        if(imgSrc){
+          const image=new Image();
+          image.onload=function(){
+            if(layout==='left-right'){
+              drawContain(ctx,image,W*0.02,H*0.04,W*0.46,H*0.92,10);
+            } else if(layout==='overlay'){
+              drawContain(ctx,image,0,0,W,H,0);
+            } else if(layout==='top-bottom'){
+              drawContain(ctx,image,W*0.1,H*0.01,W*0.8,H*0.58,8);
+            } else if(layout==='split'){
+              drawContain(ctx,image,W*0.06,H*0.18,W*0.38,H*0.65,6);
+              drawContain(ctx,image,W*0.56,H*0.18,W*0.38,H*0.65,6);
+            } else if(layout==='banner'){
+              drawContain(ctx,image,W*0.12,H*0.17,W*0.76,H*0.65,8);
+            }
+            finishText();
+          };
+          image.onerror=finishText;
+          image.src=imgSrc;
+        } else {
+          ctx.fillStyle=acColor+'18';
+          if(layout==='left-right') ctx.fillRect(W*0.02,H*0.06,W*0.46,H*0.88);
+          else if(layout==='overlay') ctx.fillRect(0,0,W,H);
+          else if(layout==='top-bottom') ctx.fillRect(W*0.15,H*0.01,W*0.7,H*0.58);
+          else if(layout==='split'){ctx.fillRect(W*0.06,H*0.18,W*0.38,H*0.65);ctx.fillRect(W*0.56,H*0.18,W*0.38,H*0.65);}
+          else ctx.fillRect(W*0.12,H*0.17,W*0.76,H*0.65);
+          ctx.fillStyle=acColor+'60';ctx.font='16px Arial';ctx.textAlign='center';
+          const px=layout==='left-right'?W*0.25:W/2,py=layout==='top-bottom'?H*0.3:H*0.5;
+          ctx.fillText('Upload image to preview',px,py);
+          finishText();
+        }
+      }
+
+      function wrapText(ctx,text,x,y,maxW,lineH){
+        if(!text)return;
+        const words=text.split(' ');let line='';
+        for(let i=0;i<words.length;i++){
+          const test=line+words[i]+' ';
+          if(ctx.measureText(test).width>maxW&&i>0){ctx.fillText(line.trim(),x,y);line=words[i]+' ';y+=lineH;}
+          else line=test;
+        }
+        ctx.fillText(line.trim(),x,y);
+      }
+
+      function downloadAplus(){
+        const canvas=canvasRef.current;if(!canvas)return;
+        const a=document.createElement('a');
+        a.download='Aplus_'+layout+'_'+(new Date().toISOString().slice(0,10))+'.png';
+        a.href=canvas.toDataURL('image/png',1.0);a.click();
+      }
+
+      return <div style={{display:'flex',flexDirection:'column',gap:10}}>
+        <div style={{padding:'10px 12px',background:'#eff6ff',borderRadius:8,fontSize:11,color:'#1e40af',border:'1px solid #bfdbfe'}}>
+          📐 画布尺寸：<strong>1464×600px</strong>（符合Amazon A+模块规格）· 下载PNG直接上传使用
+        </div>
+        <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+          {layouts.map(function(l){return <button key={l.id} onClick={function(){setLayout(l.id);}}
+            className="btn" style={{background:layout===l.id?acColor:'#f1f5f9',color:layout===l.id?'white':'#475569',padding:'6px 12px',fontSize:12}}>
+            {l.label}
+          </button>;})}
+        </div>
+
+        <div style={{border:'2px dashed '+acColor+'60',borderRadius:8,padding:'10px 14px',background:acColor+'06'}}>
+          <div style={{fontSize:12,fontWeight:700,color:acColor,marginBottom:6}}>📤 上传图片（支持多张）</div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
+            <label style={{padding:'6px 14px',background:acColor,color:'white',borderRadius:6,fontSize:12,cursor:'pointer',fontWeight:600}}>
+              + 选择图片
+              <input type="file" accept="image/*" multiple onChange={handleOwnUpload} style={{display:'none'}} />
+            </label>
+            {ownImgs.length>0&&<button onClick={function(){setOwnImgs([]);setSelOwnImg(0);}} style={{padding:'4px 10px',background:'#f1f5f9',border:'none',borderRadius:6,fontSize:11,cursor:'pointer',color:'#64748b'}}>清除</button>}
+            {images.length>0&&ownImgs.length===0&&<span style={{fontSize:11,color:'#64748b'}}>或使用Panel 1上传的图片</span>}
+          </div>
+          {ownImgs.length>1&&<div style={{display:'flex',gap:5,marginTop:8,flexWrap:'wrap'}}>
+            {ownImgs.map(function(img,i){return <button key={i} onClick={function(){setSelOwnImg(i);}}
+              className="btn" style={{background:selOwnImg===i?acColor:'#f1f5f9',color:selOwnImg===i?'white':'#475569',fontSize:11,padding:'3px 10px'}}>
+              图{i+1}
+            </button>;})}
+          </div>}
+          {images.length>1&&ownImgs.length===0&&<div style={{display:'flex',gap:5,marginTop:8,flexWrap:'wrap'}}>
+            {images.map(function(img,i){return <button key={i} onClick={function(){setSelImg(i);}}
+              className="btn" style={{background:selImg===i?acColor:'#f1f5f9',color:selImg===i?'white':'#475569',fontSize:11,padding:'3px 10px'}}>
+              图{i+1}
+            </button>;})}
+          </div>}
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+          <div>
+            <div style={{fontSize:11,color:'#64748b',marginBottom:3}}>背景色</div>
+            <input type="color" value={bgColor} onChange={function(e){setBgColor(e.target.value);}} style={{width:'100%',height:32,border:'none',cursor:'pointer',borderRadius:4}} />
+          </div>
+          <div>
+            <div style={{fontSize:11,color:'#64748b',marginBottom:3}}>主题色</div>
+            <input type="color" value={acColor} onChange={function(e){setAcColor(e.target.value);}} style={{width:'100%',height:32,border:'none',cursor:'pointer',borderRadius:4}} />
+          </div>
+          <div>
+            <div style={{fontSize:11,color:'#64748b',marginBottom:3}}>字号 {fontSize}px</div>
+            <input type="range" min="18" max="56" value={fontSize} onChange={function(e){setFontSize(Number(e.target.value));}} style={{width:'100%',marginTop:6}} />
+          </div>
+        </div>
+        <input type="text" value={headline} onChange={function(e){setHeadline(e.target.value);}} placeholder="主标题（留空自动生成）" style={{padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:6,fontSize:12}} />
+        <input type="text" value={subtext} onChange={function(e){setSubtext(e.target.value);}} placeholder="副文字 / 卖点描述" style={{padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:6,fontSize:12}} />
+        <canvas ref={canvasRef} width={CW} height={CH} style={{width:'100%',borderRadius:8,border:'1px solid #e2e8f0',background:'#f8fafc'}} />
+        <button onClick={downloadAplus} style={{background:'#16a34a',color:'white',border:'none',borderRadius:8,padding:'12px',fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
+          📥 下载 A+ 图片 (PNG · 1464×600 · 高清)
+        </button>
+      </div>;
+    }
+
+
+    // ════════════════════════════════════════════════════════════════
+    // PAGE: LISTING (4栏可视化)
+    // ════════════════════════════════════════════════════════════════
+
+    // ════════════════════════════════════════════════════════════════
+    // APLUS CANVAS COMPONENT
+    // ════════════════════════════════════════════════════════════════
+
+    function PageListing({cat,colors}) {
+      const SK='listing_'+cat;
+      const init=S.g(SK)||{};
+      const [images,setImages] = useState(init.images||[]);
+      const [selCat,setSelCat] = useState(init.selCat||'');
+      const [cpResults,setCpResults] = useState(init.cpResults||[]);
+      const [listings,setListings] = useState(init.listings||[]);
+      const [aplusPrompts,setAplusPrompts] = useState(init.aplusPrompts||[]);
+      const [videoPrompts,setVideoPrompts] = useState(init.videoPrompts||[]);
+      const [loadCp,setLoadCp] = useState(false);
+      const [loadListing,setLoadListing] = useState(false);
+      const [loadAplus,setLoadAplus] = useState(false);
+      const [loadVideo,setLoadVideo] = useState(false);
+
+      function persist(patch){S.s(SK,{...S.g(SK)||{},...patch});}
+
+      function handleImg(e) {
+        const files=Array.from(e.target.files);
+        Promise.all(files.map(function(f){
+          return new Promise(function(res){const r=new FileReader();r.onload=function(ev){res({name:f.name,data:ev.target.result});};r.readAsDataURL(f);});
+        })).then(function(imgs){setImages(imgs);persist({images:imgs,cpResults:[],listing:null,aplusPrompts:[],videoPrompts:[]});setCpResults([]);setListing(null);setAplusPrompts([]);setVideoPrompts([]);});
+      }
+
+      async function runCp() {
+        if(!images.length){alert('请先上传图案');return;}
+        setLoadCp(true);const allRes=[];
+        for(let i=0;i<images.length;i++){
+          const img=images[i];
+          try{
+            const r=await callClaudeAPI('分析这张POD图案，识别主要设计元素和风格。只输JSON：{"elements":["元素1","元素2","元素3"],"style":"整体风格","ip_concerns":["潜在IP或角色"]}','POD版权审查员，只输JSON');
+            let parsed={elements:[],style:'',ip_concerns:[]};
+            try{const c=r.replace(/```json|```/g,'').trim();const si=c.indexOf('{'),ei=c.lastIndexOf('}');if(si>=0&&ei>=0)parsed=JSON.parse(c.slice(si,ei+1));}catch(e){}
+            const checkText=[...(parsed.elements||[]),(parsed.style||''),...(parsed.ip_concerns||[])].join(' ');
+            allRes.push({name:img.name,parsed:parsed,alerts:checkCpRisk(checkText)});
+          }catch(err){allRes.push({name:img.name,parsed:{elements:[],style:'',ip_concerns:[]},alerts:[],error:err.message});}
+        }
+        setCpResults(allRes);persist({cpResults:allRes});setLoadCp(false);
+      }
+
+      async function runListing() {
+        if(!images.length){alert('请先上传图案');return;}
+        setLoadListing(true);
+        const kwCat=(KW_DB[cat]||{})[selCat];
+        const kwStr=kwCat?'关键词：'+kwCat.p.slice(0,6).join(',')+' '+kwCat.s.join(','):'';
+        const riskNote=cpResults.some(function(r){return r.alerts&&r.alerts.length>0;})?'规避侵权元素':'';
+        const allListings=[];
+        for(let i=0;i<images.length;i++){
+          const img=images[i];
+          const elemDesc=cpResults[i]?(cpResults[i].parsed.elements||[]).join('/'):'';
+          const imgDesc=img.name+(elemDesc?'('+elemDesc+')':'');
+          const bulletEmojis=['🌟','✨','💎','🎯','🎁'];
+          const prompt='Generate Amazon '+cat+' Product Listing in English. Pattern: '+imgDesc+'. Category: '+(selCat||'general')+'. '+kwStr+' '+(riskNote?'Avoid infringing elements.':'')+' Rules: title<=150chars, 5 bullet points each>=150chars starting with CAPS keyword then dash, description 200 words with HTML formatting (use <b> for keywords, <br><br> for paragraphs), keywords<=250chars total, each word unique (no repeats from title/bullets), ranked by search weight left to right, no commas between words. Output JSON ONLY: {"title":"...","bullets":["KEYWORD - detail...","KEYWORD - detail...","KEYWORD - detail...","KEYWORD - detail...","KEYWORD - detail..."],"description":"<b>Product Highlight</b><br><br>...","keywords":"word1 word2 word3 word4 ..."}';
+          try{
+            const r=await callClaudeAPI(prompt,'You are an Amazon Listing expert. Output JSON ONLY, no markdown, no explanation.');
+            let p=null;
+            try{const c=r.replace(/```json|```/g,'').trim();const si=c.indexOf('{'),ei=c.lastIndexOf('}');if(si>=0&&ei>=0)p=JSON.parse(c.slice(si,ei+1));}catch(e){}
+            allListings.push({imageName:img.name,imageIdx:i+1,...(p||{title:'生成失败',bullets:[],description:'',keywords:''})});
+          }catch(err){
+            allListings.push({imageName:img.name,imageIdx:i+1,title:'失败:'+err.message,bullets:[],description:'',searchTerms:''});
+          }
+          if(i<images.length-1)await new Promise(function(res){setTimeout(res,3000);});
+        }
+        setListings(allListings);persist({listings:allListings});
+        setLoadListing(false);
+      }
+
+      function downloadCSV() {
+        if(!listings.length)return;
+        const esc=function(s){return '"'+(s||'').toString().replace(/"/g,'""')+'"';};
+        const header=['#','图片名称','标题','Bullet 1','Bullet 2','Bullet 3','Bullet 4','Bullet 5','描述(纯文本)','关键词'];
+        const stripHtml=function(s){return (s||'').replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();};
+        const rows=listings.map(function(l,li){return [
+          li+1,
+          l.imageName||'',
+          l.title||'',
+          (l.bullets||[])[0]||'',
+          (l.bullets||[])[1]||'',
+          (l.bullets||[])[2]||'',
+          (l.bullets||[])[3]||'',
+          (l.bullets||[])[4]||'',
+          stripHtml(l.description||''),
+          l.keywords||l.searchTerms||''
+        ];});
+        const csv=[header,...rows].map(function(r){return r.map(esc).join(',');}).join('\r\n');
+        const bom='﻿';
+        const blob=new Blob([bom+csv],{type:'text/csv;charset=utf-8;'});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        a.href=url;a.download='Listing_'+cat+'_'+new Date().toISOString().slice(0,10)+'.csv';
+        document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+      }
+
+
+      async function runAplus() {
+        setLoadAplus(true);
+        const imgNames=images.map(function(i){return i.name;}).join('，');
+        const parts=['为'+cat+'产品（图案：'+imgNames+'）生成3种A+图片MidJourney提示词。3种版式：1)左图右文 2)全图叠字 3)上图下文。','只输JSON：{"aplus":[{"style":"左图右文","prompt":"MJ提示词"},{"style":"全图叠字","prompt":"MJ提示词"},{"style":"上图下文","prompt":"MJ提示词"}]}'];
+        try{
+          const r=await callClaudeAPI(parts.join(' '),'电商A+图片设计师，只输JSON');
+          let p=null;try{const c=r.replace(/```json|```/g,'').trim();const si=c.indexOf('{'),ei=c.lastIndexOf('}');if(si>=0&&ei>=0)p=JSON.parse(c.slice(si,ei+1));}catch(e){}
+          if(p&&p.aplus){setAplusPrompts(p.aplus);persist({aplusPrompts:p.aplus});}else alert('生成失败，请重试');
+        }catch(err){alert('生成失败：'+err.message);}
+        setLoadAplus(false);
+      }
+
+      async function runVideo() {
+        setLoadVideo(true);
+        const imgList=images.map(function(im,i){return (i+1)+'. '+im.name;}).join(', ');
+        const parts=['为以下'+cat+'图案生成Google Flow视频提示词（每张一条，风格各不同，有动态感）：'+imgList+'。','只输JSON：{"videos":[{"image":"文件名","style":"视频风格","prompt":"提示词"}]}'];
+        try{
+          const r=await callClaudeAPI(parts.join(' '),'电商视频创作专家，只输JSON');
+          let p=null;try{const c=r.replace(/```json|```/g,'').trim();const si=c.indexOf('{'),ei=c.lastIndexOf('}');if(si>=0&&ei>=0)p=JSON.parse(c.slice(si,ei+1));}catch(e){}
+          if(p&&p.videos){setVideoPrompts(p.videos);persist({videoPrompts:p.videos});}else alert('生成失败，请重试');
+        }catch(err){alert('生成失败：'+err.message);}
+        setLoadVideo(false);
+      }
+
+      const kwDb=KW_DB[cat]||{};
+      const hasHighRisk=cpResults.some(function(r){return r.alerts&&r.alerts.some(function(a){return a.level==='high';});});
+
+      function PH({num,icon,title}) {
+        return <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:14,paddingBottom:10,borderBottom:'1px solid #f1f5f9'}}>
+          <div style={{width:28,height:28,borderRadius:'50%',background:colors.ac,color:'white',display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:13,flexShrink:0}}>{num}</div>
+          <span style={{fontSize:16}}>{icon}</span>
+          <div style={{fontWeight:700,fontSize:14,color:colors.ac}}>{title}</div>
+        </div>;
+      }
+
+      return <div style={{display:'flex',flexDirection:'column',gap:16}}>
+        <div style={{borderRadius:12,padding:'14px 20px',background:colors.grad,color:'white'}}>
+          <div style={{fontWeight:800,fontSize:17}}>📝 Listing 生成中心</div>
+          <div style={{fontSize:12,opacity:0.85,marginTop:2}}>4步骤可视化 · 上传图片→侵权检查→文案→A+&视频咒语 · 数据自动保存</div>
+        </div>
+
+        <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:12}}>
+          <div className="card">
+            <div style={{fontWeight:600,fontSize:13,marginBottom:10}}>📤 上传图案（可多张）</div>
+            <input type="file" accept="image/*" multiple onChange={handleImg} style={{width:'100%',fontSize:13,marginBottom:images.length?10:0}} />
+            {images.length>0&&<div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+              {images.map(function(img,i){return <div key={i} style={{textAlign:'center'}}><img src={img.data} alt={img.name} style={{width:80,height:80,objectFit:'cover',borderRadius:8,border:'2px solid #e2e8f0'}} /><div style={{fontSize:10,color:'#64748b',marginTop:4,width:80,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{img.name}</div></div>;})}
+            </div>}
+          </div>
+          <div className="card">
+            <div style={{fontWeight:600,fontSize:13,marginBottom:10}}>🏷️ 关键词类目</div>
+            <select value={selCat} onChange={function(e){setSelCat(e.target.value);persist({selCat:e.target.value});}}>
+              <option value="">-- 选择类目 --</option>
+              {Object.entries(kwDb).map(function(entry){return <option key={entry[0]} value={entry[0]}>{entry[1].d}</option>;})}
+            </select>
+            {selCat&&kwDb[selCat]&&<div style={{marginTop:8,fontSize:11,color:'#64748b'}}>
+              <div style={{display:'flex',flexWrap:'wrap',gap:3,marginTop:4}}>{kwDb[selCat].p.slice(0,4).map(function(p,i){return <span key={i} className="tag" style={{background:'#f1f5f9',color:'#475569',fontSize:10}}>{p}</span>;})}</div>
+            </div>}
+          </div>
+        </div>
+
+        <div className="listing-grid">
+          {/* Panel 1: 侵权检查 */}
+          <div className="listing-panel">
+            <PH num="1" icon="🛡️" title="侵权检查" />
+            <button className="btn" onClick={runCp} disabled={loadCp||!images.length} style={{background:'#ef4444',color:'white',width:'100%',marginBottom:10,opacity:(loadCp||!images.length)?0.5:1}}>
+              {loadCp?'🔍 AI分析中...':'🛡️ 开始侵权扫描'}
+            </button>
+            {loadCp&&<Spinner />}
+            {cpResults.length>0&&!loadCp&&<div style={{display:'flex',flexDirection:'column',gap:8}}>
+              {cpResults.map(function(r,i){
+                const ok=!r.alerts||r.alerts.length===0;
+                return <div key={i} style={{padding:'10px',borderRadius:8,background:ok?'#f0fdf4':'#fef2f2',border:'1.5px solid '+(ok?'#bbf7d0':'#fecaca')}}>
+                  <div style={{fontWeight:600,fontSize:12,marginBottom:4}}>{r.name}</div>
+                  <div style={{fontSize:11,color:'#64748b'}}>识别元素：{(r.parsed.elements||[]).join('、')||'未识别'}</div>
+                  {ok?<div style={{fontSize:11,color:'#16a34a',marginTop:4}}>✅ 未检测到侵权风险</div>:
+                  <div style={{marginTop:6}}>{r.alerts.map(function(a,j){return <div key={j} style={{fontSize:11,padding:'4px 8px',background:'#fee2e2',borderRadius:4,marginBottom:3,color:'#dc2626'}}>⚠️ {a.entry.artist}（{a.level==='high'?'高风险':'中风险'}）{a.elHits.length>0?' 禁用：'+a.elHits.join(','):''}</div>;})}</div>}
+                </div>;
+              })}
+              {hasHighRisk&&<div style={{padding:'8px 12px',background:'#fef2f2',borderRadius:8,color:'#dc2626',fontSize:12,fontWeight:700}}>⛔ 含高风险图案，建议重新设计</div>}
+            </div>}
+          </div>
+
+          {/* Panel 2: 文案生成 */}
+          <div className="listing-panel">
+            <PH num="2" icon="📝" title="文案生成" />
+            {hasHighRisk&&<div style={{padding:'8px',background:'#fff7ed',borderRadius:6,fontSize:11,color:'#92400e',marginBottom:8}}>⚠️ 有高风险图案，建议先更换</div>}
+            <div style={{display:'flex',gap:8,marginBottom:10,flexWrap:'wrap'}}>
+              <button className="btn" onClick={runListing} disabled={loadListing||!images.length} style={{background:colors.ac,color:'white',flex:1,opacity:(loadListing||!images.length)?0.5:1}}>
+                {loadListing?'🔄 逐图生成中...':'📝 生成Listing（每图一条）'}
+              </button>
+              {listings.length>0&&!loadListing&&<button className="btn" onClick={downloadCSV} style={{background:'#16a34a',color:'white',padding:'10px 16px'}}>📥 下载CSV表格</button>}
+            </div>
+            {loadListing&&<div style={{textAlign:'center',padding:16}}><Spinner /><div style={{fontSize:11,color:'#64748b',marginTop:4}}>正在逐图生成，共{images.length}张...</div></div>}
+            {listings.length>0&&!loadListing&&<div style={{display:'flex',flexDirection:'column',gap:10}}>
+              {listings.map(function(lst,li){
+                return <div key={li} style={{border:'2px solid '+colors.ac+'40',borderRadius:10,overflow:'hidden'}}>
+                  <div style={{background:colors.ac+'15',padding:'8px 14px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <div style={{fontWeight:700,fontSize:13,color:colors.ac}}>🖼️ 图{lst.imageIdx}：{lst.imageName}</div>
+                    <CopyBtn text={[lst.title,'','Bullet Points:'].concat(lst.bullets||[]).concat(['','描述：'+lst.description,'搜索词：'+lst.searchTerms]).join('\n')} label="📋 复制全部" />
+                  </div>
+                  <div style={{padding:'10px',display:'flex',flexDirection:'column',gap:6}}>
+                    <div style={{background:'#f8fafc',borderRadius:6,padding:'8px 10px'}}>
+                      <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:3}}>
+                        <span style={{fontSize:11,fontWeight:700,color:'#475569'}}>标题</span><CopyBtn text={lst.title||''} />
+                      </div>
+                      <div style={{fontSize:11,color:'#1e293b',lineHeight:1.5}}>{lst.title||'-'}</div>
+                    </div>
+                    <div style={{background:'#f8fafc',borderRadius:6,padding:'8px 10px'}}>
+                      <div style={{fontSize:11,fontWeight:700,color:'#475569',marginBottom:4}}>Bullet Points</div>
+                      {(lst.bullets||[]).map(function(b,bi){
+                          const emos=['🌟','✨','💎','🎯','🎁'];
+                          return <div key={bi} style={{fontSize:11,padding:'5px 0',borderBottom:'1px solid #e2e8f0',lineHeight:1.6,color:'#1e293b',display:'flex',gap:6,alignItems:'flex-start'}}>
+                            <span style={{fontSize:14,flexShrink:0,marginTop:1}}>{emos[bi]||'•'}</span>
+                            <span>{b}</span>
+                          </div>;
+                        })}
+                    </div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr',gap:4}}>
+                      {[['描述',lst.description],['关键词',lst.keywords||lst.searchTerms]].map(function(x){return <div key={x[0]} style={{background:'#f8fafc',borderRadius:6,padding:'8px 10px'}}>
+                        <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:3}}>
+                          <span style={{fontSize:11,fontWeight:700,color:'#475569'}}>{x[0]}</span><CopyBtn text={x[1]||''} />
+                        </div>
+                        <div style={{fontSize:10,color:'#475569',lineHeight:1.6}} dangerouslySetInnerHTML={{__html:(x[1]||'-').replace(/\n/g,'<br>')}}></div>
+                      </div>;})}
+                    </div>
+                  </div>
+                </div>;
+              })}
+              <div style={{padding:'10px 12px',background:'#f0fdf4',borderRadius:8,fontSize:12,color:'#16a34a',border:'1px solid #bbf7d0',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <span>✅ 共{listings.length}条Listing，点右侧下载整合表格</span>
+                <button onClick={downloadCSV} style={{padding:'6px 16px',background:'#16a34a',color:'white',border:'none',borderRadius:6,fontSize:12,cursor:'pointer',fontWeight:700}}>📥 下载CSV</button>
+              </div>
+            </div>}
+          </div>
+
+          {/* Panel 3: A+ 图片生成 */}
+          <div className="listing-panel">
+            <PH num="3" icon="🖼️" title="A+ 图片生成" />
+            <AplusCanvas images={images} colors={colors} cat={cat} />
+          </div>
+
+          {/* Panel 4: 视频咒语 */}
+          <div className="listing-panel">
+            <PH num="4" icon="🎬" title="视频咒语（Google Flow）" />
+            <button className="btn" onClick={runVideo} disabled={loadVideo||!images.length} style={{background:colors.ac,color:'white',width:'100%',marginBottom:10,opacity:(loadVideo||!images.length)?0.5:1}}>
+              {loadVideo?'🔄 生成中...':'🎬 生成视频提示词'}
+            </button>
+            {loadVideo&&<Spinner />}
+            {videoPrompts.length>0&&!loadVideo&&<div style={{display:'flex',flexDirection:'column',gap:8}}>
+              {videoPrompts.map(function(v,i){return <div key={i} style={{borderRadius:8,overflow:'hidden',border:'1px solid #e2e8f0'}}>
+                <div style={{padding:'8px 12px',background:colors.ac+'15',display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                  <div><span style={{fontWeight:600,fontSize:12,color:colors.ac}}>{v.image}</span><span style={{fontSize:10,color:'#64748b',marginLeft:6}}>{v.style}</span></div>
+                  <CopyBtn text={v.prompt} />
+                </div>
+                <div className="code-block" style={{borderRadius:0,fontSize:10}}>{v.prompt}<button className="copy-btn-abs" onClick={function(){navigator.clipboard.writeText(v.prompt);}}>复制</button></div>
+              </div>;})}
+            </div>}
+            {!videoPrompts.length&&!loadVideo&&<div style={{textAlign:'center',padding:20,color:'#94a3b8',fontSize:12}}>上传图案后生成视频咒语</div>}
+          </div>
+        </div>
+      </div>;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // PAGE: DATABASE
+    // ════════════════════════════════════════════════════════════════
+    function PageDatabase({colors}) {
+      const [tab,setTab] = useState('copyright');
+      const [cpDb,setCpDb] = useState(function(){return S.g('cp_db')||DEFAULT_CP_DB;});
+      const [showForm,setShowForm] = useState(false);
+      const [form,setForm] = useState({artist:'',law_firm:'',case_no:'',date:'',risk_level:'high',style_description:'',banned_text:'',keywords_text:'',notes:''});
+      function sf(k,v){setForm(function(p){return {...p,[k]:v};});}
+      function saveCp(){
+        if(!form.artist){alert('请填写艺术家名称');return;}
+        const entry={id:String(Date.now()),artist:form.artist,law_firm:form.law_firm,case_no:form.case_no,date:form.date,risk_level:form.risk_level,style_description:form.style_description,notes:form.notes,
+          banned_elements:form.banned_text.split(/\r?\n/).map(function(s){return s.trim();}).filter(Boolean),
+          style_keywords:form.keywords_text.split(/\r?\n/).map(function(s){return s.trim();}).filter(Boolean)};
+        const u=[...cpDb,entry];setCpDb(u);S.s('cp_db',u);
+        setForm({artist:'',law_firm:'',case_no:'',date:'',risk_level:'high',style_description:'',banned_text:'',keywords_text:'',notes:''});
+        setShowForm(false);alert('已添加');
+      }
+      function delCp(id){if(!confirm('确认删除？'))return;const u=cpDb.filter(function(e){return e.id!==id;});setCpDb(u);S.s('cp_db',u);}
+      function exportAll(){
+        const d={cp_db:cpDb,keywords_db:KW_DB};
+        const b=new Blob([JSON.stringify(d,null,2)],{type:'application/json'});
+        const u=URL.createObjectURL(b);const a=document.createElement('a');
+        a.href=u;a.download='POD数据库_'+new Date().toISOString().slice(0,10)+'.json';a.click();
+      }
+      function importDb(e){
+        const f=e.target.files[0];if(!f)return;
+        const r=new FileReader();
+        r.onload=function(ev){try{const d=JSON.parse(ev.target.result);if(d.cp_db){setCpDb(d.cp_db);S.s('cp_db',d.cp_db);}alert('导入成功！');}catch(err){alert('文件格式错误：'+err.message);}};
+        r.readAsText(f);
+      }
+      return <div style={{display:'flex',flexDirection:'column',gap:16}}>
+        <div style={{borderRadius:12,padding:'14px 20px',background:colors.grad,color:'white'}}>
+          <div style={{fontWeight:800,fontSize:17}}>🗄️ 数据库管理</div>
+          <div style={{fontSize:12,opacity:0.85,marginTop:2}}>侵权库 / 关键词库 · 支持导入导出</div>
+        </div>
+        <div className="card" style={{display:'flex',gap:10,alignItems:'center',flexWrap:'wrap'}}>
+          <button className="btn" onClick={exportAll} style={{background:colors.ac,color:'white'}}>📥 导出全部数据</button>
+          <label className="btn" style={{background:'#475569',color:'white',cursor:'pointer'}}>
+            📤 导入数据<input type="file" accept=".json" onChange={importDb} style={{display:'none'}} />
+          </label>
+          <span style={{fontSize:12,color:'#64748b'}}>导出JSON编辑后再导入，可多人共享数据库</span>
+        </div>
+        <div style={{display:'flex',gap:8}}>
+          {[['copyright','🛡️ 侵权库'],['elements','🎨 元素库'],['keywords','🔑 关键词库']].map(function(x){
+            return <button key={x[0]} onClick={function(){setTab(x[0]);}} className="btn" style={{background:tab===x[0]?colors.ac:'#f1f5f9',color:tab===x[0]?'white':'#475569'}}>{x[1]}</button>;
+          })}
+        </div>
+        {tab==='copyright'&&<div style={{display:'flex',flexDirection:'column',gap:12}}>
+          <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+            <div style={{fontWeight:700}}>侵权数据库（{cpDb.length}条）</div>
+            <button className="btn" onClick={function(){setShowForm(!showForm);}} style={{background:colors.ac,color:'white',fontSize:13,padding:'8px 16px'}}>{showForm?'× 取消':'＋ 添加'}</button>
+          </div>
+          {showForm&&<div className="card" style={{border:'2px solid '+colors.ac+'60'}}>
+            <div style={{fontWeight:700,marginBottom:14,color:colors.ac}}>添加侵权记录</div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+              {[['艺术家 *','artist','Olga Zikova'],['代理律所','law_firm','Keith律所'],['案件编号','case_no','26-cv-00592'],['发现日期','date','2026-01'],['风格描述','style_description','日系动漫风...']].map(function(x){
+                return <div key={x[1]}><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>{x[0]}</div><input type="text" value={form[x[1]]} placeholder={x[2]} onChange={function(e){sf(x[1],e.target.value);}} /></div>;
+              })}
+              <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>风险等级</div>
+                <select value={form.risk_level} onChange={function(e){sf('risk_level',e.target.value);}}>
+                  <option value="urgent">🔥 紧急</option><option value="high">⚠️ 高风险</option><option value="medium">📌 中风险</option>
+                </select></div>
+            </div>
+            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+              <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>禁用元素（每行一个）</div><textarea value={form.banned_text} onChange={function(e){sf('banned_text',e.target.value);}} rows={4} placeholder="capybara"></textarea></div>
+              <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>风格关键词（每行一个）</div><textarea value={form.keywords_text} onChange={function(e){sf('keywords_text',e.target.value);}} rows={4} placeholder="kawaii cute"></textarea></div>
+            </div>
+            <div style={{marginBottom:10}}><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>备注</div><input type="text" value={form.notes} placeholder="执法情况..." onChange={function(e){sf('notes',e.target.value);}} /></div>
+            <button className="btn" onClick={saveCp} style={{background:colors.ac,color:'white',width:'100%',padding:'12px'}}>💾 保存记录</button>
+          </div>}
+          {cpDb.map(function(e,i){
+            return <div key={e.id||i} className="card" style={{border:'2px solid #fecaca'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start'}}>
+                <div style={{flex:1}}>
+                  <div style={{display:'flex',alignItems:'center',gap:8,marginBottom:4}}>
+                    <span style={{fontWeight:700}}>{e.artist}</span>
+                    <span className="badge" style={{background:e.risk_level==='urgent'?'#fee2e2':'#ffedd5',color:e.risk_level==='urgent'?'#dc2626':'#ea580c'}}>{e.risk_level==='urgent'?'🔥 紧急':'⚠️ 高风险'}</span>
+                  </div>
+                  {e.law_firm&&<div style={{fontSize:12,color:'#64748b'}}>{e.law_firm} {e.case_no}</div>}
+                  <div style={{fontSize:11,color:'#94a3b8',marginTop:2}}>{e.style_description}</div>
+                  <div style={{display:'flex',flexWrap:'wrap',marginTop:6}}>{(e.banned_elements||[]).slice(0,6).map(function(el,j){return <span key={j} className="tag" style={{background:'#fef2f2',color:'#ef4444',fontSize:10}}>{el}</span>;})}</div>
+                  {e.notes&&<div style={{fontSize:11,color:'#64748b',marginTop:4}}>{e.notes}</div>}
+                </div>
+                <button onClick={function(){delCp(e.id||String(i));}} className="btn" style={{background:'#fef2f2',color:'#ef4444',padding:'4px 10px',fontSize:12,marginLeft:10}}>删除</button>
+              </div>
+            </div>;
+          })}
+        </div>}
+        {tab==='elements'&&<div style={{display:'flex',flexDirection:'column',gap:12}}>
+          <div style={{padding:'12px 16px',background:'#fef3c7',borderRadius:8,fontSize:13,color:'#92400e',border:'1px solid #fde68a'}}>
+            🎨 主题元素库 — 开发公式：<strong>流行风格 + 流行配色 + 流行元素 + 主题热卖元素</strong> = 爆款图案
+          </div>
+          {Object.entries(THEME_ELEMENTS).map(function(entry){
+            return <div key={entry[0]} className="card" style={{padding:'14px 16px'}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:10}}>
+                <div style={{fontWeight:700,fontSize:14}}>{entry[0]}</div>
+                <span style={{fontSize:11,color:'#64748b'}}>{entry[1].hot.length}个热卖元素</span>
+              </div>
+              <div style={{marginBottom:8}}>
+                <div style={{fontSize:11,fontWeight:700,color:'#16a34a',marginBottom:4}}>✅ 热卖元素</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                  {entry[1].hot.map(function(e,i){return <span key={i} className="tag" style={{background:'#dcfce7',color:'#16a34a',fontSize:11}}>{e}</span>;})}
+                </div>
+              </div>
+              {entry[1].avoid.length>0&&<div>
+                <div style={{fontSize:11,fontWeight:700,color:'#ef4444',marginBottom:4}}>🚫 规避元素</div>
+                <div style={{display:'flex',flexWrap:'wrap',gap:4}}>
+                  {entry[1].avoid.map(function(e,i){return <span key={i} className="tag" style={{background:'#fee2e2',color:'#ef4444',fontSize:11}}>{e}</span>;})}
+                </div>
+              </div>}
+            </div>;
+          })}
+        </div>}
+        {tab==='keywords'&&<div style={{display:'flex',flexDirection:'column',gap:12}}>
+          <div style={{padding:'12px 16px',background:'#eff6ff',borderRadius:8,fontSize:13,color:'#2563eb'}}>关键词库已内置。导出JSON编辑keywords_db字段后重新导入即可更新。</div>
+          {Object.entries(KW_DB).map(function(catEntry){
+            return <div key={catEntry[0]} className="card">
+              <div style={{fontWeight:700,marginBottom:12}}>{catEntry[0]}</div>
+              {Object.entries(catEntry[1]).map(function(entry){
+                return <div key={entry[0]} style={{marginBottom:10,padding:'10px',background:'#f8fafc',borderRadius:8}}>
+                  <div style={{fontWeight:600,fontSize:13,marginBottom:6}}>{entry[1].d}</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:3}}>{entry[1].p.slice(0,4).map(function(p,i){return <span key={i} className="tag" style={{background:'#dcfce7',color:'#16a34a',fontSize:10}}>{p}</span>;})}<span className="tag" style={{background:'#f1f5f9',color:'#94a3b8',fontSize:10}}>+{Math.max(0,entry[1].p.length-4)}更多</span></div>
+                </div>;
+              })}
+            </div>;
+          })}
+        </div>}
+      </div>;
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // PAGE: FEEDBACK
+    // ════════════════════════════════════════════════════════════════
+    function PageFeedback({colors,tasks}) {
+      const SK='fb_records';
+      const [records,setRecords] = useState(function(){return S.g(SK)||[];});
+      const [form,setForm] = useState({theme:'',style:'',colors:'',elements:'',sales:'',revenue:'',feedback:'good',notes:''});
+      const [insight,setInsight] = useState(S.g('fb_insight')||'');
+      const [loading,setLoading] = useState(false);
+      function sf(k,v){setForm(function(p){return {...p,[k]:v};});}
+      function save(){
+        if(!form.theme){alert('请填写主题');return;}
+        const rec={...form,id:Date.now(),at:new Date().toISOString()};
+        const u=[...records,rec];setRecords(u);S.s(SK,u);
+        setForm({theme:'',style:'',colors:'',elements:'',sales:'',revenue:'',feedback:'good',notes:''});
+        alert('反馈已保存');
+      }
+      async function genInsight(){
+        if(!records.length){alert('请先录入反馈数据');return;}
+        setLoading(true);
+        try{
+          const good=records.filter(function(r){return r.feedback==='good';}).slice(-10);
+          const bad=records.filter(function(r){return r.feedback==='bad';}).slice(-5);
+          const parts=[
+            '分析POD产品销售反馈，总结规律：',
+            '有销量图案（'+good.length+'条）：'+good.map(function(r){return '主题:'+r.theme+' 风格:'+r.style+' 配色:'+r.colors+' 元素:'+r.elements+' 销量:'+r.sales;}).join('；'),
+            '无销量图案（'+bad.length+'条）：'+bad.map(function(r){return '主题:'+r.theme+' 风格:'+r.style+' 配色:'+r.colors;}).join('；'),
+            '分析：①主题规律 ②风格规律 ③配色规律 ④热卖元素 ⑤下次建议 ⑥避坑建议'
+          ];
+          const r=await callClaudeAPI(parts.join(' '),'你是POD销售数据分析专家');
+          setInsight(r);S.s('fb_insight',r);
+        }catch(err){alert('分析失败：'+err.message);}
+        setLoading(false);
+      }
+      const stats={sales:records.reduce(function(s,r){return s+(parseInt(r.sales)||0);},0),rev:records.reduce(function(s,r){return s+(parseFloat(r.revenue)||0);},0),good:records.filter(function(r){return r.feedback==='good';}).length};
+      return <div style={{display:'flex',flexDirection:'column',gap:16}}>
+        <div style={{borderRadius:12,padding:'14px 20px',background:colors.grad,color:'white'}}>
+          <div style={{fontWeight:800,fontSize:17}}>💡 销售反馈 & AI学习</div>
+          <div style={{fontSize:12,opacity:0.85,marginTop:2}}>录入反馈 → AI分析规律 → 优化开发方向</div>
+        </div>
+        {records.length>0&&<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
+          {[['总销量',stats.sales+'件','📦'],['总收入','$'+stats.rev.toFixed(0),'💰'],['好评率',records.length?Math.round(stats.good/records.length*100)+'%':'0%','⭐']].map(function(x){
+            return <div key={x[0]} className="card" style={{textAlign:'center',padding:'14px 8px'}}>
+              <div style={{fontSize:22}}>{x[2]}</div>
+              <div style={{fontSize:24,fontWeight:800,color:colors.ac}}>{x[1]}</div>
+              <div style={{fontSize:12,color:'#64748b'}}>{x[0]}</div>
+            </div>;
+          })}
+        </div>}
+        <div className="card">
+          <div style={{fontWeight:700,fontSize:15,marginBottom:14}}>➕ 录入反馈</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
+            {[['主题 *','theme','Easter, Dinosaur...'],['图案风格','style','kawaii, watercolor...'],['配色','colors','pastel pink, mint...'],['元素（逗号分隔）','elements','bunny, egg, flower...']].map(function(x){
+              return <div key={x[1]}><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>{x[0]}</div><input type="text" value={form[x[1]]} placeholder={x[2]} onChange={function(e){sf(x[1],e.target.value);}} /></div>;
+            })}
+            {[['销量（件）','sales'],['收入（$）','revenue']].map(function(x){
+              return <div key={x[1]}><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>{x[0]}</div><input type="number" value={form[x[1]]} placeholder="0" onChange={function(e){sf(x[1],e.target.value);}} /></div>;
+            })}
+            <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>评价</div>
+              <select value={form.feedback} onChange={function(e){sf('feedback',e.target.value);}}>
+                <option value="good">✅ 有销量（好）</option><option value="ok">😐 一般</option><option value="bad">❌ 无销量（差）</option>
+              </select></div>
+          </div>
+          <div style={{marginBottom:10}}><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>备注</div><textarea value={form.notes} onChange={function(e){sf('notes',e.target.value);}} rows={2} placeholder="为什么好卖/不好卖..."></textarea></div>
+          <button className="btn" onClick={save} style={{background:colors.ac,color:'white',width:'100%',padding:'12px'}}>💾 保存反馈（AI将学习）</button>
+        </div>
+        <div className="card" style={{border:'2px solid '+colors.ac+'40'}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+            <div style={{fontWeight:700,fontSize:15}}>🤖 AI学习报告</div>
+            <div style={{display:'flex',gap:8}}>
+              <button className="btn" onClick={genInsight} disabled={loading||!records.length} style={{background:colors.ac,color:'white',fontSize:12,padding:'6px 14px',opacity:(loading||!records.length)?0.5:1}}>{loading?'🔄 分析中...':'🧠 生成学习报告'}</button>
+              {insight&&<CopyBtn text={insight} />}
+            </div>
+          </div>
+          {loading&&<Spinner />}
+          {insight&&!loading&&<div style={{background:'#f8fafc',borderRadius:8,padding:14,fontSize:13,lineHeight:1.8,whiteSpace:'pre-wrap'}}>{insight}</div>}
+          {!insight&&!loading&&<div style={{textAlign:'center',padding:30,color:'#94a3b8',fontSize:13}}>录入5条以上反馈后，AI分析客户喜好规律</div>}
+        </div>
+        {records.length>0&&<div className="card">
+          <div style={{fontWeight:700,fontSize:15,marginBottom:12}}>📊 历史反馈（{records.length}条）</div>
+          {records.slice(-8).reverse().map(function(r,i){
+            return <div key={i} style={{padding:'10px 12px',borderRadius:8,marginBottom:8,border:'1px solid #e2e8f0',background:r.feedback==='good'?'#f0fdf4':r.feedback==='bad'?'#fef2f2':'#f8fafc'}}>
+              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
+                <span style={{fontWeight:600,fontSize:13}}>{r.theme}</span>
+                <span style={{fontSize:16}}>{r.feedback==='good'?'✅':r.feedback==='bad'?'❌':'😐'}</span>
+              </div>
+              <div style={{fontSize:11,color:'#64748b',marginTop:2}}>风格:{r.style||'-'} · 销量:{r.sales||0} · ${r.revenue||0}</div>
+              {r.notes&&<div style={{fontSize:11,color:'#94a3b8',marginTop:2}}>{r.notes}</div>}
+            </div>;
+          })}
+        </div>}
+      </div>;
+    }
+
+    // ── 渲染 ────────────────────────────────────────────────────────
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
