@@ -298,6 +298,7 @@
       'Geometric':{hot:['几何拼接','对比色块','线条抽象','渐变'],avoid:[]}
     };
     const DEFAULT_CP_DB = [
+      // ── 现有侵权案例 ──────────────────────────────────────────────
       {id:'olga',artist:'Olga Zikova',law_firm:'Keith律所',case_no:'26-cv-00592',date:'2026-01',risk_level:'urgent',
        banned_elements:['capybara','water pig','卡皮巴拉','水豚','happybara'],
        style_keywords:['japanese anime style','kawaii cute','thick outline','chibi animal'],
@@ -307,7 +308,135 @@
        style_description:'卡通大眼角色插画',notes:''},
       {id:'arnie',artist:'Arnie Fisk',law_firm:'',case_no:'',date:'2024',risk_level:'high',
        banned_elements:['illustrated animals series'],style_keywords:['animal illustration'],
-       style_description:'系列化动物角色插画',notes:''}
+       style_description:'系列化动物角色插画',notes:''},
+
+      // ── 奢侈品 & 时尚品牌 ────────────────────────────────────────
+      {id:'lv',artist:'Louis Vuitton / LVMH',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['louis vuitton','lv','LV','monogram','棋盘格纹','damier','经典花纹','交织字母LV','toile monogram'],
+       style_keywords:['brown checkered','gold LV pattern','interlocking letters','棋盘格','monogram canvas'],
+       style_description:'LV品牌名称·Monogram花纹·Damier棋盘格·交织字母图案',notes:'全球最高频侵权品牌之一'},
+      {id:'hermes',artist:'Hermès',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['hermes','hermès','爱马仕','birkin','kelly','H扣','马蹄铁','橙色礼盒','hermes orange'],
+       style_keywords:['horse carriage','马车图案','silk scarf pattern','H logo','orange box'],
+       style_description:'爱马仕品牌名·H扣·马车图案·标志性橙色·丝巾印花风格',notes:''},
+      {id:'gucci',artist:'Gucci',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['gucci','双G','GG logo','绿红绿条纹','green red green','GG pattern','GG canvas'],
+       style_keywords:['interlocking GG','green red stripe','bamboo handle style','gucci flora'],
+       style_description:'Gucci品牌名·双G标志·绿红绿条纹·Flora花卉图案',notes:''},
+      {id:'chanel',artist:'Chanel',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['chanel','香奈儿','双C','CC logo','山茶花','camelia','chanel no.5'],
+       style_keywords:['interlocking CC','camellia flower pattern','quilted pattern','pearl chain'],
+       style_description:'Chanel品牌名·双C标志·山茶花图案·菱格纹',notes:''},
+      {id:'burberry',artist:'Burberry',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['burberry','博柏利','burberry check','驼色格纹','beige plaid','nova check'],
+       style_keywords:['camel black red plaid','tartan check','burberry stripe','驼色黑红格'],
+       style_description:'Burberry品牌名·驼色黑红格纹·Nova Check图案',notes:''},
+      {id:'supreme',artist:'Supreme',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['supreme','box logo','红白box logo','supreme red box'],
+       style_keywords:['red rectangle white text','box logo style'],
+       style_description:'Supreme品牌名·红色方框白字Box Logo',notes:''},
+      {id:'nike',artist:'Nike',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['nike','swoosh','just do it','耐克','nike logo'],
+       style_keywords:['checkmark logo','swoosh shape','just do it slogan'],
+       style_description:'Nike品牌名·Swoosh对勾图标·Just Do It口号',notes:''},
+      {id:'adidas',artist:'Adidas',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['adidas','三条纹','three stripes','三叶草','trefoil','adidas logo'],
+       style_keywords:['three parallel stripes','trefoil clover logo','adidas wordmark'],
+       style_description:'Adidas品牌名·三条纹·三叶草图标',notes:''},
+      {id:'jordan',artist:'Nike / Air Jordan',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['jordan','air jordan','jumpman','飞人乔丹','jumpman logo'],
+       style_keywords:['jumping basketball player silhouette','air jordan wings'],
+       style_description:'Jordan品牌名·Jumpman飞人剪影·Air Jordan翅膀标志',notes:''},
+
+      // ── 迪士尼 & 皮克斯 ──────────────────────────────────────────
+      {id:'disney_mickey',artist:'Disney / Mickey Mouse',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['mickey mouse','米老鼠','mickey','minnie','minnie mouse','米妮','mickey ears','迪士尼'],
+       style_keywords:['round mouse ears','red shorts white gloves yellow shoes cartoon mouse','black round ears headband','三圆形轮廓','大耳朵卡通鼠'],
+       style_description:'米老鼠/米妮：大圆耳朵+红色短裤+白手套+黄鞋·三圆形剪影·耳朵发箍',notes:'迪士尼最严格保护IP'},
+      {id:'disney_winnie',artist:'Disney / Winnie the Pooh',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['winnie the pooh','小熊维尼','pooh bear','tigger','跳跳虎','piglet','小猪','eeyore','屹耳'],
+       style_keywords:['yellow chubby bear red shirt no pants','圆肚子黄色小熊红色上衣无裤子','hunny pot','蜂蜜罐'],
+       style_description:'维尼熊：黄色圆肚+红色短上衣+无裤子·跳跳虎橙黑条纹·小猪粉色',notes:''},
+      {id:'disney_frozen',artist:'Disney / Frozen',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['frozen','冰雪奇缘','elsa','艾莎','anna','安娜','olaf','雪宝','sven'],
+       style_keywords:['ice queen blonde braid','snowflake crystal pattern','冰雪花纹蓝色礼服','platinum braid'],
+       style_description:'冰雪奇缘角色名称·艾莎冰蓝礼服+白金辫子·雪花水晶图案',notes:''},
+      {id:'disney_lion',artist:'Disney / The Lion King',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['lion king','狮子王','simba','辛巴','mufasa','木法沙','timon','彭彭','pumba'],
+       style_keywords:['young lion cub cartoon','pride rock silhouette','hakuna matata'],
+       style_description:'狮子王角色名称·卡通幼狮形象·骄傲岩石剪影',notes:''},
+      {id:'disney_mermaid',artist:'Disney / The Little Mermaid',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['little mermaid','小美人鱼','ariel','爱丽儿','ursula','乌苏拉'],
+       style_keywords:['red hair mermaid purple shell bra','under the sea cartoon','红发美人鱼紫色贝壳'],
+       style_description:'小美人鱼角色名称·红发+紫色贝壳比基尼美人鱼形象',notes:''},
+      {id:'disney_toystory',artist:'Disney Pixar / Toy Story',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['toy story','玩具总动员','woody','胡迪','buzz lightyear','巴斯光年','jessie','翠丝'],
+       style_keywords:['cowboy toy cartoon','space ranger green white suit','pull string cowboy doll'],
+       style_description:'玩具总动员角色名称·牛仔造型·宇宙骑警绿白太空服',notes:''},
+      {id:'disney_cars',artist:'Disney Pixar / Cars',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['cars','赛车总动员','lightning mcqueen','麦坤','mater','板牙'],
+       style_keywords:['cartoon racing car with eyes','anthropomorphic car character','卡通赛车眼睛'],
+       style_description:'赛车总动员角色名称·有眼睛的卡通赛车形象',notes:''},
+      {id:'disney_nemo',artist:'Disney Pixar / Finding Nemo',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['finding nemo','海底总动员','nemo','尼莫','dory','多莉'],
+       style_keywords:['orange white clownfish cartoon','blue tang fish cartoon','小丑鱼卡通'],
+       style_description:'海底总动员角色名称·橙白小丑鱼·蓝色拟刺尾鱼卡通形象',notes:''},
+      {id:'disney_incredibles',artist:'Disney Pixar / The Incredibles',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['incredibles','超人总动员','mr incredible','弹力女超人','violet','dash'],
+       style_keywords:['superhero family cartoon','red black superhero suit','卡通超级英雄家庭'],
+       style_description:'超人总动员角色名称·红黑色超级英雄家庭卡通形象',notes:''},
+      {id:'disney_starwars',artist:'Disney / Star Wars',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['star wars','星球大战','darth vader','达斯维达','yoda','尤达','lightsaber','光剑','r2d2','stormtrooper','冲锋队员','baby yoda','grogu','mandalorian'],
+       style_keywords:['dark lord helmet black','green alien jedi master','laser sword','光剑形状','帝国标志'],
+       style_description:'星球大战所有角色名称·达斯维达头盔·尤达绿色小老头·光剑·帝国标志',notes:''},
+
+      // ── 漫威 Marvel ───────────────────────────────────────────────
+      {id:'marvel',artist:'Marvel Entertainment / Disney',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['marvel','漫威','avengers','复仇者联盟','spider-man','蜘蛛侠','iron man','钢铁侠','captain america','美国队长','thor','雷神','hulk','绿巨人','black panther','黑豹','doctor strange','奇异博士','ant-man','蚁人','captain marvel','惊奇队长','guardians of the galaxy','银河护卫队','black widow','黑寡妇','hawkeye','鹰眼','deadpool','死侍','wolverine','金刚狼','x-men','X战警','thanos','灭霸'],
+       style_keywords:['red blue spider web suit','iron armor suit cartoon','vibranium shield','蜘蛛网红蓝服','钢铁侠盔甲','美国队长盾牌圆形红白蓝'],
+       style_description:'漫威所有角色名称·蜘蛛侠红蓝蜘蛛网服装·钢铁侠盔甲·美队圆形盾牌·灭霸紫色手套',notes:'漫威全系列，版权极严'},
+
+      // ── 华纳 Warner Bros ─────────────────────────────────────────
+      {id:'harry_potter',artist:'Warner Bros / Harry Potter',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['harry potter','哈利波特','hogwarts','霍格沃茨','hermione','赫敏','voldemort','伏地魔','dumbledore','dumbledore','gryffindor','griffindor','slytherin','hufflepuff','ravenclaw','quidditch','魔法扫帚','deathly hallows','死亡圣器'],
+       style_keywords:['lightning bolt scar wizard','round glasses scar forehead','hogwarts castle','deathly hallows triangle','闪电疤痕男巫圆框眼镜','死亡圣器符号'],
+       style_description:'哈利波特所有角色·霍格沃茨·四学院标志·死亡圣器符号·闪电疤痕巫师形象',notes:''},
+      {id:'looney_tunes',artist:'Warner Bros / Looney Tunes',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['bugs bunny','兔巴哥','daffy duck','达菲鸭','tweety','崔蒂','sylvester','汤姆猫','tom and jerry','猫和老鼠','jerry','杰瑞','road runner','looney tunes'],
+       style_keywords:['grey rabbit big ears cartoon','yellow canary cartoon','black white cat cartoon'],
+       style_description:'兔巴哥·达菲鸭·崔蒂·猫和老鼠等华纳经典卡通角色名称及形象',notes:''},
+      {id:'dc_comics',artist:'DC Comics / Warner Bros',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['batman','蝙蝠侠','superman','超人','wonder woman','神奇女侠','joker','小丑','aquaman','海王','flash','闪电侠','green lantern','绿灯侠','dc comics'],
+       style_keywords:['bat symbol black','superman S logo','bat ears cowl','蝙蝠符号','超人S徽标'],
+       style_description:'DC全系列角色·蝙蝠侠蝙蝠符号·超人S标志·神奇女侠星条图案',notes:''},
+
+      // ── 其他动画/游戏IP ──────────────────────────────────────────
+      {id:'hello_kitty',artist:'Sanrio / Hello Kitty',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['hello kitty','凯蒂猫','sanrio','kitty白猫','my melody','美乐蒂','cinnamoroll','玉桂狗','pompompurin','布丁狗'],
+       style_keywords:['white cat no mouth bow','无嘴白猫蝴蝶结','round white cat red bow'],
+       style_description:'Hello Kitty：无嘴白猫+红色蝴蝶结·Sanrio所有角色名称及形象',notes:''},
+      {id:'snoopy',artist:'Peanuts / Snoopy',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['snoopy','史努比','charlie brown','查理布朗','woodstock','糊涂塌客','peanuts','花生漫画'],
+       style_keywords:['white black beagle dog cartoon','red doghouse','flying ace beagle','白色黑耳朵猎犬卡通'],
+       style_description:'史努比：白色+黑色耳朵斑点猎犬卡通形象·红色狗屋·花生漫画所有角色',notes:''},
+      {id:'pokemon',artist:'Nintendo / The Pokémon Company',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['pokemon','精灵宝可梦','pikachu','皮卡丘','charizard','喷火龙','eevee','伊布','gengar','耿鬼','snorlax','卡比兽','mewtwo','超梦','bulbasaur','妙蛙种子','squirtle','杰尼龟','pokeball','精灵球'],
+       style_keywords:['yellow electric mouse cartoon','red cheeks thunder tail','round red white ball','黄色圆润电气鼠红腮红闪电尾巴','红白精灵球'],
+       style_description:'皮卡丘：黄色圆润+红腮红+闪电尾巴·精灵球红白圆球·所有宝可梦角色名称',notes:'任天堂版权极严'},
+      {id:'minions',artist:'Universal / Illumination',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['minion','小黄人','despicable me','神偷奶爸','gru','格鲁','kevin stuart bob'],
+       style_keywords:['yellow capsule creature goggles overalls','黄色胶囊生物护目镜工装裤'],
+       style_description:'小黄人：黄色椭圆体+护目镜+蓝色工装裤卡通形象·神偷奶爸角色',notes:''},
+      {id:'anime_db',artist:'Toei / Dragon Ball',law_firm:'',case_no:'',date:'',risk_level:'urgent',
+       banned_elements:['dragon ball','龙珠','goku','悟空','vegeta','贝吉塔','frieza','弗利萨','naruto','火影忍者','sasuke','佐助','one piece','海贼王','luffy','路飞','demon slayer','鬼灭之刃','tanjiro','炭治郎'],
+       style_keywords:['spiky black hair power aura','super saiyan golden hair','ninja headband spiral','草帽海盗旗','锯齿状黑发战斗气场'],
+       style_description:'龙珠·火影忍者·海贼王·鬼灭之刃等日本动漫所有角色名称及标志性外观',notes:''},
+
+      // ── 运动联盟 ─────────────────────────────────────────────────
+      {id:'nba_nfl',artist:'NBA / NFL / Sports Leagues',law_firm:'',case_no:'',date:'',risk_level:'high',
+       banned_elements:['nba','nfl','nhl','mlb','lakers','laker','bulls','warriors','yankees','patriots','所有NBA球队名','所有NFL球队名'],
+       style_keywords:['professional sports team logo','league official logo'],
+       style_description:'所有职业体育联盟名称·球队名称·球队Logo·球员姓名及号码',notes:'体育IP版权保护极强'},
     ];
     function checkCpRisk(text) {
       const db = S.g('cp_db')||DEFAULT_CP_DB;
@@ -557,248 +686,263 @@
     // PAGE: RESEARCH
     // ════════════════════════════════════════════════════════════════
     function PageResearch({cat,colors}) {
-      const SK = 'research_'+cat;
+      // ── 每个品类完全独立的存储key ─────────────────────────────
+      const SK = 'research_v2_'+cat;
       const init = S.g(SK)||{};
-      const [status,setStatus] = useState(init.status||{});
+      const [status,setStatus]   = useState(init.status||{});
       const [results,setResults] = useState(init.results||{});
       const [summary,setSummary] = useState(init.summary||'');
       const [lastTime,setLastTime] = useState(init.lastTime||'');
       const [running,setRunning] = useState(false);
       const [sumLoading,setSumLoading] = useState(false);
+      const [sumError,setSumError] = useState('');
 
-      function persist(ns,nr,ns2) {
-        const d={status:ns,results:nr,summary:ns2,lastTime:new Date().toLocaleString('zh-CN')};
+      function persist(ns,nr,sum) {
+        const d={status:ns,results:nr,summary:sum,lastTime:new Date().toLocaleString('zh-CN')};
         S.s(SK,d); setLastTime(d.lastTime);
       }
 
+      // ── 调研prompt（按品类区分）─────────────────────────────────
       function buildPrompt(sid) {
-        const today = new Date().toLocaleDateString('zh-CN');
-        const cross = (CROSS_REF[cat]||[]).slice(0,4).join('、');
+        const cross = (CROSS_REF[cat]||[]).slice(0,3).join('/');
+        const isHome = cat==='家居';
+        const catEn  = isHome ? 'home decor wall art stickers' : 'kids clothing apparel';
         if(sid===1) return {
-          sys:'你是POD图案市场调研专家。',
-          usr:'搜索'+cat+'POD当前流行图案趋势。输出JSON(不要markdown)：{"trending_elements":["元素1","元素2","元素3","元素4","元素5"],"trending_styles":["风格1","风格2","风格3"],"trending_colors":["配色1","配色2","配色3"],"dev_insight":"建议","summary":"一句话"}'
+          sys:'You are a POD market research expert. Respond in Chinese. Output ONLY valid JSON, no markdown.',
+          usr:'Search Amazon and Etsy 2026 trends for '+catEn+' POD products. What patterns and elements are trending? Output ONLY this JSON: {"trending_elements":["元素1","元素2","元素3","元素4","元素5"],"trending_styles":["风格1","风格2","风格3"],"trending_colors":["配色1","配色2","配色3"],"summary":"一句话总结"}'
         };
         if(sid===2) return {
-          sys:'你是Amazon POD销售分析专家。',
-          usr:'搜索'+cat+'POD产品Amazon热卖图案特征。输出JSON(不要markdown)：{"hot_elements":["元素1","元素2","元素3"],"common_styles":["风格1","风格2"],"price_range":"价格区间","market_gap":"市场空白","summary":"一句话"}'
+          sys:'You are an Amazon POD sales analyst. Respond in Chinese. Output ONLY valid JSON, no markdown.',
+          usr:'Search Amazon bestsellers for '+catEn+' POD products right now. Output ONLY this JSON: {"hot_elements":["元素1","元素2","元素3"],"common_styles":["风格1","风格2"],"market_gap":"市场空白机会","summary":"一句话总结"}'
         };
         return {
-          sys:'你是跨品类图案研究专家。',
-          usr:'搜索'+cross+'热卖产品图案，寻找可移植到'+cat+'的灵感。输出JSON(不要markdown)：{"universal_elements":["元素1","元素2","元素3"],"transferable_styles":["风格1","风格2"],"innovation_directions":["方向1","方向2"],"summary":"一句话"}'
+          sys:'You are a cross-category design researcher. Respond in Chinese. Output ONLY valid JSON, no markdown.',
+          usr:'Search top selling designs in '+cross+' for '+catEn+' POD inspiration. Output ONLY this JSON: {"universal_elements":["元素1","元素2","元素3"],"transferable_styles":["风格1","风格2"],"summary":"一句话总结"}'
         };
       }
 
+      // ── 延迟工具 ─────────────────────────────────────────────────
+      async function delay(ms){return new Promise(function(r){setTimeout(r,ms);});}
+
+      // ── 单步执行 ─────────────────────────────────────────────────
       async function runStep(sid) {
-        const ns={...status,[sid]:'running'}; setStatus(ns);
+        setStatus(function(prev){return {...prev,[sid]:'running'};});
         const pr=buildPrompt(sid);
         try {
           const raw=await callClaudeWithSearch(pr.sys,pr.usr);
           let parsed=null;
-          try{
-            const c=raw.replace(/```json[\s\S]*?```/g,function(m){return m.replace(/```json|```/g,'');}).replace(/```/g,'').trim();
+          try {
+            const c=raw.replace(/```json[\s\S]*?```/g,function(m){return m.replace(/```json|```/g,'');}).replace(/```[\s\S]*?```/g,'');
             const si=c.indexOf('{'),ei=c.lastIndexOf('}');
             if(si>=0&&ei>=0){const j=JSON.parse(c.slice(si,ei+1));if(typeof j==='object'&&j!==null)parsed=j;}
-          }catch(e){}
-          if(!parsed){
-            try{
-              const c2=raw.trim();const m=c2.match(/\{[\s\S]+\}/);
-              if(m)parsed=JSON.parse(m[0]);
-            }catch(e2){}
-          }
+          } catch(e){}
+          if(!parsed){try{const m=raw.trim().match(/\{[\s\S]+\}/);if(m)parsed=JSON.parse(m[0]);}catch(e2){}}
           const result=parsed||{summary:raw.slice(0,300)};
-          const nr={...results,[sid]:result};const nd={...ns,[sid]:'done'};
-          setResults(nr);setStatus(nd);persist(nd,nr,summary);
-          // Auto-trigger summary when all 3 steps succeed via individual buttons
-          const allDone=[1,2,3].every(function(id){return (id===sid)?true:(nd[id]==='done');});
-          if(allDone&&!running){
-            setTimeout(function(){genSummaryWith(nr);},800);
-          }
+          setResults(function(prev){
+            const nr={...prev,[sid]:result};
+            setStatus(function(ps){
+              const nd={...ps,[sid]:'done'};
+              persist(nd,nr,summary);
+              return nd;
+            });
+            return nr;
+          });
           return result;
         } catch(err) {
-          const nd={...ns,[sid]:'error'};const nr={...results,[sid]:{error:'失败：'+err.message}};
-          setStatus(nd);setResults(nr);persist(nd,nr,summary);return null;
+          const errMsg='失败：'+err.message;
+          setResults(function(prev){
+            const nr={...prev,[sid]:{error:errMsg}};
+            setStatus(function(ps){
+              const nd={...ps,[sid]:'error'};
+              persist(nd,nr,summary);
+              return nd;
+            });
+            return nr;
+          });
+          return null;
         }
       }
 
-      async function runAll() {
-        setRunning(true);setStatus({});setResults({});setSummary('');S.s(SK,{});
-        const allR={};
-        for(let i=1;i<=3;i++){
-          const r=await runStep(i);if(r)allR[i]=r;
-          if(i<3)await new Promise(function(res){setTimeout(res,18000);});
+      // ── 带重试的单步执行 ─────────────────────────────────────────
+      async function runStepWithRetry(sid) {
+        for(let attempt=0;attempt<3;attempt++){
+          const r=await runStep(sid);
+          if(r&&!r.error) return r;
+          const errMsg=(r&&r.error)||'';
+          const isRateLimit=errMsg.indexOf('429')>=0||errMsg.indexOf('rate_limit')>=0;
+          if(isRateLimit && attempt<2){
+            const waitMs=60000*(attempt+1); // 60s, 120s
+            setStatus(function(prev){return {...prev,[sid]:'retrying'};});
+            await delay(waitMs);
+          } else {
+            return r;
+          }
         }
-        setSumLoading(true);
-        try {
-          const r1=allR[1]||{};const r2=allR[2]||{};const r3=allR[3]||{};
-          const sp=[
-            '根据以下'+cat+' POD三方向市场调研数据，生成开发建议报告：',
-            '【趋势】流行元素：'+JSON.stringify(r1.trending_elements||[]),
-            '流行风格：'+JSON.stringify(r1.trending_styles||[]),
-            '流行配色：'+JSON.stringify(r1.trending_colors||[]),
-            '【销量】热卖元素：'+JSON.stringify(r2.hot_elements||[]),
-            '风格：'+JSON.stringify(r2.common_styles||[])+' 空白：'+(r2.market_gap||''),
-            '【跨界】通用元素：'+JSON.stringify(r3.universal_elements||[]),
-            '请输出：①市场判断 ②TOP3图案融合方向（含主题+流行元素+风格+配色）③安全底盘元素 ④本周行动建议'
-          ].join(' ');
-          const sum=await callClaudeAPI(sp,'你是'+cat+' POD开发策略师');
-          setSummary(sum);persist({...status,[1]:'done',[2]:'done',[3]:'done'},allR,sum);
-        } catch(err){setSummary('汇总生成失败，请手动点击生成');}
-        setSumLoading(false);setRunning(false);
+        return null;
       }
 
-      async function genSummaryWith(resultsArg) {
-        const res=resultsArg||results;
-        setSumLoading(true);
+      // ── 生成汇总 ─────────────────────────────────────────────────
+      async function genSummaryWith(res) {
+        setSumLoading(true); setSumError('');
         try {
-          const r1=res[1]||{};const r2=res[2]||{};const r3=res[3]||{};
-          const sp=[
-            '根据'+cat+' POD三方向调研，生成开发建议：',
-            '趋势：'+JSON.stringify(r1.trending_elements||[])+' '+JSON.stringify(r1.trending_styles||[])+' '+JSON.stringify(r1.trending_colors||[]),
-            '销量：'+JSON.stringify(r2.hot_elements||[])+' 空白：'+(r2.market_gap||''),
-            '跨界：'+JSON.stringify(r3.universal_elements||[]),
-            '输出格式：①市场判断 ②TOP3图案融合方向（主题+元素+风格+配色）③安全底盘元素 ④本周行动建议'
-          ].join(' ');
-          const sum=await callClaudeAPI(sp,'你是'+cat+' POD开发策略师，给出简洁实用的开发建议');
-          setSummary(sum);persist(status,resultsArg||results,sum);
-        } catch(err){alert('生成失败：'+err.message);}
+          const r1=res[1]||{},r2=res[2]||{},r3=res[3]||{};
+          const sp='针对'+cat+'POD产品，根据以下调研数据给出开发建议：\n趋势元素：'
+            +JSON.stringify((r1.trending_elements||[]).slice(0,4))
+            +'\n热卖元素：'+JSON.stringify((r2.hot_elements||[]).slice(0,3))
+            +'\n市场空白：'+(r2.market_gap||'未知')
+            +'\n跨界灵感：'+JSON.stringify((r3.universal_elements||[]).slice(0,3))
+            +'\n请输出（300字内）：①市场判断 ②TOP3图案方向（主题+元素+风格+配色）③安全底盘元素 ④本周行动建议';
+          const sum=await callClaudeAPI(sp,'你是'+cat+' POD开发策略师，给出简洁实用建议');
+          setSummary(sum);
+          setResults(function(prev){persist({...status,1:'done',2:'done',3:'done'},prev,sum);return prev;});
+        } catch(err){
+          setSumError('汇总生成失败：'+err.message+'\n请稍后点击「重新生成」');
+        }
         setSumLoading(false);
       }
 
-      async function genSummary(){await genSummaryWith(null);}
+      // ── 一键全部调研 ─────────────────────────────────────────────
+      async function runAll() {
+        setRunning(true);
+        setStatus({});setResults({});setSummary('');setSumError('');
+        S.s(SK,{});
+        const allR={};
+        for(let i=1;i<=3;i++){
+          const r=await runStepWithRetry(i);
+          if(r&&!r.error) allR[i]=r;
+          if(i<3) await delay(60000); // 步骤间等60秒，确保token窗口重置
+        }
+        // 只有至少2步成功才自动生成汇总
+        const successCount=Object.keys(allR).length;
+        if(successCount>=2){
+          await delay(40000); // 汇总前等40秒
+          await genSummaryWith(allR);
+        }
+        setRunning(false);
+      }
 
       const doneCount=Object.values(status).filter(function(s){return s==='done';}).length;
       const steps=[
-        {id:1,emoji:'📈',title:'市场趋势',desc:'Google Trends / Pinterest / TikTok 流行元素&风格&配色'},
-        {id:2,emoji:'💰',title:'销量验证',desc:'Amazon Best Sellers / Etsy 热卖图案特征&市场空白'},
+        {id:1,emoji:'📈',title:'市场趋势',desc:'Amazon / Etsy / Pinterest 流行元素&风格&配色'},
+        {id:2,emoji:'💰',title:'销量验证',desc:'Amazon Best Sellers 热卖图案特征&市场空白'},
         {id:3,emoji:'🔀',title:'跨界借鉴',desc:(CROSS_REF[cat]||[]).slice(0,3).join('/')+' 等类目热卖灵感'}
       ];
 
       return (
         <div style={{display:'flex',flexDirection:'column',gap:16}}>
+          {/* 顶部控制栏 */}
           <div className="card" style={{background:colors.grad,color:'white',border:'none',padding:'16px 20px'}}>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:12}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:10}}>
               <div>
-                <div style={{fontWeight:800,fontSize:17}}>📈 市场调研中心</div>
-                <div style={{fontSize:12,opacity:0.85,marginTop:2}}>三方向并行 · 数据自动保存 · 结果同步开发流程</div>
+                <div style={{fontWeight:800,fontSize:17}}>📈 {cat}市场调研中心</div>
+                <div style={{fontSize:12,opacity:0.85,marginTop:2}}>三方向顺序执行 · 自动限速保护 · 数据按品类独立保存</div>
                 {lastTime&&<div style={{fontSize:11,opacity:0.7,marginTop:2}}>上次调研：{lastTime}</div>}
               </div>
               <div style={{display:'flex',flexDirection:'column',gap:8,alignItems:'flex-end'}}>
                 {!running
-                  ? <button onClick={runAll} style={{padding:'10px 24px',background:'white',color:colors.ac,border:'none',borderRadius:8,fontWeight:800,cursor:'pointer',fontSize:13}}>🚀 一键全部调研</button>
-                  : <div style={{textAlign:'center'}}><div style={{fontSize:22,fontWeight:800}}>{doneCount}/3</div><div style={{fontSize:11,opacity:0.8}}>进行中...</div></div>
+                  ? <button onClick={runAll} style={{padding:'10px 24px',background:'white',color:colors.ac,border:'none',borderRadius:8,fontWeight:700,fontSize:13,cursor:'pointer'}}>
+                      🚀 一键全部调研
+                    </button>
+                  : <div style={{padding:'10px 24px',background:'rgba(255,255,255,0.2)',borderRadius:8,fontSize:13,fontWeight:600}}>
+                      🔄 调研进行中（约3-4分钟）...
+                    </div>
                 }
-                {!running&&doneCount>0&&<button onClick={function(){setStatus({});setResults({});setSummary('');S.s(SK,{});}}
-                  style={{background:'rgba(255,255,255,0.2)',border:'none',color:'white',fontSize:11,padding:'3px 10px',borderRadius:6,cursor:'pointer'}}>🔄 重新调研</button>}
+                {doneCount>0&&!running&&<button onClick={function(){setStatus({});setResults({});setSummary('');setSumError('');S.s(SK,{});}}
+                  style={{padding:'6px 14px',background:'rgba(255,255,255,0.15)',color:'white',border:'1px solid rgba(255,255,255,0.4)',borderRadius:6,fontSize:11,cursor:'pointer'}}>
+                  🔁 重新调研
+                </button>}
               </div>
             </div>
+            {/* 进度条 */}
             {(running||doneCount>0)&&<div style={{display:'flex',gap:6,marginTop:12}}>
               {steps.map(function(s){
-                const bg=status[s.id]==='done'?'rgba(255,255,255,0.9)':status[s.id]==='running'?'rgba(255,255,255,0.5)':status[s.id]==='error'?'#fca5a5':'rgba(255,255,255,0.2)';
+                const bg=status[s.id]==='done'?'rgba(255,255,255,0.9)':status[s.id]==='running'||status[s.id]==='retrying'?'rgba(255,255,255,0.5)':'rgba(255,255,255,0.2)';
                 return <div key={s.id} style={{flex:1,height:4,borderRadius:4,background:bg,transition:'background 0.5s'}}></div>;
               })}
             </div>}
           </div>
 
+          {/* 三步卡片 */}
           {steps.map(function(step){
-            const st=status[step.id];const res=results[step.id];
-            const bc=st==='done'?'#10b981':st==='running'?'#8b5cf6':st==='error'?'#ef4444':'#e2e8f0';
-            const hbg=st==='done'?'#f0fdf4':st==='running'?'#f5f3ff':st==='error'?'#fef2f2':'#f8fafc';
-            const nb=st==='done'?'#10b981':st==='running'?'#8b5cf6':st==='error'?'#ef4444':'#e2e8f0';
-            const nc=st?'white':'#94a3b8';
-            const nt=st==='done'?'✓':st==='running'?'…':st==='error'?'!':String(step.id);
+            const st=status[step.id]; const res=results[step.id];
+            const bc=st==='done'?'#10b981':st==='running'?'#8b5cf6':st==='retrying'?'#f59e0b':st==='error'?'#ef4444':'#e2e8f0';
+            const hbg=st==='done'?'#f0fdf4':st==='running'?'#f5f3ff':st==='retrying'?'#fffbeb':st==='error'?'#fef2f2':'#f8fafc';
+            const nb=bc; const nc=st?'white':'#94a3b8';
+            const nt=st==='done'?'✓':st==='running'?'…':st==='retrying'?'⟳':st==='error'?'!':String(step.id);
             return (
               <div key={step.id} className="research-card" style={{borderColor:bc}}>
-                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 18px',background:hbg}}>
+                <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'14px 18px',background:hbg,borderRadius:'10px 10px 0 0'}}>
                   <div style={{display:'flex',alignItems:'center',gap:12,flex:1}}>
-                    <div style={{width:34,height:34,borderRadius:'50%',background:nb,color:nc,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:700,fontSize:13,flexShrink:0}}>{nt}</div>
+                    <div style={{width:34,height:34,borderRadius:'50%',background:nb,color:nc,display:'flex',alignItems:'center',justifyContent:'center',fontWeight:800,fontSize:14,flexShrink:0}}>{nt}</div>
                     <div style={{flex:1}}>
                       <div style={{fontWeight:700,fontSize:14}}>
                         {step.emoji} {step.title}
-                        {st==='running'&&<span style={{marginLeft:8,color:'#8b5cf6',fontSize:11}}> 实时抓取中...</span>}
+                        {st==='running'&&<span style={{marginLeft:8,color:'#8b5cf6',fontSize:11}}>实时搜索中...</span>}
+                        {st==='retrying'&&<span style={{marginLeft:8,color:'#f59e0b',fontSize:11}}>⏳ 限速保护，等待重试...</span>}
                         {st==='done'&&<span style={{marginLeft:8,color:'#10b981',fontSize:11}}>✅ 完成</span>}
                         {st==='error'&&<span style={{marginLeft:8,color:'#ef4444',fontSize:11}}>⚠️ 失败</span>}
                       </div>
                       <div style={{fontSize:11,color:'#64748b',marginTop:2}}>{step.desc}</div>
                     </div>
                   </div>
-                  {!running&&st!=='running'&&<button onClick={function(){runStep(step.id);}}
-                    style={{padding:'6px 14px',background:st==='error'?'#ef4444':st==='done'?'#64748b':colors.ac,color:'white',border:'none',borderRadius:6,fontSize:12,cursor:'pointer',fontWeight:600,flexShrink:0}}>
+                  {!running&&<button onClick={function(){runStepWithRetry(step.id);}}
+                    style={{padding:'6px 14px',background:st==='error'?'#ef4444':st==='done'?'#64748b':colors.ac,color:'white',border:'none',borderRadius:6,fontSize:11,cursor:'pointer',flexShrink:0}}>
                     {st==='error'?'🔄 重试':st==='done'?'🔄 重新执行':'▶ 单独执行'}
                   </button>}
                 </div>
-                {st==='running'&&!res&&<div style={{padding:'30px',textAlign:'center',background:'white'}}><Spinner /><div style={{color:'#64748b',fontSize:12,marginTop:8}}>正在联网抓取实时数据...</div></div>}
-                {res&&!res.error&&<div style={{padding:'16px 18px',background:'white'}}>
-                  {res.summary&&<div style={{padding:'10px 14px',background:colors.ac+'15',borderRadius:8,fontSize:13,fontWeight:600,marginBottom:12,color:colors.ac}}>💡 {res.summary}</div>}
-                  {step.id===1&&<div>
-                    <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:10}}>
-                      {[['🔑 流行元素',res.trending_elements,'#667eea'],['🎨 流行风格',res.trending_styles,'#7c3aed'],['🌈 流行配色',res.trending_colors,'#0d9488']].map(function(x){
-                        return <div key={x[0]}>
-                          <div style={{fontSize:11,fontWeight:700,color:'#64748b',marginBottom:4}}>{x[0]}</div>
-                          <div style={{display:'flex',flexWrap:'wrap',gap:3}}>
-                            {(x[1]||[]).map(function(e,i){return <span key={i} className="tag" style={{background:x[2]+'20',color:x[2],fontSize:10}}>{e}</span>;})}
-                            {(!x[1]||!x[1].length)&&<span style={{color:'#94a3b8',fontSize:11}}>暂无数据</span>}
-                          </div>
-                        </div>;
-                      })}
-                    </div>
-                    {res.dev_insight&&<div style={{padding:'8px 12px',background:'#f0fdf4',borderRadius:6,fontSize:12,color:'#16a34a',border:'1px solid #bbf7d0'}}>📌 开发洞察：{res.dev_insight}</div>}
-                  </div>}
-                  {step.id===2&&<div>
-                    <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:10}}>
-                      <div>
-                        <div style={{fontSize:11,fontWeight:700,color:'#64748b',marginBottom:4}}>🔥 热卖元素</div>
-                        <div style={{display:'flex',flexWrap:'wrap',gap:3}}>{(res.hot_elements||[]).map(function(e,i){return <span key={i} className="tag" style={{background:'#fee2e2',color:'#dc2626',fontSize:10}}>{e}</span>;})}{(!res.hot_elements||!res.hot_elements.length)&&<span style={{color:'#94a3b8',fontSize:11}}>暂无</span>}</div>
-                      </div>
-                      <div>
-                        <div style={{fontSize:11,fontWeight:700,color:'#64748b',marginBottom:4}}>🎨 共同风格</div>
-                        <div style={{display:'flex',flexWrap:'wrap',gap:3}}>{(res.common_styles||[]).map(function(e,i){return <span key={i} className="tag" style={{background:colors.ac+'20',color:colors.ac,fontSize:10}}>{e}</span>;})}{(!res.common_styles||!res.common_styles.length)&&<span style={{color:'#94a3b8',fontSize:11}}>暂无</span>}</div>
-                      </div>
-                      <div>
-                        <div style={{fontSize:11,fontWeight:700,color:'#64748b',marginBottom:4}}>💰 价格带</div>
-                        <div style={{fontSize:12,color:'#475569',marginTop:4,fontWeight:600}}>{res.price_range||'-'}</div>
-                      </div>
-                    </div>
-                    {res.market_gap&&<div style={{padding:'8px 12px',background:'#fff7ed',borderRadius:6,fontSize:12,color:'#ea580c',border:'1px solid #fed7aa'}}>🎯 市场空白：{res.market_gap}</div>}
-                  </div>}
-                  {step.id===3&&<div>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
-                      <div>
-                        <div style={{fontSize:11,fontWeight:700,color:'#64748b',marginBottom:4}}>🌐 通用热卖元素</div>
-                        <div style={{display:'flex',flexWrap:'wrap',gap:3}}>{(res.universal_elements||[]).map(function(e,i){return <span key={i} className="tag" style={{background:colors.ac+'20',color:colors.ac,fontSize:10}}>{e}</span>;})}{(!res.universal_elements||!res.universal_elements.length)&&<span style={{color:'#94a3b8',fontSize:11}}>暂无</span>}</div>
-                      </div>
-                      <div>
-                        <div style={{fontSize:11,fontWeight:700,color:'#64748b',marginBottom:4}}>🔀 可移植风格</div>
-                        <div style={{display:'flex',flexWrap:'wrap',gap:3}}>{(res.transferable_styles||[]).map(function(e,i){return <span key={i} className="tag" style={{background:'#f5f3ff',color:'#7c3aed',fontSize:10}}>{e}</span>;})}{(!res.transferable_styles||!res.transferable_styles.length)&&<span style={{color:'#94a3b8',fontSize:11}}>暂无</span>}</div>
-                      </div>
-                    </div>
-                    {(res.innovation_directions||[]).length>0&&<div>
-                      <div style={{fontSize:11,fontWeight:700,color:'#64748b',marginBottom:6}}>🚀 创新方向</div>
-                      {res.innovation_directions.map(function(d,i){return <div key={i} style={{fontSize:12,padding:'5px 10px',background:'#fff7ed',borderRadius:6,marginBottom:4,color:'#92400e',border:'1px solid #fed7aa'}}>→ {d}</div>;})}
-                    </div>}
-                  </div>}
+                {res&&!res.error&&<div style={{padding:'12px 18px',background:'white',borderRadius:'0 0 10px 10px'}}>
+                  <div style={{fontSize:12,color:'#475569',lineHeight:1.7,background:'#f8fafc',padding:'8px 12px',borderRadius:6,marginBottom:10,borderLeft:'3px solid '+bc}}>
+                    💡 {res.summary||'调研完成'}
+                  </div>
+                  <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10}}>
+                    {step.id===1&&<>
+                      <div><div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:4}}>🎨 流行元素</div>{(res.trending_elements||[]).map(function(e,i){return <div key={i} style={{fontSize:11,padding:'2px 0',color:'#374151'}}>• {e}</div>;})}</div>
+                      <div><div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:4}}>🖌️ 流行风格</div>{(res.trending_styles||[]).map(function(e,i){return <div key={i} style={{fontSize:11,padding:'2px 0',color:'#374151'}}>• {e}</div>;})}</div>
+                      <div><div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:4}}>🌈 流行配色</div>{(res.trending_colors||[]).map(function(e,i){return <div key={i} style={{fontSize:11,padding:'2px 0',color:'#374151'}}>• {e}</div>;})}</div>
+                    </>}
+                    {step.id===2&&<>
+                      <div><div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:4}}>🔥 热卖元素</div>{(res.hot_elements||[]).map(function(e,i){return <div key={i} style={{fontSize:11,padding:'2px 0',color:'#374151'}}>• {e}</div>;})}</div>
+                      <div><div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:4}}>💎 共同风格</div>{(res.common_styles||[]).map(function(e,i){return <div key={i} style={{fontSize:11,padding:'2px 0',color:'#374151'}}>• {e}</div>;})}</div>
+                      <div><div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:4}}>💰 价格带</div><div style={{fontSize:11,color:'#374151'}}>{res.price_range||'-'}</div><div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginTop:6,marginBottom:4}}>🎯 市场空白</div><div style={{fontSize:11,color:'#374151'}}>{res.market_gap||'-'}</div></div>
+                    </>}
+                    {step.id===3&&<>
+                      <div style={{gridColumn:'1/3'}}><div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:4}}>🌐 通用热卖元素</div>{(res.universal_elements||[]).map(function(e,i){return <div key={i} style={{fontSize:11,padding:'2px 0',color:'#374151'}}>• {e}</div>;})}</div>
+                      <div><div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:4}}>🔀 可移植风格</div>{(res.transferable_styles||[]).map(function(e,i){return <div key={i} style={{fontSize:11,padding:'2px 0',color:'#374151'}}>• {e}</div>;})}</div>
+                    </>}
+                  </div>
                 </div>}
-                {res&&res.error&&<div style={{padding:'12px 18px',background:'#fef2f2',color:'#dc2626',fontSize:12}}>{res.error}</div>}
+                {res&&res.error&&<div style={{padding:'12px 18px',background:'#fef2f2',borderRadius:'0 0 10px 10px',fontSize:12,color:'#dc2626'}}>{res.error}</div>}
               </div>
             );
           })}
 
-          <div className="card" style={{border:'2px solid '+colors.ac+'40'}}>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+          {/* AI综合报告 */}
+          <div className="card">
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12,flexWrap:'wrap',gap:8}}>
               <div style={{fontWeight:700,fontSize:15}}>💡 AI综合报告</div>
-              <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
-                {sumLoading&&<span style={{fontSize:11,color:colors.ac,fontWeight:600,animation:'pulse 1s infinite'}}>⏳ AI正在生成报告...</span>}
-                {doneCount>0&&!sumLoading&&<button onClick={function(){genSummaryWith(null);}} style={{padding:'6px 14px',background:colors.ac,color:'white',border:'none',borderRadius:6,fontSize:12,cursor:'pointer',fontWeight:600}}>{summary?'🔄 重新生成':'🤖 生成综合报告'}</button>}
-                {summary&&!sumLoading&&<CopyBtn text={summary} label="📋 复制" />}
-                {summary&&!sumLoading&&<button onClick={function(){const blob=new Blob([summary],{type:'text/plain;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download='市调报告_'+cat+'_'+new Date().toISOString().slice(0,10)+'.txt';a.click();URL.revokeObjectURL(url);}} style={{padding:'6px 14px',background:'#16a34a',color:'white',border:'none',borderRadius:6,fontSize:12,cursor:'pointer',fontWeight:600}}>📥 下载</button>}
+              <div style={{display:'flex',gap:8}}>
+                {doneCount>=1&&!sumLoading&&<button onClick={function(){genSummaryWith(results);}}
+                  style={{padding:'6px 14px',background:colors.ac,color:'white',border:'none',borderRadius:6,fontSize:12,cursor:'pointer'}}>
+                  🔄 {summary?'重新生成':'立即生成'}
+                </button>}
+                {summary&&!sumLoading&&<>
+                  <CopyBtn text={summary} label="📋 复制" />
+                  <button onClick={function(){const blob=new Blob([summary],{type:'text/plain;charset=utf-8'});const url=URL.createObjectURL(blob);const a=document.createElement('a');a.href=url;a.download=cat+'调研报告.txt';a.click();URL.revokeObjectURL(url);}}
+                    style={{padding:'6px 14px',background:'#10b981',color:'white',border:'none',borderRadius:6,fontSize:12,cursor:'pointer'}}>
+                    💾 下载
+                  </button>
+                </>}
               </div>
             </div>
-            {sumLoading&&<Spinner />}
-            {summary&&!sumLoading&&<div style={{background:'#f8fafc',borderRadius:8,padding:14,fontSize:13,lineHeight:1.8,whiteSpace:'pre-wrap'}}>{summary}</div>}
-            {!summary&&!sumLoading&&<div style={{textAlign:'center',padding:24,color:'#94a3b8',fontSize:13}}>{doneCount>0?'点击「生成综合报告」':'先执行调研，AI将自动生成建议'}</div>}
+            {sumLoading&&<div style={{display:'flex',alignItems:'center',gap:10,padding:16,color:'#8b5cf6'}}><Spinner /><span style={{fontSize:13}}>AI正在生成报告...</span></div>}
+            {sumError&&!sumLoading&&<div style={{background:'#fef2f2',borderRadius:8,padding:12,fontSize:12,color:'#dc2626',whiteSpace:'pre-line'}}>{sumError}</div>}
+            {summary&&!sumLoading&&<div style={{background:'#f8fafc',borderRadius:8,padding:14,fontSize:13,lineHeight:1.8,color:'#374151',whiteSpace:'pre-wrap'}}>{summary}</div>}
+            {!summary&&!sumLoading&&!sumError&&<div style={{textAlign:'center',padding:24,color:'#94a3b8',fontSize:13}}>完成调研后自动生成，或点击「立即生成」</div>}
           </div>
         </div>
       );
     }
+
 
     // ════════════════════════════════════════════════════════════════
     // PAGE: WORKFLOW (5步)
@@ -1008,65 +1152,118 @@
       </div>;
     }
 
+    // 家居品类规格配置
+    const HOME_CAT_SPECS = {
+      '水晶贴':    {seamless:false, ar:'1:1',   arFlag:'--ar 1:1'},
+      '门盖':      {seamless:false, ar:'9:16',  arFlag:'--ar 9:16'},
+      '门贴':      {seamless:false, ar:'9:16',  arFlag:'--ar 9:16'},
+      '窗户贴':    {seamless:false, ar:'3:2',   arFlag:'--ar 3:2'},
+      '楼梯贴':    {seamless:false, ar:'9:50',  arFlag:'--ar 9:50'},
+    };
+    function getHomeCatSpec(subcat) {
+      return HOME_CAT_SPECS[subcat] || {seamless:true, ar:'1:1', arFlag:'--ar 1:1 --tile'};
+    }
+
     function WFStep3({data,upd,cat,colors,onNext,onBack}) {
       const [prompts,setPrompts] = useState(data.mjPrompts||{});
       const [loading,setLoading] = useState(false);
+      const [homeSubcat,setHomeSubcat] = useState(data.homeSubcat||'');
       const combos=data.selectedCombos||[];
       const theme=data.theme||{};
       const isHome=cat==='家居';
+      const homeCatList=['水晶贴','门盖','门贴','窗户贴','楼梯贴','烫衣板罩(标准)','烫衣板罩(小型)','可折叠熨衣垫','门挂熨衣垫','圆形桌套','窗幔','静电窗膜'];
 
       function gen() {
+        if(isHome && !homeSubcat) { alert('请先选择品类'); return; }
         setLoading(true);
         const ag=data.ageGroup||'toddler';const gd=data.gender||'unisex';
-        const ageCfg={newborn:{mod:'extra large design whitespace 40%',sty:180},toddler:{mod:'playful medium density',sty:200},littleKid:{mod:'detailed school style',sty:220},bigKid:{mod:'trendy teenager style',sty:250}};
-        const cfg=isHome?{mod:'home decor style minimal',sty:200}:(ageCfg[ag]||ageCfg.toddler);
+        const ageCfg={newborn:{mod:'extra large design whitespace 40%',sty:180},toddler:{mod:'playful medium design whitespace 30%',sty:160},kids:{mod:'bold medium design whitespace 25%',sty:150},youth:{mod:'dynamic design whitespace 20%',sty:140}};
+        const spec=isHome?getHomeCatSpec(homeSubcat):null;
+        const cfg=isHome?{mod:'home decor style'+(spec.seamless?' seamless pattern':''),sty:200}:(ageCfg[ag]||ageCfg.toddler);
         const gMod=isHome?'':gd==='boy'?', boys theme':gd==='girl'?', girls cute theme':', gender neutral';
-        const tTag=isHome?'HOME DECOR '+(theme.name||''):(ag==='newborn'?'NEWBORN':ag==='toddler'?'TODDLER':ag==='littleKid'?'LITTLE KID 6-10y':'BIG KID 11-14y')+' '+(theme.name||theme.en||'');
+        const tTag=isHome?('HOME DECOR '+homeSubcat+' '+(theme.name||'')):(ag==='newborn'?'NEWBORN':ag==='toddler'?'TODDLER':ag==='kids'?'KIDS':'YOUTH');
         const allP={};
         combos.forEach(function(combo){
           const core=combo.core_elements||[];const trend=combo.trend_elements||[];const conn=combo.connect_elements||[];
           const all=[...core,...trend,...conn];
           const colorStr=(combo.colors||[]).slice(0,3).join(', ')||'soft pastel colors';
           const sty=combo.style||'';const ps=[];
-          for(let i=0;i<5;i++){
-            const mjs=MJ_STYLES[i]||'';const els=[];
-            if(core.length>0)els.push(core[i%core.length]);
-            const fill=all.filter(function(e){return els.indexOf(e)<0;});
-            if(fill.length>0)els.push(fill[i%fill.length]);
-            if(conn.length>0&&els.indexOf(conn[0])<0)els.push(conn[0]);
-            ps.push('/imagine prompt: '+els.join(', ')+', '+sty+', FOR '+tTag+gMod+', '+cfg.mod+', '+colorStr+', seamless repeat pattern, '+mjs+' --tile --no watermark text --ar 1:1 --v 6 --stylize '+cfg.sty);
-          }
-          for(let j=5;j<10;j++){
-            const mjs2=MJ_STYLES[j]||'';const els2=[];
-            for(let k=0;k<3&&k<all.length;k++){const el=all[(j*2+k)%all.length];if(els2.indexOf(el)<0)els2.push(el);}
-            ps.push('/imagine prompt: '+els2.join(', ')+', '+sty+', FOR '+tTag+gMod+', '+cfg.mod+', '+colorStr+', centered single design, '+mjs2+' --no watermark text pattern --ar 1:1 --v 6 --stylize '+cfg.sty);
+          if(isHome){
+            const arFlag=spec.arFlag;
+            const seamlessMod=spec.seamless?', seamless pattern, tileable':', isolated design, clean background';
+            for(let i=0;i<10;i++){
+              const mjs=MJ_STYLES[i%MJ_STYLES.length]||'';const els=[];
+              if(core.length>0)els.push(core[i%core.length]);
+              const fill=all.filter(function(e){return els.indexOf(e)<0;});
+              if(fill.length>0)els.push(fill[i%fill.length]);
+              if(conn.length>0&&els.indexOf(conn[0])<0)els.push(conn[0]);
+              ps.push('/imagine prompt: '+els.join(', ')+', '+sty+seamlessMod+', FOR '+tTag+', '+cfg.mod+', '+colorStr+', '+mjs+' '+arFlag+' --s '+cfg.sty);
+            }
+          } else {
+            for(let i=0;i<5;i++){
+              const mjs=MJ_STYLES[i]||'';const els=[];
+              if(core.length>0)els.push(core[i%core.length]);
+              const fill=all.filter(function(e){return els.indexOf(e)<0;});
+              if(fill.length>0)els.push(fill[i%fill.length]);
+              if(conn.length>0&&els.indexOf(conn[0])<0)els.push(conn[0]);
+              ps.push('/imagine prompt: '+els.join(', ')+', '+sty+', FOR '+tTag+gMod+', '+cfg.mod+', '+colorStr+', '+mjs+' --ar 1:1 --tile --s '+cfg.sty);
+            }
+            for(let j=5;j<10;j++){
+              const mjs2=MJ_STYLES[j]||'';const els2=[];
+              for(let k=0;k<3&&k<all.length;k++){const el=all[(j*2+k)%all.length];if(els2.indexOf(el)<0)els2.push(el);}
+              ps.push('/imagine prompt: '+els2.join(', ')+', '+sty+', FOR '+tTag+gMod+', '+cfg.mod+', '+colorStr+', '+mjs2+' --ar 1:1 --s '+cfg.sty);
+            }
           }
           allP[combo.name]=ps;
         });
-        setPrompts(allP);upd('mjPrompts',allP);setLoading(false);
+        setPrompts(allP);upd('mjPrompts',allP);upd('homeSubcat',homeSubcat);setLoading(false);
       }
+
+      const specInfo=isHome&&homeSubcat?getHomeCatSpec(homeSubcat):null;
 
       return <div style={{display:'flex',flexDirection:'column',gap:14}}>
         <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>Step 4 — 生成MJ咒语</div>
-        <div style={{fontSize:13,color:'#64748b'}}>每个方案10条：前5条无缝图（--tile），后5条单独设计图，风格各不同</div>
+        {isHome && <div style={{background:'#f8fafc',borderRadius:10,padding:14,border:'2px solid '+(homeSubcat?colors.ac:'#e2e8f0')}}>
+          <div style={{fontWeight:700,fontSize:13,marginBottom:8,color:'#374151'}}>📦 第一步：选择开发品类</div>
+          <select value={homeSubcat} onChange={function(e){setHomeSubcat(e.target.value);setPrompts({});}}
+            style={{width:'100%',padding:'9px 12px',borderRadius:8,border:'1px solid #d1d5db',fontSize:13,outline:'none',background:'white'}}>
+            <option value=''>-- 请选择品类 --</option>
+            {homeCatList.map(function(c){return <option key={c} value={c}>{c}</option>;})}
+          </select>
+          {specInfo && <div style={{marginTop:10,display:'flex',gap:8,flexWrap:'wrap'}}>
+            <span style={{padding:'4px 12px',borderRadius:20,background:specInfo.seamless?'#dcfce7':'#dbeafe',color:specInfo.seamless?'#15803d':'#1d4ed8',fontSize:11,fontWeight:700}}>
+              {specInfo.seamless?'🔲 无缝图 --tile':'🖼️ 非无缝图'}
+            </span>
+            <span style={{padding:'4px 12px',borderRadius:20,background:'#fef9c3',color:'#854d0e',fontSize:11,fontWeight:700}}>
+              📐 比例 {specInfo.ar}
+            </span>
+            <span style={{padding:'4px 12px',borderRadius:20,background:'#f3f4f6',color:'#374151',fontSize:11,fontWeight:700}}>
+              ✅ 10条统一规格
+            </span>
+          </div>}
+        </div>}
+        {!isHome && <div style={{fontSize:13,color:'#64748b'}}>每个方案10条：前5条无缝图（--tile），后5条单独设计图</div>}
         <div style={{display:'flex',gap:10}}>
-          <button className="btn" onClick={gen} disabled={loading} style={{background:colors.ac,color:'white',flex:1,padding:'12px',opacity:loading?0.5:1}}>
+          <button className="btn" onClick={gen} disabled={loading||(isHome&&!homeSubcat)}
+            style={{background:(isHome&&!homeSubcat)?'#cbd5e1':colors.ac,color:'white',flex:1}}>
             {loading?'🔄 生成中...':'🎨 生成MJ咒语（10条/方案）'}
           </button>
-          {Object.keys(prompts).length>0&&!loading&&<button className="btn" onClick={function(){setPrompts({});upd('mjPrompts',{});setTimeout(gen,100);}} style={{background:'#f1f5f9',color:'#475569'}}>🔄 重新生成</button>}
+          {Object.keys(prompts).length>0&&!loading&&<button className="btn" onClick={function(){setPrompts({});upd('mjPrompts',{});}} style={{background:'#fee2e2',color:'#dc2626'}}>🗑️ 清除</button>}
         </div>
         {Object.entries(prompts).map(function(entry){
-          const name=entry[0];const list=entry[1];
-          return <div key={name} style={{border:'2px solid '+colors.ac+'50',borderRadius:12,overflow:'hidden'}}>
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',background:colors.ac+'10'}}>
-              <div style={{fontWeight:700,fontSize:15,color:colors.ac}}>{name}</div>
+          const pName=entry[0];const list=entry[1];
+          return <div key={pName} style={{border:'2px solid '+colors.ac+'50',borderRadius:12,overflow:'hidden'}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',padding:'12px 16px',background:colors.ac+'15'}}>
+              <div style={{fontWeight:700,fontSize:15,color:colors.ac}}>{pName}</div>
               <CopyBtn text={list.join('\n\n')} label="📋 复制全部10条" />
             </div>
             <div style={{padding:12,background:'white',display:'flex',flexDirection:'column',gap:8}}>
-              <div style={{fontSize:11,padding:'6px 10px',background:'#f8fafc',borderRadius:6,color:'#64748b'}}>前5条 🔲 无缝图（--tile）｜ 后5条 🖼️ 单独设计图</div>
+              <div style={{fontSize:11,padding:'6px 10px',background:'#f8fafc',borderRadius:6,color:'#64748b'}}>
+                {isHome&&specInfo?(specInfo.seamless?'🔲 无缝图':'🖼️ 非无缝图')+' · '+specInfo.ar+' · 共'+list.length+'条':'共'+list.length+'条咒语'}
+              </div>
               {list.map(function(p,i){
                 return <div key={i} className="code-block">
-                  <div style={{color:'#94a3b8',fontSize:10,marginBottom:4}}>#{i+1} {i<5?'🔲 无缝图':'🖼️ 单独图'}</div>
+                  <div style={{color:'#94a3b8',fontSize:10,marginBottom:4}}>#{i+1} {isHome?(specInfo&&specInfo.seamless?'🔲 无缝图':'🖼️ 非无缝图'):(i<5?'🔲 无缝图':'🖼️ 单独图')}</div>
                   <div style={{paddingRight:50}}>{p}</div>
                   <button className="copy-btn-abs" onClick={function(){navigator.clipboard.writeText(p);}}>复制</button>
                 </div>;
@@ -1074,7 +1271,7 @@
             </div>
           </div>;
         })}
-        {Object.keys(prompts).length>0&&<button className="btn" onClick={onNext} style={{background:colors.ac,color:'white',width:'100%',padding:'12px'}}>拿去MJ生成图片 → 前往Listing →</button>}
+        {Object.keys(prompts).length>0&&<button className="btn" onClick={onNext} style={{background:colors.ac,color:'white',width:'100%'}}>下一步 →</button>}
         <button className="btn" onClick={onBack} style={{background:'#f1f5f9',color:'#475569',width:'100%'}}>← 上一步</button>
       </div>;
     }
