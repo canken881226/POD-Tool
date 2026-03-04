@@ -439,6 +439,19 @@
        style_keywords:['professional sports team logo','league official logo'],
        style_description:'所有职业体育联盟名称·球队名称·球队Logo·球员姓名及号码',notes:'体育IP版权保护极强'},
     ];
+    // ── Global: get all banned elements + style keywords from both DBs ──
+    function getCpBanList() {
+      const db1 = S.g('cp_db')||DEFAULT_CP_DB;
+      const db2 = S.g('cp_images_index')||[];
+      const banned=[], styleKws=[], styleDescs=[];
+      [...db1,...db2].forEach(function(e){
+        (e.banned_elements||[]).forEach(function(b){if(b&&banned.indexOf(b)<0)banned.push(b);});
+        (e.style_keywords||[]).forEach(function(k){if(k&&styleKws.indexOf(k)<0)styleKws.push(k);});
+        if(e.style_description) styleDescs.push(e.style_description);
+      });
+      return {banned:banned, styleKws:styleKws, styleDescs:styleDescs};
+    }
+
     function checkCpRisk(text) {
       const imgLib=(S.g('cp_images_index')||[]).map(function(e){return {...e,banned_elements:e.banned_elements||[],style_keywords:e.style_keywords||[]};});
       const db=[...(S.g('cp_db')||DEFAULT_CP_DB),...imgLib];
@@ -1094,7 +1107,9 @@
           '【竞品新品方向】'+JSON.stringify(r2.new_arrivals||[]),
           '【跨界通用元素】'+JSON.stringify(r3.universal_elements||[]),
           customInput?'【用户额外要求（请翻译成英文融入方案）】'+customInput:'',
-          'Formula: trending style + trending color + trending elements + theme hot elements = hit pattern. Generate 4 combos, 40% core + 30% trend + 30% connecting elements, max 6 colors, 100% original.',
+          '【版权禁用元素-绝对不能出现】'+JSON.stringify(getCpBanList().banned.slice(0,20)),
+          '【版权禁用风格-绝对不能使用】'+JSON.stringify(getCpBanList().styleKws.slice(0,10)),
+          'Formula: trending style + trending color + trending elements + theme hot elements = hit pattern. Generate 4 combos, 40% core + 30% trend + 30% connecting elements, max 6 colors, 100% original. STRICTLY avoid all banned elements and styles listed above.',
           'Output JSON array ONLY (no markdown, no explanation): [{"name":"English name","nameCN":"中文名","core_elements":["English element"],"trend_elements":["English element"],"connect_elements":["English element"],"style":"English style","colors":["#hex1","#hex2","#hex3"],"market_fit":"reason","formula_note":"how formula applied"}]'
         ];
         try {
@@ -1102,7 +1117,17 @@
           const raw=await callClaudeAPI(parts.join(' '),'You are a '+cat+' POD design expert. Output JSON array ONLY in English.');
           const c=raw.replace(/```json|```/g,'').trim();
           const si=c.indexOf('['),ei=c.lastIndexOf(']');
-          if(si>=0&&ei>=0){const p=JSON.parse(c.slice(si,ei+1));setCombos(p);upd('elementCombos',p);setCustomInput('');}
+          if(si>=0&&ei>=0){
+            const p=JSON.parse(c.slice(si,ei+1));
+            // Post-check: scan each combo for banned elements
+            const banList=getCpBanList().banned.map(function(b){return b.toLowerCase();});
+            const checkedP=p.map(function(combo){
+              const allEls=[...(combo.core_elements||[]),...(combo.trend_elements||[]),...(combo.connect_elements||[])];
+              const hits=allEls.filter(function(el){return banList.some(function(b){return el.toLowerCase().indexOf(b)>=0;});});
+              return hits.length>0?{...combo,_cpWarning:'包含疑似侵权元素：'+hits.join('、')}:combo;
+            });
+            setCombos(checkedP);upd('elementCombos',checkedP);setCustomInput('');
+          }
           else alert('AI格式错误，请重试');
         }catch(err){alert('生成失败：'+err.message);}
         setLoading(false);
@@ -1157,6 +1182,7 @@
                 <input type="checkbox" checked={isSel} onChange={function(){toggleSel(c);}} style={{width:18,height:18,marginTop:2,flexShrink:0}} />
                 <div style={{flex:1}}>
                   <div style={{fontWeight:700,fontSize:15,color:colors.ac}}>{c.name}</div>
+                  {c._cpWarning&&<div style={{fontSize:11,padding:'4px 10px',background:'#fee2e2',borderRadius:5,color:'#dc2626',marginTop:3}}>⚠️ 版权预警：{c._cpWarning}</div>}
                   <div style={{fontSize:12,color:'#64748b',marginBottom:6}}>{c.nameCN} · {c.style}</div>
                   {c.formula_note&&<div style={{fontSize:11,padding:'6px 10px',background:colors.ac+'12',borderRadius:6,marginBottom:8,color:colors.ac}}>✨ {c.formula_note}</div>}
                   <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:6,fontSize:11}}>
@@ -1232,6 +1258,9 @@
         setLoading(true);
         // Translate custom input if needed
         const customEn = await translateCustom(mjCustom);
+        const cpBans = getCpBanList();
+        const banStr = cpBans.banned.slice(0,15).join(', ');
+        const banStyleStr = cpBans.styleKws.slice(0,8).join(', ');
         const ag=data.ageGroup||'toddler';const gd=data.gender||'unisex';
         const ageCfg={
           newborn:{sty:180,size:'extra large centered design, 40% whitespace'},
@@ -1275,7 +1304,8 @@
               if(trend.length>0) els.push(trend[i%trend.length]);
               if(conn.length>0 && els.indexOf(conn[0])<0) els.push(conn[0]);
               const customPart=customEn?', '+customEn:'';
-              ps.push('/imagine prompt: '+els.join(', ')+', '+styleMod+', seamless repeating pattern, tileable, surface design'+customPart+', '+colorStr+', FOR '+tTag+gMod+' apparel print, '+agCfg.size+' --ar 1:1 --tile --s '+agCfg.sty);
+              const banNote1=banStr?', avoid: '+banStr:'';
+              ps.push('/imagine prompt: '+els.join(', ')+', '+styleMod+', seamless repeating pattern, tileable, surface design'+customPart+banNote1+', '+colorStr+', FOR '+tTag+gMod+' apparel print, '+agCfg.size+' --ar 1:1 --tile --s '+agCfg.sty);
             }
             for(let j=5;j<10;j++){
               const styleMod=STYLE_MODS[j];
@@ -1284,7 +1314,8 @@
               const support=all.length>1?all[(j+1)%all.length]:'';
               const customPart=customEn?', '+customEn:'';
               const singleMod='single '+hero+(support?', '+support:'')+', centered composition, isolated on white, NO background pattern';
-              ps.push('/imagine prompt: '+singleMod+', '+styleMod+customPart+', '+colorStr+', FOR '+tTag+gMod+' apparel print, '+agCfg.size+' --ar 1:1 --s '+agCfg.sty);
+              const banNote2=banStr?', avoid: '+banStr:'';
+              ps.push('/imagine prompt: '+singleMod+', '+styleMod+customPart+banNote2+', '+colorStr+', FOR '+tTag+gMod+' apparel print, '+agCfg.size+' --ar 1:1 --s '+agCfg.sty);
             }
           }
           allP[combo.name]=ps;
@@ -1343,6 +1374,7 @@
               <div style={{fontSize:11,padding:'6px 10px',background:'#f8fafc',borderRadius:6,color:'#64748b'}}>
                 {isHome&&specInfo?(specInfo.seamless?'🔲 无缝图':'🖼️ 非无缝图')+' · '+specInfo.ar+' · 共'+list.length+'条':'共'+list.length+'条咒语'}
               </div>
+              {(function(){const bans=getCpBanList().banned;const hits=bans.filter(function(b){return list.some(function(p){return p.toLowerCase().indexOf(b.toLowerCase())>=0;});});return hits.length>0?<div style={{padding:'6px 10px',background:'#fef2f2',borderRadius:6,border:'1px solid #fecaca'}}><span style={{fontSize:11,color:'#dc2626',fontWeight:700}}>⚠️ 咒语版权预警：</span><span style={{fontSize:11,color:'#dc2626'}}>{hits.join('、')}</span></div>:null;})()}
               {list.map(function(p,i){
                 return <div key={i} className="code-block">
                   <div style={{color:'#94a3b8',fontSize:10,marginBottom:4}}>#{i+1} {isHome?(specInfo&&specInfo.seamless?'🔲 无缝图':'🖼️ 非无缝图'):(i<5?'🔲 无缝图':'🖼️ 单独图')}</div>
@@ -1659,19 +1691,30 @@
         const kwCat=(KW_DB[cat]||{})[selCat];
         const kwStr=kwCat?'关键词：'+kwCat.p.slice(0,6).join(',')+' '+kwCat.s.join(','):'';
         const riskNote=cpResults.some(function(r){return r.alerts&&r.alerts.length>0;})?'规避侵权元素':'';
+        // Load ban list for this listing session
+        const cpBansL=getCpBanList();
+        const banWordsL=cpBansL.banned.slice(0,20).join(', ');
+        const banStylesL=cpBansL.styleKws.slice(0,8).join(', ');
         const allListings=[];
         for(let i=0;i<images.length;i++){
           const img=images[i];
           const elemDesc=cpResults[i]?(cpResults[i].parsed.elements||[]).join('/'):'';
           const imgDesc=img.name+(elemDesc?'('+elemDesc+')':'');
           const bulletEmojis=['🌟','✨','💎','🎯','🎁'];
-          const prompt='Generate Amazon '+cat+' Product Listing in English. Pattern: '+imgDesc+'. Category: '+(selCat||'general')+'. '+kwStr+' '+(riskNote?'Avoid infringing elements.':'')+' RULES: title max 150 chars. 5 bullets each min 150 chars starting with ALL-CAPS keyword then dash. Description min 200 words using Amazon HTML: <b>bold</b> for keywords, <br><br> between paragraphs. Keywords: space-separated words sorted by search volume high-to-low, NO commas, TOTAL MUST BE UNDER 250 CHARACTERS EXACTLY - count chars and stop before 250. No repeated words from title/bullets. JSON ONLY no markdown: {"title":"...","bullets":["KEYWORD - detail x5"],"description":"<b>Title</b><br><br>Para...","keywords":"kw1 kw2 kw3"}';
+          const cpBanNote=banWordsL?'NEVER use these infringing words/brands/elements in title, bullets, or keywords: '+banWordsL+'. Avoid these infringing styles: '+banStylesL+'. ':'';
+          const prompt='Generate Amazon '+cat+' Product Listing in English. Pattern: '+imgDesc+'. Category: '+(selCat||'general')+'. '+kwStr+' '+cpBanNote+(riskNote?'Avoid infringing elements.':'')+' RULES: title max 150 chars. 5 bullets each min 150 chars starting with ALL-CAPS keyword then dash. Description min 200 words using Amazon HTML: <b>bold</b> for keywords, <br><br> between paragraphs. Keywords: space-separated words sorted by search volume high-to-low, NO commas, TOTAL MUST BE UNDER 250 CHARACTERS EXACTLY - count chars and stop before 250. No repeated words from title/bullets. JSON ONLY no markdown: {"title":"...","bullets":["KEYWORD - detail x5"],"description":"<b>Title</b><br><br>Para...","keywords":"kw1 kw2 kw3"}';
           try{
             const r=await callClaudeAPI(prompt,'You are an Amazon Listing expert. Output JSON ONLY, no markdown, no explanation.');
             let p=null;
             try{const c=r.replace(/```json|```/g,'').trim();const si=c.indexOf('{'),ei=c.lastIndexOf('}');if(si>=0&&ei>=0)p=JSON.parse(c.slice(si,ei+1));}catch(e){}
             if(p&&p.keywords){const kws=p.keywords.trim().split(/\s+/);let kr='';for(let ki=0;ki<kws.length;ki++){const kn=(kr?kr+' ':'')+kws[ki];if(kn.length>250)break;kr=kn;}p.keywords=kr;}
-            allListings.push({imageName:img.name,imageIdx:i+1,...(p||{title:'生成失败',bullets:[],description:'',keywords:''})});
+            // Post-check: scan generated listing for banned words
+            let cpListingWarnings=[];
+            if(p){
+              const checkText=[p.title||'',...(p.bullets||[]),p.keywords||''].join(' ').toLowerCase();
+              cpBansL.banned.forEach(function(b){if(b&&checkText.indexOf(b.toLowerCase())>=0)cpListingWarnings.push(b);});
+            }
+            allListings.push({imageName:img.name,imageIdx:i+1,cpWarnings:cpListingWarnings,...(p||{title:'生成失败',bullets:[],description:'',keywords:''})});
           }catch(err){
             allListings.push({imageName:img.name,imageIdx:i+1,title:'失败:'+err.message,bullets:[],description:'',searchTerms:''});
           }
@@ -1810,6 +1853,10 @@
                     <CopyBtn text={[lst.title,'','Bullet Points:'].concat(lst.bullets||[]).concat(['','描述：'+lst.description,'搜索词：'+lst.searchTerms]).join('\n')} label="📋 复制全部" />
                   </div>
                   <div style={{padding:'10px',display:'flex',flexDirection:'column',gap:6}}>
+                    {(lst.cpWarnings||[]).length>0&&<div style={{padding:'8px 12px',background:'#fef2f2',borderRadius:6,border:'1px solid #fecaca'}}>
+                      <div style={{fontSize:11,fontWeight:700,color:'#dc2626',marginBottom:4}}>⚠️ 版权预警 - 以下词汇疑似侵权，请人工修改：</div>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:4}}>{(lst.cpWarnings||[]).map(function(w,wi){return <span key={wi} style={{fontSize:11,padding:'2px 8px',background:'#fee2e2',borderRadius:4,color:'#dc2626',fontWeight:600}}>{w}</span>;})}</div>
+                    </div>}
                     <div style={{background:'#f8fafc',borderRadius:6,padding:'8px 10px'}}>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:3}}>
                         <span style={{fontSize:11,fontWeight:700,color:'#475569'}}>标题</span><CopyBtn text={lst.title||''} />
@@ -1893,6 +1940,7 @@
       // UI state
       const [tab,setTab] = useState('library'); // library | import | settings
       const [pdfLoading,setPdfLoading] = useState(false);
+      const [pdfProgress,setPdfProgress] = useState(''); // batch progress msg
       const [extracted,setExtracted]   = useState(null); // AI extracted result
       const [uploading,setUploading]   = useState(false);
       const [search,setSearch]         = useState('');
@@ -1945,6 +1993,76 @@
       }
 
       
+      // ── Batch PDF upload handler ───────────────────────────────
+      async function handleBatchPdfUpload(e) {
+        const files = Array.from(e.target.files);
+        if(!files.length) return;
+        if(files.length===1){ await handlePdfUpload(e); return; }
+        // Multiple files: process one by one, collect results
+        setPdfLoading(true); setExtracted(null);
+        const batchResults=[];
+        for(let fi=0;fi<files.length;fi++){
+          const file=files[fi];
+          setPdfProgress('处理第'+(fi+1)+'/'+files.length+'个：'+file.name);
+          try {
+            const arrayBuf=await new Promise(function(res,rej){const r=new FileReader();r.onload=function(ev){res(ev.target.result);};r.onerror=rej;r.readAsArrayBuffer(file);});
+            const b64=await new Promise(function(res,rej){const r=new FileReader();r.onload=function(ev){res(ev.target.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(file);});
+            pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            const pdfDoc=await pdfjsLib.getDocument({data:arrayBuf}).promise;
+            const numPages=pdfDoc.numPages;
+            const allImgs=[]; const pageB64s=[];
+            for(let p=1;p<=numPages;p++){
+              const pdfPage=await pdfDoc.getPage(p);
+              const pageCanvas=await renderPdfPageToCanvas(pdfPage,1.5);
+              pageB64s.push(pageCanvas.toDataURL('image/jpeg',0.85));
+              const imgs=await extractPageImages(pdfPage);
+              imgs.forEach(function(img,idx){allImgs.push({localB64:img.b64,name:'p'+p+'_img'+(idx+1)+'.jpg',elements:[],aiDesc:'',w:img.w,h:img.h});});
+            }
+            const resp=await fetch('https://api.anthropic.com/v1/messages',{
+              method:'POST',headers:{'Content-Type':'application/json'},
+              body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,
+                messages:[{role:'user',content:[
+                  {type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},
+                  {type:'text',text:'Copyright infringement notice. Output JSON only (no markdown): {"plaintiff":"brand/artist name","works":["work title"],"style_description":"Chinese art style description","style_keywords":["Chinese style tag1","tag2"],"banned_elements":["Chinese: brand name","work name","visual feature to avoid"],"risk_level":"urgent or high","case_no":"","filed_date":""}'}
+                ]}]})
+            });
+            const rdata=await resp.json();
+            const raw=(rdata.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('');
+            let parsed=null;
+            try{const si=raw.indexOf('{'),ei=raw.lastIndexOf('}');if(si>=0&&ei>=0)parsed=JSON.parse(raw.slice(si,ei+1));}catch(ex){}
+            if(parsed){
+              const meaningful=allImgs.filter(function(img){return img.w>=100&&img.h>=100;});
+              const finalImgs=meaningful.length>0?meaningful:pageB64s.map(function(b,i){return {localB64:b,name:'page'+(i+1)+'.jpg',elements:[],aiDesc:'整页',w:0,h:0};});
+              batchResults.push({...parsed,images:finalImgs,notes:'',_pdfName:file.name,_pageCount:numPages,_imgFound:allImgs.length});
+            }
+          } catch(err){ console.warn('Failed:',file.name,err.message); }
+          // Delay between files to avoid rate limit
+          if(fi<files.length-1) await new Promise(function(r){setTimeout(r,3000);});
+        }
+        setPdfLoading(false); setPdfProgress('');
+        if(batchResults.length>0){
+          // Show batch summary and auto-save all
+          const saved=[];
+          for(let bi=0;bi<batchResults.length;bi++){
+            const entry=batchResults[bi];
+            const newRec={id:String(Date.now())+'_'+bi,plaintiff:entry.plaintiff||'',works:entry.works||[],style_description:entry.style_description||'',style_keywords:entry.style_keywords||[],banned_elements:entry.banned_elements||[],risk_level:entry.risk_level||'high',case_no:entry.case_no||'',filed_date:entry.filed_date||'',notes:'批量导入自'+entry._pdfName,images:entry.images||[],createdAt:new Date().toISOString()};
+            saved.push(newRec);
+          }
+          // Save all to cp_images_index (auto-save without GitHub for batch)
+          const updated=[...cpImages,...saved];
+          persistImages(updated);
+          // Also sync banned_elements into cp_db for immediate use across tool
+          const cpDb=S.g('cp_db')||DEFAULT_CP_DB;
+          const newCpEntries=saved.map(function(s){return {id:s.id,artist:s.plaintiff,law_firm:'',case_no:s.case_no,date:s.filed_date,risk_level:s.risk_level,style_description:s.style_description,notes:s.notes,banned_elements:s.banned_elements,style_keywords:s.style_keywords};});
+          S.s('cp_db',[...cpDb,...newCpEntries]);
+          alert('批量处理完成！共'+saved.length+'/'+files.length+'个PDF成功。\n图片已存入本地（如需上传GitHub，请在图库中逐条操作）。\n侵权词汇已同步到全工具版权检查系统。');
+          setTab('library');
+        } else {
+          alert('批量处理失败，所有文件均未能提取数据，请检查文件格式。');
+        }
+        e.target.value='';
+      }
+
       // ── PDF.js: render page to canvas at high DPI ──────────────
       async function renderPdfPageToCanvas(pdfPage, scale) {
         scale = scale || 2.0;
@@ -2141,10 +2259,17 @@
         };
         const updated = [...cpImages, entry];
         persistImages(updated);
+        // Auto-sync banned elements to cp_db for immediate use across all tool modules
+        const existingCpDb = S.g('cp_db')||DEFAULT_CP_DB;
+        const alreadyExists = existingCpDb.some(function(x){return x.id===entry.id;});
+        if(!alreadyExists){
+          const cpEntry={id:entry.id,artist:entry.plaintiff,law_firm:'',case_no:entry.case_no,date:entry.filed_date,risk_level:entry.risk_level,style_description:entry.style_description,notes:entry.notes,banned_elements:entry.banned_elements,style_keywords:entry.style_keywords};
+          S.s('cp_db',[...existingCpDb,cpEntry]);
+        }
         setExtracted(null);
         setTab('library');
         setUploading(false);
-        alert('✅ 已录入侵权图库，共'+savedImages.length+'张图片'+(ghToken?'（已同步GitHub）':'（本地存储）'));
+        alert('✅ 已录入侵权图库，共'+savedImages.length+'张图片'+(ghToken?'（已同步GitHub）':'（本地存储）')+'\n侵权词汇已同步到元素融合/MJ咒语/Listing等全流程版权检查。');
       }
 
       // ── Delete entry ───────────────────────────────────────────
@@ -2227,14 +2352,16 @@
                 <div style={{fontSize:36,marginBottom:8}}>📄</div>
                 <div style={{fontWeight:700,color:colors.ac}}>点击上传PDF文件</div>
                 <div style={{fontSize:12,color:'#64748b',marginTop:4}}>支持含图片的PDF侵权通知文件</div>
-                <input type="file" accept=".pdf" onChange={handlePdfUpload} style={{display:'none'}} />
+                <input type="file" accept=".pdf" multiple onChange={handleBatchPdfUpload} style={{display:'none'}} />
               </label>
               {pdfLoading&&<div style={{display:'flex',flexDirection:'column',gap:8,marginTop:16,padding:14,background:'#f5f3ff',borderRadius:8}}>
                 <div style={{display:'flex',alignItems:'center',gap:10}}><Spinner /><span style={{fontSize:13,color:'#7c3aed',fontWeight:600}}>PDF处理中...</span></div>
+                {pdfProgress&&<div style={{fontSize:12,color:'#7c3aed',fontWeight:600,padding:'4px 8px',background:'rgba(124,58,237,0.1)',borderRadius:5}}>{pdfProgress}</div>}
                 <div style={{fontSize:11,color:'#7c3aed',lineHeight:1.8}}>
                   <div>① PDF.js 解析PDF结构，自动提取所有图片</div>
                   <div>② AI读取文字内容，提取品牌/元素信息</div>
                   <div>③ 过滤无效图片，保留侵权示例图</div>
+                  <div>④ 多文件批量处理，逐个完成后统一展示</div>
                 </div>
               </div>}
             </div>}
