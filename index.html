@@ -546,6 +546,7 @@
 
           // Mark processing
           pending.status = 'processing';
+          pending.retries = pending.retries || 0;
           window.dispatchEvent(new Event('pdf_queue_update'));
 
           try {
@@ -610,26 +611,42 @@
             const apiKey = localStorage.getItem('pod_api_key') || '';
             if(!apiKey) throw new Error('未设置API Key，请先在工具顶部设置API Key');
 
-            const resp = await fetch('https://api.anthropic.com/v1/messages', {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'x-api-key': apiKey,
-                'anthropic-version': '2023-06-01',
-                'anthropic-dangerous-direct-browser-access': 'true'
-              },
-              body: JSON.stringify({
-                model: 'claude-sonnet-4-5-20250929',
-                max_tokens: 1500,
-                messages: [{role:'user', content:[
-                  {type:'document', source:{type:'base64', media_type:'application/pdf', data: pending.b64Str}},
-                  {type:'text', text:'This is a copyright infringement notice PDF. Extract key info and output JSON ONLY (no markdown, no explanation): {"plaintiff":"brand or artist name","works":["protected work title"],"style_description":"Chinese: describe the art style","style_keywords":["Chinese style tag 1","tag 2","tag 3"],"banned_elements":["Chinese: brand name","work name","distinctive visual element to avoid"],"risk_level":"urgent or high","case_no":"case number if any","filed_date":"date if any"}'}
-                ]}]
-              })
-            });
-
-            const rdata = await resp.json();
-            if(rdata.error) throw new Error(rdata.error.message||'API error');
+            // Retry up to 3 times on rate limit
+            let rdata = null;
+            for(let attempt = 0; attempt < 3; attempt++) {
+              if(attempt > 0) {
+                const waitSec = attempt === 1 ? 30 : 60;
+                pending.error = '触发限速，等待'+waitSec+'秒后重试('+attempt+'/3)...';
+                window.dispatchEvent(new Event('pdf_queue_update'));
+                await new Promise(function(r){ setTimeout(r, waitSec * 1000); });
+              }
+              const resp = await fetch('https://api.anthropic.com/v1/messages', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'x-api-key': apiKey,
+                  'anthropic-version': '2023-06-01',
+                  'anthropic-dangerous-direct-browser-access': 'true'
+                },
+                body: JSON.stringify({
+                  model: 'claude-sonnet-4-5-20250929',
+                  max_tokens: 1500,
+                  messages: [{role:'user', content:[
+                    {type:'document', source:{type:'base64', media_type:'application/pdf', data: pending.b64Str}},
+                    {type:'text', text:'This is a copyright infringement notice PDF. Extract key info and output JSON ONLY (no markdown, no explanation): {"plaintiff":"brand or artist name","works":["protected work title"],"style_description":"Chinese: describe the art style","style_keywords":["Chinese style tag 1","tag 2","tag 3"],"banned_elements":["Chinese: brand name","work name","distinctive visual element to avoid"],"risk_level":"urgent or high","case_no":"case number if any","filed_date":"date if any"}'}
+                  ]}]
+                })
+              });
+              rdata = await resp.json();
+              // Rate limit: wait and retry
+              if(resp.status === 429 || (rdata.error && rdata.error.type === 'rate_limit_error')) {
+                if(attempt < 2) continue;
+                throw new Error('API限速，请稍后再试（已重试3次）');
+              }
+              if(rdata.error) throw new Error(rdata.error.message||'API error');
+              break; // success
+            }
+            pending.error = ''; // clear retry message
             const raw = (rdata.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('');
             let parsed = null;
             try {
@@ -688,8 +705,8 @@
           }
 
           window.dispatchEvent(new Event('pdf_queue_update'));
-          // Delay between files to avoid rate limiting
-          await new Promise(function(r){ setTimeout(r, 3000); });
+          // Delay between files to avoid rate limiting (15s gap)
+          await new Promise(function(r){ setTimeout(r, 15000); });
         }
       } finally {
         PDF_PROCESSOR_RUNNING = false;
@@ -2147,6 +2164,12 @@
         window.addEventListener('pdf_queue_update', onQueueUpdate);
         // Poll every 2s to stay in sync
         const timer = setInterval(onQueueUpdate, 2000);
+        // Reset any stuck 'processing' items back to 'pending' on mount
+        if(window.PDF_MEM_QUEUE) {
+          window.PDF_MEM_QUEUE.forEach(function(q){
+            if(q.status==='processing') { q.status='pending'; q.error=''; }
+          });
+        }
         // Init from any existing memory queue on mount
         onQueueUpdate();
         return function(){
@@ -2525,7 +2548,7 @@
             <div style={{fontWeight:700,fontSize:14,color:'#7c3aed',marginBottom:8}}>📋 处理队列（{pdfQueue.filter(function(q){return q.status==='done';}).length}/{pdfQueue.length} 完成）</div>
             {pdfQueue.map(function(q){
               const statusIcon=q.status==='done'?'✅':q.status==='error'?'❌':q.status==='processing'?'🔄':'⏳';
-              const statusText=q.status==='done'?'已完成':q.status==='error'?('失败: '+(q.error||'')):q.status==='processing'?'处理中...':'等待中';
+              const statusText=q.status==='done'?'已完成':q.status==='error'?('失败: '+(q.error||'')):q.status==='processing'?(q.error||'处理中...'):'等待中';
               const statusColor=q.status==='done'?'#10b981':q.status==='error'?'#dc2626':q.status==='processing'?'#7c3aed':'#94a3b8';
               return <div key={q.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:'1px solid #f1f5f9'}}>
                 <span style={{fontSize:14}}>{statusIcon}</span>
