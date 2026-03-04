@@ -469,11 +469,17 @@
     function CopyBtn({text,label}) {
       const [copied,setCopied] = useState(false);
       return (
-        <button onClick={function(){navigator.clipboard.writeText(text);setCopied(true);setTimeout(function(){setCopied(false);},1500);}}
-          style={{padding:'4px 10px',borderRadius:6,border:'1px solid #e2e8f0',background:'white',fontSize:11,cursor:'pointer',fontWeight:600,color:'#475569'}}>
-          {copied?'✓ 已复制':(label||'📋 复制')}
+        <button onClick={function(){navigator.clipboard.writeText(text);setCopied(true);setTimeout(function(){setCopied(false);},2000);}}
+          style={{padding:'4px 10px',borderRadius:6,border:'1px solid '+(copied?'#10b981':'#e2e8f0'),background:copied?'#f0fdf4':'white',fontSize:11,cursor:'pointer',fontWeight:600,color:copied?'#10b981':'#475569',transition:'all 0.2s'}}>
+          {copied?'✅ 已复制':(label||'📋 复制')}
         </button>
       );
+    }
+    function CopyBtnAbs({text}) {
+      const [copied,setCopied] = useState(false);
+      return <button className="copy-btn-abs"
+        onClick={function(){navigator.clipboard.writeText(text);setCopied(true);setTimeout(function(){setCopied(false);},2000);}}
+        style={copied?{background:'#10b981',color:'white',border:'none'}:{}}>{copied?'✅':'复制'}</button>;
     }
     function UrgBadge({urgency}) {
       const c = urgency>=9?{bg:'#fee2e2',tc:'#dc2626',t:'🔥 紧急'}
@@ -516,6 +522,110 @@
           <a href="https://console.anthropic.com/settings/keys" target="_blank" style={{fontSize:11,color:'#92400e',textDecoration:'underline'}}>获取Key →</a>
         </div>
       );
+    }
+
+    // ── Global PDF Queue (persists across page navigation) ──────────
+    // Queue stored in localStorage key: 'pdf_queue'
+    // Each item: {id, fileName, status:'pending'|'processing'|'done'|'error', result, error}
+    let PDF_PROCESSOR_RUNNING = false;
+
+    async function processPdfQueue() {
+      if(PDF_PROCESSOR_RUNNING) return;
+      PDF_PROCESSOR_RUNNING = true;
+      try {
+        while(true) {
+          const queue = S.g('pdf_queue')||[];
+          const pending = queue.find(function(q){return q.status==='pending';});
+          if(!pending) break;
+          // Mark as processing
+          const updQ = queue.map(function(q){return q.id===pending.id?{...q,status:'processing'}:q;});
+          S.s('pdf_queue',updQ);
+          // Dispatch event so PageCpImages can update UI
+          window.dispatchEvent(new Event('pdf_queue_update'));
+          try {
+            // Decode stored arrayBuffer from base64
+            const b64Arr = pending.arrayBuf;
+            const b64Str = pending.b64Str;
+            // Process with pdfjs
+            pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            const binStr=atob(b64Arr);
+            const bytes=new Uint8Array(binStr.length);
+            for(let i=0;i<binStr.length;i++) bytes[i]=binStr.charCodeAt(i);
+            const pdfDoc=await pdfjsLib.getDocument({data:bytes.buffer}).promise;
+            const numPages=pdfDoc.numPages;
+            const allImgs=[];const pageB64s=[];
+            for(let p=1;p<=Math.min(numPages,8);p++){
+              const pdfPage=await pdfDoc.getPage(p);
+              const viewport=pdfPage.getViewport({scale:1.5});
+              const canvas=document.createElement('canvas');
+              canvas.width=viewport.width;canvas.height=viewport.height;
+              await pdfPage.render({canvasContext:canvas.getContext('2d'),viewport:viewport}).promise;
+              pageB64s.push(canvas.toDataURL('image/jpeg',0.82));
+              // Extract embedded images
+              try {
+                const ops=await pdfPage.getOperatorList();
+                const OPS=pdfjsLib.OPS;
+                const imgNames=[];
+                for(let oi=0;oi<ops.fnArray.length;oi++){
+                  if(ops.fnArray[oi]===OPS.paintImageXObject||ops.fnArray[oi]===OPS.paintImageXObjectRepeat){
+                    const nm=ops.argsArray[oi][0];if(nm&&imgNames.indexOf(nm)<0)imgNames.push(nm);
+                  }
+                }
+                for(let ni=0;ni<imgNames.length;ni++){
+                  try{
+                    const imgData=await new Promise(function(resolve,reject){pdfPage.objs.get(imgNames[ni],function(obj){obj?resolve(obj):reject();});});
+                    if(!imgData||!imgData.data||imgData.width<100||imgData.height<100) continue;
+                    const cv=document.createElement('canvas');cv.width=imgData.width;cv.height=imgData.height;
+                    const ctx=cv.getContext('2d');const id=ctx.createImageData(imgData.width,imgData.height);
+                    if(imgData.data.length===imgData.width*imgData.height*4){id.data.set(imgData.data);}
+                    else if(imgData.data.length===imgData.width*imgData.height*3){for(let pp=0,qq=0;pp<imgData.data.length;pp+=3,qq+=4){id.data[qq]=imgData.data[pp];id.data[qq+1]=imgData.data[pp+1];id.data[qq+2]=imgData.data[pp+2];id.data[qq+3]=255;}}
+                    else continue;
+                    ctx.putImageData(id,0,0);
+                    allImgs.push({localB64:cv.toDataURL('image/jpeg',0.9),name:'p'+p+'_img'+(ni+1)+'.jpg',elements:[],aiDesc:'',w:imgData.width,h:imgData.height});
+                  }catch(ie){}
+                }
+              }catch(pe){}
+            }
+            // Claude AI text extraction
+            const apiKey=S.g('anthropic_key');
+            const headers={'Content-Type':'application/json'};
+            if(apiKey) headers['x-api-key']=apiKey;
+            const resp=await fetch('https://api.anthropic.com/v1/messages',{
+              method:'POST',headers:headers,
+              body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,
+                messages:[{role:'user',content:[
+                  {type:'document',source:{type:'base64',media_type:'application/pdf',data:b64Str}},
+                  {type:'text',text:'Copyright infringement notice. Output JSON only (no markdown): {"plaintiff":"brand/artist name","works":["work title"],"style_description":"Chinese description","style_keywords":["Chinese tag"],"banned_elements":["Chinese: brand+works+features"],"risk_level":"urgent or high","case_no":"","filed_date":""}'}
+                ]}]})
+            });
+            const rdata=await resp.json();
+            const raw=(rdata.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('');
+            let parsed=null;
+            try{const si=raw.indexOf('{'),ei=raw.lastIndexOf('}');if(si>=0&&ei>=0)parsed=JSON.parse(raw.slice(si,ei+1));}catch(ex){}
+            if(!parsed) throw new Error('AI提取失败');
+            const meaningful=allImgs.filter(function(img){return img.w>=100&&img.h>=100;});
+            const finalImgs=meaningful.length>0?meaningful:pageB64s.map(function(b,i){return {localB64:b,name:'page'+(i+1)+'.jpg',elements:[],aiDesc:'整页',w:0,h:0};});
+            const result={...parsed,images:finalImgs,notes:'',_pdfName:pending.fileName,_pageCount:numPages,_imgFound:allImgs.length};
+            // Save result to cp_images_index and cp_db
+            const existing=S.g('cp_images_index')||[];
+            const newEntry={id:String(Date.now()),plaintiff:parsed.plaintiff||'',works:parsed.works||[],style_description:parsed.style_description||'',style_keywords:parsed.style_keywords||[],banned_elements:parsed.banned_elements||[],risk_level:parsed.risk_level||'high',case_no:parsed.case_no||'',filed_date:parsed.filed_date||'',notes:'PDF导入自'+pending.fileName,images:finalImgs,createdAt:new Date().toISOString()};
+            S.s('cp_images_index',[...existing,newEntry]);
+            const cpDb=S.g('cp_db')||DEFAULT_CP_DB;
+            S.s('cp_db',[...cpDb,{id:newEntry.id,artist:newEntry.plaintiff,law_firm:'',case_no:newEntry.case_no,date:newEntry.filed_date,risk_level:newEntry.risk_level,style_description:newEntry.style_description,notes:newEntry.notes,banned_elements:newEntry.banned_elements,style_keywords:newEntry.style_keywords}]);
+            // Mark done
+            const doneQ=(S.g('pdf_queue')||[]).map(function(q){return q.id===pending.id?{...q,status:'done',result:result}:q;});
+            S.s('pdf_queue',doneQ);
+          } catch(err) {
+            const errQ=(S.g('pdf_queue')||[]).map(function(q){return q.id===pending.id?{...q,status:'error',error:err.message}:q;});
+            S.s('pdf_queue',errQ);
+          }
+          window.dispatchEvent(new Event('pdf_queue_update'));
+          // Small delay between files to avoid rate limit
+          await new Promise(function(r){setTimeout(r,4000);});
+        }
+      } finally {
+        PDF_PROCESSOR_RUNNING = false;
+      }
     }
 
     // ── App ───────────────────────────────────────────────────────────
@@ -822,19 +932,31 @@
       async function runAll() {
         setRunning(true);
         setStatus({});setResults({});setSummary('');setSumError('');
+        // Mark running in localStorage so we can detect if interrupted
+        S.s(SK+'_running','1');
         S.s(SK,{});
         const allR={};
         for(let i=1;i<=3;i++){
+          // Check if still running (not cancelled)
+          if(!S.g(SK+'_running')) break;
           const r=await runStepWithRetry(i);
           if(r&&!r.error) allR[i]=r;
-          if(i<3) await delay(60000); // 步骤间等60秒，确保token窗口重置
+          if(i<3){
+            // Visual countdown before next step
+            for(let t=60;t>0;t--){
+              if(!S.g(SK+'_running')) break;
+              await delay(1000);
+            }
+          }
         }
         // 只有至少2步成功才自动生成汇总
         const successCount=Object.keys(allR).length;
-        if(successCount>=2){
-          await delay(40000); // 汇总前等40秒
-          await genSummaryWith(allR);
+        if(successCount>=2 && S.g(SK+'_running')){
+          // Auto-trigger summary after 5 second delay (shorter, user sees it start)
+          await delay(5000);
+          if(S.g(SK+'_running')) await genSummaryWith(allR);
         }
+        S.s(SK+'_running','');
         setRunning(false);
       }
 
@@ -1227,6 +1349,7 @@
       const theme=data.theme||{};
       const isHome=cat==='家居';
       const homeCatList=['水晶贴','门盖','门贴','窗户贴','楼梯贴','烫衣板罩(标准)','烫衣板罩(小型)','可折叠熨衣垫','门挂熨衣垫','圆形桌套','窗幔','静电窗膜'];
+      const homeCatEN={'水晶贴':'Crystal Sticker','门盖':'Door Cover','门贴':'Door Sticker','窗户贴':'Window Sticker','楼梯贴':'Stair Sticker','烫衣板罩(标准)':'Ironing Board Cover Standard','烫衣板罩(小型)':'Ironing Board Cover Small','可折叠熨衣垫':'Foldable Ironing Mat','门挂熨衣垫':'Door Hang Ironing Pad','圆形桌套':'Round Table Cover','窗幔':'Window Valance','静电窗膜':'Static Window Film'};
 
       // 10种差异化风格修饰词
       const STYLE_MODS = [
@@ -1271,7 +1394,8 @@
         const spec=isHome?getHomeCatSpec(homeSubcat):null;
         const agCfg=isHome?{sty:200,size:'home decor composition'}:(ageCfg[ag]||ageCfg.toddler);
         const gMod=isHome?'':gd==='boy'?', boys theme':gd==='girl'?', girls cute theme':'';
-        const tTag=isHome?(homeSubcat.replace(/[()]/g,'')+' '+(theme.en||theme.name||'')).trim():(ag==='newborn'?'NEWBORN':ag==='toddler'?'TODDLER':ag==='kids'?'KIDS':'YOUTH');
+        const homeCatEnName=homeCatEN[homeSubcat]||homeSubcat;
+        const tTag=isHome?((homeCatEnName)+' '+(theme.en||theme.name||'')).trim():(ag==='newborn'?'NEWBORN':ag==='toddler'?'TODDLER':ag==='kids'?'KIDS':'YOUTH');
         const allP={};
         combos.forEach(function(combo){
           const core=combo.core_elements||[];
@@ -1379,7 +1503,7 @@
                 return <div key={i} className="code-block">
                   <div style={{color:'#94a3b8',fontSize:10,marginBottom:4}}>#{i+1} {isHome?(specInfo&&specInfo.seamless?'🔲 无缝图':'🖼️ 非无缝图'):(i<5?'🔲 无缝图':'🖼️ 单独图')}</div>
                   <div style={{paddingRight:50}}>{p}</div>
-                  <button className="copy-btn-abs" onClick={function(){navigator.clipboard.writeText(p);}}>复制</button>
+                  <CopyBtnAbs text={p} />
                 </div>;
               })}
             </div>
@@ -1942,6 +2066,20 @@
       const [pdfLoading,setPdfLoading] = useState(false);
       const [pdfProgress,setPdfProgress] = useState(''); // batch progress msg
       const [extracted,setExtracted]   = useState(null); // AI extracted result
+      const [pdfQueue,setPdfQueue]     = useState(function(){return S.g('pdf_queue')||[];});
+
+      // Listen for queue updates from background processor (survives page nav)
+      useEffect(function(){
+        function onQueueUpdate(){
+          const q=S.g('pdf_queue')||[];
+          setPdfQueue(q);
+          setCpImages(S.g(CP_IMG_KEY)||[]);
+        }
+        window.addEventListener('pdf_queue_update',onQueueUpdate);
+        // Also poll every 3s to catch updates from background
+        const timer=setInterval(onQueueUpdate,3000);
+        return function(){window.removeEventListener('pdf_queue_update',onQueueUpdate);clearInterval(timer);};
+      },[]);
       const [uploading,setUploading]   = useState(false);
       const [search,setSearch]         = useState('');
       const [editEntry,setEditEntry]   = useState(null);
@@ -1993,74 +2131,29 @@
       }
 
       
-      // ── Batch PDF upload handler ───────────────────────────────
+      // ── Batch PDF upload → global background queue ─────────────
       async function handleBatchPdfUpload(e) {
         const files = Array.from(e.target.files);
         if(!files.length) return;
-        if(files.length===1){ await handlePdfUpload(e); return; }
-        // Multiple files: process one by one, collect results
-        setPdfLoading(true); setExtracted(null);
-        const batchResults=[];
+        const existingQ = S.g('pdf_queue')||[];
+        const newItems = [];
         for(let fi=0;fi<files.length;fi++){
           const file=files[fi];
-          setPdfProgress('处理第'+(fi+1)+'/'+files.length+'个：'+file.name);
           try {
-            const arrayBuf=await new Promise(function(res,rej){const r=new FileReader();r.onload=function(ev){res(ev.target.result);};r.onerror=rej;r.readAsArrayBuffer(file);});
-            const b64=await new Promise(function(res,rej){const r=new FileReader();r.onload=function(ev){res(ev.target.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(file);});
-            pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-            const pdfDoc=await pdfjsLib.getDocument({data:arrayBuf}).promise;
-            const numPages=pdfDoc.numPages;
-            const allImgs=[]; const pageB64s=[];
-            for(let p=1;p<=numPages;p++){
-              const pdfPage=await pdfDoc.getPage(p);
-              const pageCanvas=await renderPdfPageToCanvas(pdfPage,1.5);
-              pageB64s.push(pageCanvas.toDataURL('image/jpeg',0.85));
-              const imgs=await extractPageImages(pdfPage);
-              imgs.forEach(function(img,idx){allImgs.push({localB64:img.b64,name:'p'+p+'_img'+(idx+1)+'.jpg',elements:[],aiDesc:'',w:img.w,h:img.h});});
-            }
-            const resp=await fetch('https://api.anthropic.com/v1/messages',{
-              method:'POST',headers:{'Content-Type':'application/json'},
-              body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,
-                messages:[{role:'user',content:[
-                  {type:'document',source:{type:'base64',media_type:'application/pdf',data:b64}},
-                  {type:'text',text:'Copyright infringement notice. Output JSON only (no markdown): {"plaintiff":"brand/artist name","works":["work title"],"style_description":"Chinese art style description","style_keywords":["Chinese style tag1","tag2"],"banned_elements":["Chinese: brand name","work name","visual feature to avoid"],"risk_level":"urgent or high","case_no":"","filed_date":""}'}
-                ]}]})
+            const arrayB64=await new Promise(function(res,rej){
+              const r=new FileReader();
+              r.onload=function(ev){const ab=ev.target.result;const bytes=new Uint8Array(ab);let bin='';for(let i=0;i<bytes.byteLength;i++)bin+=String.fromCharCode(bytes[i]);res(btoa(bin));};
+              r.onerror=rej;r.readAsArrayBuffer(file);
             });
-            const rdata=await resp.json();
-            const raw=(rdata.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('');
-            let parsed=null;
-            try{const si=raw.indexOf('{'),ei=raw.lastIndexOf('}');if(si>=0&&ei>=0)parsed=JSON.parse(raw.slice(si,ei+1));}catch(ex){}
-            if(parsed){
-              const meaningful=allImgs.filter(function(img){return img.w>=100&&img.h>=100;});
-              const finalImgs=meaningful.length>0?meaningful:pageB64s.map(function(b,i){return {localB64:b,name:'page'+(i+1)+'.jpg',elements:[],aiDesc:'整页',w:0,h:0};});
-              batchResults.push({...parsed,images:finalImgs,notes:'',_pdfName:file.name,_pageCount:numPages,_imgFound:allImgs.length});
-            }
-          } catch(err){ console.warn('Failed:',file.name,err.message); }
-          // Delay between files to avoid rate limit
-          if(fi<files.length-1) await new Promise(function(r){setTimeout(r,3000);});
+            const b64Str=await new Promise(function(res,rej){const r=new FileReader();r.onload=function(ev){res(ev.target.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(file);});
+            newItems.push({id:String(Date.now())+'_'+fi,fileName:file.name,arrayBuf:arrayB64,b64Str:b64Str,status:'pending'});
+          } catch(err){ console.warn('Failed to read',file.name,err); }
         }
-        setPdfLoading(false); setPdfProgress('');
-        if(batchResults.length>0){
-          // Show batch summary and auto-save all
-          const saved=[];
-          for(let bi=0;bi<batchResults.length;bi++){
-            const entry=batchResults[bi];
-            const newRec={id:String(Date.now())+'_'+bi,plaintiff:entry.plaintiff||'',works:entry.works||[],style_description:entry.style_description||'',style_keywords:entry.style_keywords||[],banned_elements:entry.banned_elements||[],risk_level:entry.risk_level||'high',case_no:entry.case_no||'',filed_date:entry.filed_date||'',notes:'批量导入自'+entry._pdfName,images:entry.images||[],createdAt:new Date().toISOString()};
-            saved.push(newRec);
-          }
-          // Save all to cp_images_index (auto-save without GitHub for batch)
-          const updated=[...cpImages,...saved];
-          persistImages(updated);
-          // Also sync banned_elements into cp_db for immediate use across tool
-          const cpDb=S.g('cp_db')||DEFAULT_CP_DB;
-          const newCpEntries=saved.map(function(s){return {id:s.id,artist:s.plaintiff,law_firm:'',case_no:s.case_no,date:s.filed_date,risk_level:s.risk_level,style_description:s.style_description,notes:s.notes,banned_elements:s.banned_elements,style_keywords:s.style_keywords};});
-          S.s('cp_db',[...cpDb,...newCpEntries]);
-          alert('批量处理完成！共'+saved.length+'/'+files.length+'个PDF成功。\n图片已存入本地（如需上传GitHub，请在图库中逐条操作）。\n侵权词汇已同步到全工具版权检查系统。');
-          setTab('library');
-        } else {
-          alert('批量处理失败，所有文件均未能提取数据，请检查文件格式。');
-        }
+        S.s('pdf_queue',[...existingQ,...newItems]);
+        setPdfQueue(S.g('pdf_queue')||[]);
         e.target.value='';
+        processPdfQueue();
+        alert('已加入队列：'+newItems.length+'个PDF，后台处理中，切换页面不中断，完成后图库自动更新。');
       }
 
       // ── PDF.js: render page to canvas at high DPI ──────────────
@@ -2112,8 +2205,11 @@
         return results;
       }
 
-      // ── Main PDF upload handler ─────────────────────────────────
+      // ── Main PDF upload handler (single file → also uses queue) ──
       async function handlePdfUpload(e) {
+        await handleBatchPdfUpload(e);
+        return;
+        // Legacy code below kept for reference
         const file=e.target.files[0];
         if(!file) return;
         setPdfLoading(true); setExtracted(null);
@@ -2342,7 +2438,28 @@
 
           {/* ── IMPORT TAB ── */}
           {tab==='import'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
-            {!extracted&&<div className="card">
+            {/* Queue status panel */}
+          {pdfQueue.length>0&&<div className="card" style={{border:'2px solid #7c3aed30'}}>
+            <div style={{fontWeight:700,fontSize:14,color:'#7c3aed',marginBottom:8}}>📋 处理队列（{pdfQueue.filter(function(q){return q.status==='done';}).length}/{pdfQueue.length} 完成）</div>
+            {pdfQueue.map(function(q){
+              const statusIcon=q.status==='done'?'✅':q.status==='error'?'❌':q.status==='processing'?'🔄':'⏳';
+              const statusText=q.status==='done'?'已完成':q.status==='error'?('失败: '+(q.error||'')):q.status==='processing'?'处理中...':'等待中';
+              const statusColor=q.status==='done'?'#10b981':q.status==='error'?'#dc2626':q.status==='processing'?'#7c3aed':'#94a3b8';
+              return <div key={q.id} style={{display:'flex',alignItems:'center',gap:8,padding:'6px 0',borderBottom:'1px solid #f1f5f9'}}>
+                <span style={{fontSize:14}}>{statusIcon}</span>
+                <span style={{flex:1,fontSize:12,color:'#374151'}}>{q.fileName}</span>
+                <span style={{fontSize:11,color:statusColor,fontWeight:600}}>{statusText}</span>
+              </div>;
+            })}
+            <div style={{display:'flex',gap:8,marginTop:8}}>
+              <button onClick={function(){S.s('pdf_queue',[]);setPdfQueue([]);}} className="btn"
+                style={{fontSize:11,padding:'4px 10px',background:'#fee2e2',color:'#dc2626'}}>清空队列</button>
+              {pdfQueue.some(function(q){return q.status==='pending'||q.status==='processing';})&&
+                <button onClick={function(){processPdfQueue();}} className="btn"
+                  style={{fontSize:11,padding:'4px 10px',background:'#7c3aed',color:'white'}}>▶ 继续处理</button>}
+            </div>
+          </div>}
+          {!extracted&&<div className="card">
               <div style={{fontWeight:700,fontSize:15,color:colors.ac,marginBottom:10}}>📄 上传侵权通知PDF</div>
               <div style={{padding:'10px 14px',background:'#fef3c7',borderRadius:8,fontSize:12,color:'#92400e',marginBottom:12}}>
                 💡 AI将自动提取品牌名、作品信息、图案元素等侵权数据
