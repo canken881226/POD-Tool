@@ -524,104 +524,172 @@
       );
     }
 
-    // ── Global PDF Queue (persists across page navigation) ──────────
-    // Queue stored in localStorage key: 'pdf_queue'
-    // Each item: {id, fileName, status:'pending'|'processing'|'done'|'error', result, error}
+    // ── Global PDF Queue (in-memory, survives React re-renders) ──
+    // Files stored in memory array, status tracked in localStorage (small)
+    window.PDF_MEM_QUEUE = window.PDF_MEM_QUEUE || []; // {id, fileName, arrayBuf, b64Str, status}
     let PDF_PROCESSOR_RUNNING = false;
+
+    function getPdfStatusList() {
+      return (window.PDF_MEM_QUEUE||[]).map(function(q){
+        return {id:q.id, fileName:q.fileName, status:q.status, error:q.error||''};
+      });
+    }
 
     async function processPdfQueue() {
       if(PDF_PROCESSOR_RUNNING) return;
       PDF_PROCESSOR_RUNNING = true;
       try {
         while(true) {
-          const queue = S.g('pdf_queue')||[];
+          const queue = window.PDF_MEM_QUEUE||[];
           const pending = queue.find(function(q){return q.status==='pending';});
           if(!pending) break;
-          // Mark as processing
-          const updQ = queue.map(function(q){return q.id===pending.id?{...q,status:'processing'}:q;});
-          S.s('pdf_queue',updQ);
-          // Dispatch event so PageCpImages can update UI
+
+          // Mark processing
+          pending.status = 'processing';
           window.dispatchEvent(new Event('pdf_queue_update'));
+
           try {
-            // Decode stored arrayBuffer from base64
-            const b64Arr = pending.arrayBuf;
-            const b64Str = pending.b64Str;
-            // Process with pdfjs
-            pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-            const binStr=atob(b64Arr);
-            const bytes=new Uint8Array(binStr.length);
-            for(let i=0;i<binStr.length;i++) bytes[i]=binStr.charCodeAt(i);
-            const pdfDoc=await pdfjsLib.getDocument({data:bytes.buffer}).promise;
-            const numPages=pdfDoc.numPages;
-            const allImgs=[];const pageB64s=[];
-            for(let p=1;p<=Math.min(numPages,8);p++){
-              const pdfPage=await pdfDoc.getPage(p);
-              const viewport=pdfPage.getViewport({scale:1.5});
-              const canvas=document.createElement('canvas');
-              canvas.width=viewport.width;canvas.height=viewport.height;
-              await pdfPage.render({canvasContext:canvas.getContext('2d'),viewport:viewport}).promise;
-              pageB64s.push(canvas.toDataURL('image/jpeg',0.82));
-              // Extract embedded images
+            // Step1: PDF.js extract images from ArrayBuffer (already in memory)
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            const pdfDoc = await pdfjsLib.getDocument({data: pending.arrayBuf}).promise;
+            const numPages = pdfDoc.numPages;
+            const allImgs = [];
+            const pageB64s = [];
+
+            for(let p = 1; p <= Math.min(numPages, 6); p++) {
+              const pdfPage = await pdfDoc.getPage(p);
+              // Render page at 1.5x for good quality
+              const viewport = pdfPage.getViewport({scale: 1.5});
+              const canvas = document.createElement('canvas');
+              canvas.width = viewport.width;
+              canvas.height = viewport.height;
+              await pdfPage.render({canvasContext: canvas.getContext('2d'), viewport: viewport}).promise;
+              pageB64s.push(canvas.toDataURL('image/jpeg', 0.82));
+
+              // Try to extract embedded images
               try {
-                const ops=await pdfPage.getOperatorList();
-                const OPS=pdfjsLib.OPS;
-                const imgNames=[];
-                for(let oi=0;oi<ops.fnArray.length;oi++){
-                  if(ops.fnArray[oi]===OPS.paintImageXObject||ops.fnArray[oi]===OPS.paintImageXObjectRepeat){
-                    const nm=ops.argsArray[oi][0];if(nm&&imgNames.indexOf(nm)<0)imgNames.push(nm);
+                const ops = await pdfPage.getOperatorList();
+                const OPS = pdfjsLib.OPS;
+                const imgNames = [];
+                for(let oi = 0; oi < ops.fnArray.length; oi++) {
+                  if(ops.fnArray[oi]===OPS.paintImageXObject || ops.fnArray[oi]===OPS.paintImageXObjectRepeat) {
+                    const nm = ops.argsArray[oi][0];
+                    if(nm && imgNames.indexOf(nm) < 0) imgNames.push(nm);
                   }
                 }
-                for(let ni=0;ni<imgNames.length;ni++){
-                  try{
-                    const imgData=await new Promise(function(resolve,reject){pdfPage.objs.get(imgNames[ni],function(obj){obj?resolve(obj):reject();});});
-                    if(!imgData||!imgData.data||imgData.width<100||imgData.height<100) continue;
-                    const cv=document.createElement('canvas');cv.width=imgData.width;cv.height=imgData.height;
-                    const ctx=cv.getContext('2d');const id=ctx.createImageData(imgData.width,imgData.height);
-                    if(imgData.data.length===imgData.width*imgData.height*4){id.data.set(imgData.data);}
-                    else if(imgData.data.length===imgData.width*imgData.height*3){for(let pp=0,qq=0;pp<imgData.data.length;pp+=3,qq+=4){id.data[qq]=imgData.data[pp];id.data[qq+1]=imgData.data[pp+1];id.data[qq+2]=imgData.data[pp+2];id.data[qq+3]=255;}}
-                    else continue;
-                    ctx.putImageData(id,0,0);
-                    allImgs.push({localB64:cv.toDataURL('image/jpeg',0.9),name:'p'+p+'_img'+(ni+1)+'.jpg',elements:[],aiDesc:'',w:imgData.width,h:imgData.height});
-                  }catch(ie){}
+                for(let ni = 0; ni < imgNames.length; ni++) {
+                  try {
+                    const imgData = await new Promise(function(resolve, reject) {
+                      pdfPage.objs.get(imgNames[ni], function(obj) { obj ? resolve(obj) : reject(); });
+                    });
+                    if(!imgData || !imgData.data || imgData.width < 100 || imgData.height < 100) continue;
+                    const cv = document.createElement('canvas');
+                    cv.width = imgData.width; cv.height = imgData.height;
+                    const ctx = cv.getContext('2d');
+                    const id = ctx.createImageData(imgData.width, imgData.height);
+                    if(imgData.data.length === imgData.width * imgData.height * 4) {
+                      id.data.set(imgData.data);
+                    } else if(imgData.data.length === imgData.width * imgData.height * 3) {
+                      for(let pp=0,qq=0; pp<imgData.data.length; pp+=3,qq+=4) {
+                        id.data[qq]=imgData.data[pp]; id.data[qq+1]=imgData.data[pp+1];
+                        id.data[qq+2]=imgData.data[pp+2]; id.data[qq+3]=255;
+                      }
+                    } else { continue; }
+                    ctx.putImageData(id, 0, 0);
+                    allImgs.push({
+                      localB64: cv.toDataURL('image/jpeg', 0.88),
+                      name: 'p'+p+'_img'+(ni+1)+'.jpg',
+                      elements:[], aiDesc:'', w:imgData.width, h:imgData.height
+                    });
+                  } catch(ie) {}
                 }
-              }catch(pe){}
+              } catch(pe) {}
             }
-            // Claude AI text extraction
-            const apiKey=S.g('anthropic_key');
-            const headers={'Content-Type':'application/json'};
-            if(apiKey) headers['x-api-key']=apiKey;
-            const resp=await fetch('https://api.anthropic.com/v1/messages',{
-              method:'POST',headers:headers,
-              body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:2000,
-                messages:[{role:'user',content:[
-                  {type:'document',source:{type:'base64',media_type:'application/pdf',data:b64Str}},
-                  {type:'text',text:'Copyright infringement notice. Output JSON only (no markdown): {"plaintiff":"brand/artist name","works":["work title"],"style_description":"Chinese description","style_keywords":["Chinese tag"],"banned_elements":["Chinese: brand+works+features"],"risk_level":"urgent or high","case_no":"","filed_date":""}'}
-                ]}]})
+
+            // Step2: Claude AI extracts text metadata from PDF
+            const apiKey = localStorage.getItem('pod_api_key') || '';
+            if(!apiKey) throw new Error('未设置API Key，请先在工具顶部设置API Key');
+
+            const resp = await fetch('https://api.anthropic.com/v1/messages', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'x-api-key': apiKey,
+                'anthropic-version': '2023-06-01',
+                'anthropic-dangerous-direct-browser-access': 'true'
+              },
+              body: JSON.stringify({
+                model: 'claude-sonnet-4-5-20250929',
+                max_tokens: 1500,
+                messages: [{role:'user', content:[
+                  {type:'document', source:{type:'base64', media_type:'application/pdf', data: pending.b64Str}},
+                  {type:'text', text:'This is a copyright infringement notice PDF. Extract key info and output JSON ONLY (no markdown, no explanation): {"plaintiff":"brand or artist name","works":["protected work title"],"style_description":"Chinese: describe the art style","style_keywords":["Chinese style tag 1","tag 2","tag 3"],"banned_elements":["Chinese: brand name","work name","distinctive visual element to avoid"],"risk_level":"urgent or high","case_no":"case number if any","filed_date":"date if any"}'}
+                ]}]
+              })
             });
-            const rdata=await resp.json();
-            const raw=(rdata.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('');
-            let parsed=null;
-            try{const si=raw.indexOf('{'),ei=raw.lastIndexOf('}');if(si>=0&&ei>=0)parsed=JSON.parse(raw.slice(si,ei+1));}catch(ex){}
-            if(!parsed) throw new Error('AI提取失败');
-            const meaningful=allImgs.filter(function(img){return img.w>=100&&img.h>=100;});
-            const finalImgs=meaningful.length>0?meaningful:pageB64s.map(function(b,i){return {localB64:b,name:'page'+(i+1)+'.jpg',elements:[],aiDesc:'整页',w:0,h:0};});
-            const result={...parsed,images:finalImgs,notes:'',_pdfName:pending.fileName,_pageCount:numPages,_imgFound:allImgs.length};
-            // Save result to cp_images_index and cp_db
-            const existing=S.g('cp_images_index')||[];
-            const newEntry={id:String(Date.now()),plaintiff:parsed.plaintiff||'',works:parsed.works||[],style_description:parsed.style_description||'',style_keywords:parsed.style_keywords||[],banned_elements:parsed.banned_elements||[],risk_level:parsed.risk_level||'high',case_no:parsed.case_no||'',filed_date:parsed.filed_date||'',notes:'PDF导入自'+pending.fileName,images:finalImgs,createdAt:new Date().toISOString()};
-            S.s('cp_images_index',[...existing,newEntry]);
-            const cpDb=S.g('cp_db')||DEFAULT_CP_DB;
-            S.s('cp_db',[...cpDb,{id:newEntry.id,artist:newEntry.plaintiff,law_firm:'',case_no:newEntry.case_no,date:newEntry.filed_date,risk_level:newEntry.risk_level,style_description:newEntry.style_description,notes:newEntry.notes,banned_elements:newEntry.banned_elements,style_keywords:newEntry.style_keywords}]);
-            // Mark done
-            const doneQ=(S.g('pdf_queue')||[]).map(function(q){return q.id===pending.id?{...q,status:'done',result:result}:q;});
-            S.s('pdf_queue',doneQ);
+
+            const rdata = await resp.json();
+            if(rdata.error) throw new Error(rdata.error.message||'API error');
+            const raw = (rdata.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('');
+            let parsed = null;
+            try {
+              const si = raw.indexOf('{'), ei = raw.lastIndexOf('}');
+              if(si>=0 && ei>=0) parsed = JSON.parse(raw.slice(si, ei+1));
+            } catch(ex) {}
+            if(!parsed) throw new Error('AI无法解析文件内容，请确认是侵权通知文件');
+
+            // Step3: Build final image list
+            const meaningful = allImgs.filter(function(img){ return img.w>=100 && img.h>=100; });
+            const finalImgs = meaningful.length > 0 ? meaningful :
+              pageB64s.map(function(b, idx){ return {localB64:b, name:'page'+(idx+1)+'.jpg', elements:[], aiDesc:'整页', w:0, h:0}; });
+
+            // Step4: Save to cp_images_index
+            const existing = S.g('cp_images_index') || [];
+            const newEntry = {
+              id: String(Date.now()),
+              plaintiff: parsed.plaintiff||'',
+              works: parsed.works||[],
+              style_description: parsed.style_description||'',
+              style_keywords: parsed.style_keywords||[],
+              banned_elements: parsed.banned_elements||[],
+              risk_level: parsed.risk_level||'high',
+              case_no: parsed.case_no||'',
+              filed_date: parsed.filed_date||'',
+              notes: 'PDF导入：'+pending.fileName,
+              images: finalImgs,
+              createdAt: new Date().toISOString()
+            };
+            // Save images index (without large base64 if too big)
+            const entryToSave = {...newEntry};
+            try {
+              S.s('cp_images_index', [...existing, entryToSave]);
+            } catch(storageErr) {
+              // If too large, save without images
+              entryToSave.images = finalImgs.map(function(img){return {...img, localB64:'[too_large]'};});
+              S.s('cp_images_index', [...existing, entryToSave]);
+            }
+
+            // Also sync banned words to cp_db for immediate use
+            const cpDb = S.g('cp_db') || DEFAULT_CP_DB;
+            S.s('cp_db', [...cpDb, {
+              id: newEntry.id, artist: newEntry.plaintiff, law_firm:'',
+              case_no: newEntry.case_no, date: newEntry.filed_date,
+              risk_level: newEntry.risk_level, style_description: newEntry.style_description,
+              notes: newEntry.notes, banned_elements: newEntry.banned_elements,
+              style_keywords: newEntry.style_keywords
+            }]);
+
+            pending.status = 'done';
+            pending.result = newEntry;
+
           } catch(err) {
-            const errQ=(S.g('pdf_queue')||[]).map(function(q){return q.id===pending.id?{...q,status:'error',error:err.message}:q;});
-            S.s('pdf_queue',errQ);
+            pending.status = 'error';
+            pending.error = err.message;
           }
+
           window.dispatchEvent(new Event('pdf_queue_update'));
-          // Small delay between files to avoid rate limit
-          await new Promise(function(r){setTimeout(r,4000);});
+          // Delay between files to avoid rate limiting
+          await new Promise(function(r){ setTimeout(r, 3000); });
         }
       } finally {
         PDF_PROCESSOR_RUNNING = false;
@@ -2066,19 +2134,25 @@
       const [pdfLoading,setPdfLoading] = useState(false);
       const [pdfProgress,setPdfProgress] = useState(''); // batch progress msg
       const [extracted,setExtracted]   = useState(null); // AI extracted result
-      const [pdfQueue,setPdfQueue]     = useState(function(){return S.g('pdf_queue')||[];});
+      const [pdfQueue,setPdfQueue]     = useState(function(){return getPdfStatusList();});
 
-      // Listen for queue updates from background processor (survives page nav)
+      // Listen for queue updates from background processor
       useEffect(function(){
         function onQueueUpdate(){
-          const q=S.g('pdf_queue')||[];
-          setPdfQueue(q);
+          // Read queue status from memory (not localStorage)
+          setPdfQueue(getPdfStatusList());
+          // Refresh image library from localStorage
           setCpImages(S.g(CP_IMG_KEY)||[]);
         }
-        window.addEventListener('pdf_queue_update',onQueueUpdate);
-        // Also poll every 3s to catch updates from background
-        const timer=setInterval(onQueueUpdate,3000);
-        return function(){window.removeEventListener('pdf_queue_update',onQueueUpdate);clearInterval(timer);};
+        window.addEventListener('pdf_queue_update', onQueueUpdate);
+        // Poll every 2s to stay in sync
+        const timer = setInterval(onQueueUpdate, 2000);
+        // Init from any existing memory queue on mount
+        onQueueUpdate();
+        return function(){
+          window.removeEventListener('pdf_queue_update', onQueueUpdate);
+          clearInterval(timer);
+        };
       },[]);
       const [uploading,setUploading]   = useState(false);
       const [search,setSearch]         = useState('');
@@ -2131,29 +2205,37 @@
       }
 
       
-      // ── Batch PDF upload → global background queue ─────────────
+      // ── Batch PDF upload → in-memory global queue ──────────────
       async function handleBatchPdfUpload(e) {
         const files = Array.from(e.target.files);
         if(!files.length) return;
-        const existingQ = S.g('pdf_queue')||[];
+        if(!window.PDF_MEM_QUEUE) window.PDF_MEM_QUEUE = [];
         const newItems = [];
         for(let fi=0;fi<files.length;fi++){
           const file=files[fi];
           try {
-            const arrayB64=await new Promise(function(res,rej){
+            // Read as ArrayBuffer (kept in memory, NOT localStorage)
+            const arrayBuf=await new Promise(function(res,rej){
               const r=new FileReader();
-              r.onload=function(ev){const ab=ev.target.result;const bytes=new Uint8Array(ab);let bin='';for(let i=0;i<bytes.byteLength;i++)bin+=String.fromCharCode(bytes[i]);res(btoa(bin));};
-              r.onerror=rej;r.readAsArrayBuffer(file);
+              r.onload=function(ev){res(ev.target.result);};
+              r.onerror=rej; r.readAsArrayBuffer(file);
             });
-            const b64Str=await new Promise(function(res,rej){const r=new FileReader();r.onload=function(ev){res(ev.target.result.split(',')[1]);};r.onerror=rej;r.readAsDataURL(file);});
-            newItems.push({id:String(Date.now())+'_'+fi,fileName:file.name,arrayBuf:arrayB64,b64Str:b64Str,status:'pending'});
+            // Read as base64 string for Claude API
+            const b64Str=await new Promise(function(res,rej){
+              const r=new FileReader();
+              r.onload=function(ev){res(ev.target.result.split(',')[1]);};
+              r.onerror=rej; r.readAsDataURL(file);
+            });
+            const item={id:String(Date.now())+'_'+fi, fileName:file.name, arrayBuf:arrayBuf, b64Str:b64Str, status:'pending'};
+            window.PDF_MEM_QUEUE.push(item);
+            newItems.push(item);
           } catch(err){ console.warn('Failed to read',file.name,err); }
         }
-        S.s('pdf_queue',[...existingQ,...newItems]);
-        setPdfQueue(S.g('pdf_queue')||[]);
+        // Update UI state from memory queue
+        setPdfQueue(getPdfStatusList());
         e.target.value='';
+        // Start background processing
         processPdfQueue();
-        alert('已加入队列：'+newItems.length+'个PDF，后台处理中，切换页面不中断，完成后图库自动更新。');
       }
 
       // ── PDF.js: render page to canvas at high DPI ──────────────
@@ -2205,11 +2287,11 @@
         return results;
       }
 
-      // ── Main PDF upload handler (single file → also uses queue) ──
+      // ── Main PDF upload handler → delegates to batch handler ───
       async function handlePdfUpload(e) {
         await handleBatchPdfUpload(e);
-        return;
-        // Legacy code below kept for reference
+      }
+      async function handlePdfUpload_UNUSED(e) {
         const file=e.target.files[0];
         if(!file) return;
         setPdfLoading(true); setExtracted(null);
@@ -2452,9 +2534,9 @@
               </div>;
             })}
             <div style={{display:'flex',gap:8,marginTop:8}}>
-              <button onClick={function(){S.s('pdf_queue',[]);setPdfQueue([]);}} className="btn"
+              <button onClick={function(){window.PDF_MEM_QUEUE=[];setPdfQueue([]);}} className="btn"
                 style={{fontSize:11,padding:'4px 10px',background:'#fee2e2',color:'#dc2626'}}>清空队列</button>
-              {pdfQueue.some(function(q){return q.status==='pending'||q.status==='processing';})&&
+              {(window.PDF_MEM_QUEUE||[]).some(function(q){return q.status==='pending';})&&
                 <button onClick={function(){processPdfQueue();}} className="btn"
                   style={{fontSize:11,padding:'4px 10px',background:'#7c3aed',color:'white'}}>▶ 继续处理</button>}
             </div>
