@@ -564,7 +564,7 @@
               const canvas = document.createElement('canvas');
               canvas.width = viewport.width;
               canvas.height = viewport.height;
-              await pdfPage.render({canvasContext: canvas.getContext('2d'), viewport: viewport}).promise;
+              await pdfPage.render({canvasContext: canvas.getContext('2d', {willReadFrequently:true}), viewport: viewport}).promise;
               pageB64s.push(canvas.toDataURL('image/jpeg', 0.82));
 
               // Try to extract embedded images
@@ -586,7 +586,7 @@
                     if(!imgData || !imgData.data || imgData.width < 100 || imgData.height < 100) continue;
                     const cv = document.createElement('canvas');
                     cv.width = imgData.width; cv.height = imgData.height;
-                    const ctx = cv.getContext('2d');
+                    const ctx = cv.getContext('2d', {willReadFrequently:true});
                     const id = ctx.createImageData(imgData.width, imgData.height);
                     if(imgData.data.length === imgData.width * imgData.height * 4) {
                       id.data.set(imgData.data);
@@ -611,47 +611,59 @@
             const apiKey = localStorage.getItem('pod_api_key') || '';
             if(!apiKey) throw new Error('未设置API Key，请先在工具顶部设置API Key');
 
+            // Use callClaudeAPI (same fetch path as rest of tool, handles CORS proxy)
+            // Build prompt for PDF extraction
+            const pdfPrompt = 'This is a copyright infringement notice PDF. Extract key info and output JSON ONLY (no markdown, no explanation): {"plaintiff":"brand or artist name","works":["protected work title"],"style_description":"Chinese: describe the art style","style_keywords":["Chinese style tag","tag2","tag3"],"banned_elements":["Chinese: brand name","work name","distinctive visual element"],"risk_level":"urgent or high","case_no":"","filed_date":""}';
+            let rawResult = null;
             // Retry up to 3 times on rate limit
-            let rdata = null;
             for(let attempt = 0; attempt < 3; attempt++) {
               if(attempt > 0) {
                 const waitSec = attempt === 1 ? 30 : 60;
                 pending.error = '触发限速，等待'+waitSec+'秒后重试('+attempt+'/3)...';
                 window.dispatchEvent(new Event('pdf_queue_update'));
                 await new Promise(function(r){ setTimeout(r, waitSec * 1000); });
+                pending.error = '';
               }
-              const resp = await fetch('https://api.anthropic.com/v1/messages', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                  'x-api-key': apiKey,
-                  'anthropic-version': '2023-06-01',
-                  'anthropic-dangerous-direct-browser-access': 'true'
-                },
-                body: JSON.stringify({
-                  model: 'claude-sonnet-4-5-20250929',
-                  max_tokens: 1500,
-                  messages: [{role:'user', content:[
-                    {type:'document', source:{type:'base64', media_type:'application/pdf', data: pending.b64Str}},
-                    {type:'text', text:'This is a copyright infringement notice PDF. Extract key info and output JSON ONLY (no markdown, no explanation): {"plaintiff":"brand or artist name","works":["protected work title"],"style_description":"Chinese: describe the art style","style_keywords":["Chinese style tag 1","tag 2","tag 3"],"banned_elements":["Chinese: brand name","work name","distinctive visual element to avoid"],"risk_level":"urgent or high","case_no":"case number if any","filed_date":"date if any"}'}
-                  ]}]
-                })
-              });
-              rdata = await resp.json();
-              // Rate limit: wait and retry
-              if(resp.status === 429 || (rdata.error && rdata.error.type === 'rate_limit_error')) {
-                if(attempt < 2) continue;
-                throw new Error('API限速，请稍后再试（已重试3次）');
+              try {
+                // Use callClaudeAPI with document content type via direct fetch
+                // matching exact same headers as callClaudeAPI
+                const apiKey = getApiKey();
+                if(!apiKey) throw new Error('请先设置API Key');
+                const resp = await fetch('https://api.anthropic.com/v1/messages', {
+                  method:'POST',
+                  headers:{
+                    'Content-Type':'application/json',
+                    'x-api-key':apiKey,
+                    'anthropic-version':'2023-06-01',
+                    'anthropic-dangerous-direct-browser-access':'true'
+                  },
+                  body: JSON.stringify({
+                    model:'claude-sonnet-4-5-20250929',
+                    max_tokens:1500,
+                    system:'You are a copyright expert. Output JSON only.',
+                    messages:[{role:'user', content:[
+                      {type:'document', source:{type:'base64', media_type:'application/pdf', data:pending.b64Str}},
+                      {type:'text', text:pdfPrompt}
+                    ]}]
+                  })
+                });
+                const rdata = await resp.json();
+                if(resp.status === 429 || (rdata.error && rdata.error.type === 'rate_limit_error')) {
+                  if(attempt < 2) continue;
+                  throw new Error('API限速，请稍后再试');
+                }
+                if(rdata.error) throw new Error(rdata.error.message||'API error');
+                rawResult = (rdata.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('');
+                break;
+              } catch(fetchErr) {
+                if(attempt >= 2) throw fetchErr;
               }
-              if(rdata.error) throw new Error(rdata.error.message||'API error');
-              break; // success
             }
-            pending.error = ''; // clear retry message
-            const raw = (rdata.content||[]).filter(function(b){return b.type==='text';}).map(function(b){return b.text;}).join('');
+            const rdata_raw = rawResult;
             let parsed = null;
             try {
-              const si = raw.indexOf('{'), ei = raw.lastIndexOf('}');
-              if(si>=0 && ei>=0) parsed = JSON.parse(raw.slice(si, ei+1));
+              const si = rdata_raw.indexOf('{'), ei = rdata_raw.lastIndexOf('}');
+              if(si>=0 && ei>=0) parsed = JSON.parse(rdata_raw.slice(si, ei+1));
             } catch(ex) {}
             if(!parsed) throw new Error('AI无法解析文件内容，请确认是侵权通知文件');
 
@@ -2268,7 +2280,7 @@
         const canvas = document.createElement('canvas');
         canvas.width  = viewport.width;
         canvas.height = viewport.height;
-        await pdfPage.render({canvasContext: canvas.getContext('2d'), viewport: viewport}).promise;
+        await pdfPage.render({canvasContext: canvas.getContext('2d', {willReadFrequently:true}), viewport: viewport}).promise;
         return canvas;
       }
 
