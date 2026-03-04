@@ -185,8 +185,8 @@
 
         if (!response.ok) {
           const errText = await response.text();
-          console.error(`HTTP ${response.status}:`, errText);
-          throw new Error(`HTTP ${response.status}: ${errText}`);
+          console.error('HTTP '+response.status+':', errText);
+          throw new Error('HTTP '+response.status+': '+errText);
         }
 
         const data = await response.json();
@@ -536,6 +536,11 @@
     }
 
     async function processPdfQueue() {
+      // Reset any items stuck as 'processing' (from previous crashed run)
+      (window.PDF_MEM_QUEUE||[]).forEach(function(q) {
+        if(q.status === 'processing') { q.status = 'pending'; q.error = ''; }
+      });
+      window.dispatchEvent(new Event('pdf_queue_update'));
       if(PDF_PROCESSOR_RUNNING) return;
       PDF_PROCESSOR_RUNNING = true;
       try {
@@ -549,10 +554,24 @@
           pending.retries = pending.retries || 0;
           window.dispatchEvent(new Event('pdf_queue_update'));
 
+          // Overall per-file timeout: 120 seconds
+          var fileTimeoutId = null;
+          var fileTimedOut = false;
+          var fileTimeoutPromise = new Promise(function(_, reject) {
+            fileTimeoutId = setTimeout(function() {
+              fileTimedOut = true;
+              reject(new Error('处理超时（超过120秒），请重试'));
+            }, 120000);
+          });
+
           try {
             // Step1: PDF.js extract images from ArrayBuffer (already in memory)
             pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-            const pdfDoc = await pdfjsLib.getDocument({data: pending.arrayBuf}).promise;
+            // Timeout for PDF loading itself
+            const pdfDoc = await Promise.race([
+              pdfjsLib.getDocument({data: pending.arrayBuf}).promise,
+              new Promise(function(_,reject){setTimeout(function(){reject(new Error('PDF加载超时'));},30000);})
+            ]);
             const numPages = pdfDoc.numPages;
             const allImgs = [];
             const pageB64s = [];
@@ -580,9 +599,12 @@
                 }
                 for(let ni = 0; ni < imgNames.length; ni++) {
                   try {
-                    const imgData = await new Promise(function(resolve, reject) {
-                      pdfPage.objs.get(imgNames[ni], function(obj) { obj ? resolve(obj) : reject(); });
-                    });
+                    const imgData = await Promise.race([
+                      new Promise(function(resolve, reject) {
+                        pdfPage.objs.get(imgNames[ni], function(obj) { obj ? resolve(obj) : reject(new Error('no obj')); });
+                      }),
+                      new Promise(function(_,reject){ setTimeout(function(){reject(new Error('timeout'));},4000); })
+                    ]);
                     if(!imgData || !imgData.data || imgData.width < 100 || imgData.height < 100) continue;
                     const cv = document.createElement('canvas');
                     cv.width = imgData.width; cv.height = imgData.height;
@@ -712,13 +734,15 @@
             pending.result = newEntry;
 
           } catch(err) {
+            if(fileTimeoutId) clearTimeout(fileTimeoutId);
             pending.status = 'error';
             pending.error = err.message;
           }
 
+          if(fileTimeoutId) clearTimeout(fileTimeoutId);
           window.dispatchEvent(new Event('pdf_queue_update'));
           // Delay between files to avoid rate limiting (15s gap)
-          await new Promise(function(r){ setTimeout(r, 15000); });
+          if(!fileTimedOut) await new Promise(function(r){ setTimeout(r, 15000); });
         }
       } finally {
         PDF_PROCESSOR_RUNNING = false;
@@ -2178,12 +2202,9 @@
         window.addEventListener('pdf_queue_update', onQueueUpdate);
         // Poll every 2s to stay in sync
         const timer = setInterval(onQueueUpdate, 2000);
-        // Reset any stuck 'processing' items back to 'pending' on mount
-        if(window.PDF_MEM_QUEUE) {
-          window.PDF_MEM_QUEUE.forEach(function(q){
-            if(q.status==='processing') { q.status='pending'; q.error=''; }
-          });
-        }
+        // Kick off processor in case there are pending items already
+        // (handles page navigation - items added before nav are still in memory)
+        setTimeout(processPdfQueue, 500);
         // Init from any existing memory queue on mount
         onQueueUpdate();
         return function(){
@@ -2895,384 +2916,207 @@
     // ════════════════════════════════════════════════════════════════
     // PAGE: COMPETITOR RESEARCH (竞品研究)
     // ════════════════════════════════════════════════════════════════
+    function ReportLine({line, acColor}) {
+      var html = (line||'').replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>');
+      if(line.startsWith('## ')) return <div style={{background:acColor+'12',borderLeft:'4px solid '+acColor,borderRadius:'0 8px 8px 0',padding:'8px 16px',margin:'20px 0 8px',fontWeight:800,fontSize:15,color:acColor}}>{line.slice(3)}</div>;
+      if(line.startsWith('### ')) return <div style={{fontWeight:700,fontSize:14,color:'#374151',margin:'14px 0 6px',padding:'4px 0',borderBottom:'1px solid #e2e8f0'}}>{line.slice(4)}</div>;
+      if(line.startsWith('#### ')) return <div style={{fontWeight:600,fontSize:13,color:acColor,margin:'10px 0 4px'}}>{line.slice(5)}</div>;
+      if(line.match(/^[-*] /)) return <div style={{display:'flex',gap:6,padding:'2px 0'}}><span style={{color:acColor,flexShrink:0}}>•</span><span style={{fontSize:13,lineHeight:1.7,color:'#374151'}} dangerouslySetInnerHTML={{__html:html.slice(2)}} /></div>;
+      if(line.match(/^\d+\. /)) return <div style={{display:'flex',gap:6,padding:'2px 0'}}><span style={{color:acColor,flexShrink:0,fontWeight:700}}>{line.match(/^\d+/)[0]}.</span><span style={{fontSize:13,lineHeight:1.7,color:'#374151'}} dangerouslySetInnerHTML={{__html:html.replace(/^\d+\. /,'')}} /></div>;
+      if(line.trim()) return <p style={{fontSize:13,lineHeight:1.8,color:'#374151',margin:'3px 0'}} dangerouslySetInnerHTML={{__html:html}} />;
+      return <div style={{height:6}} />;
+    }
+
+    function TableBlock({rows, acColor}) {
+      if(!rows||rows.length<1) return null;
+      var header = rows[0];
+      var body = rows.filter(function(_,i){return i>=2;});
+      return (
+        <table style={{width:'100%',borderCollapse:'collapse',margin:'12px 0',fontSize:12}}>
+          <thead>
+            <tr>{header.map(function(cell,ci){return <th key={ci} style={{background:acColor+'18',color:acColor,padding:'6px 10px',border:'1px solid #e2e8f0',fontWeight:700,textAlign:'left',fontSize:11}}>{cell}</th>;})}</tr>
+          </thead>
+          <tbody>
+            {body.map(function(row,ri){
+              return <tr key={ri}>{row.map(function(cell,ci){return <td key={ci} style={{padding:'6px 10px',border:'1px solid #e2e8f0',fontSize:12,background:ri%2===0?'white':'#f8fafc'}}>{cell}</td>;})}</tr>;
+            })}
+          </tbody>
+        </table>
+      );
+    }
+
+    function ReportDisplay({text, acColor}) {
+      if(!text) return null;
+      var lines = text.split('\n');
+      var blocks = [];
+      var tableRows = [];
+      var key = 0;
+
+      function flush() {
+        if(tableRows.length>0) {
+          blocks.push(<TableBlock key={key++} rows={tableRows} acColor={acColor} />);
+          tableRows = [];
+        }
+      }
+
+      lines.forEach(function(line) {
+        if(line.match(/^\|.+\|$/)) {
+          var cells = line.split('|').map(function(s){return s.trim();}).filter(function(s){return s;});
+          if(!cells.every(function(s){return /^[-:]+$/.test(s);})) tableRows.push(cells);
+        } else {
+          flush();
+          blocks.push(<ReportLine key={key++} line={line} acColor={acColor} />);
+        }
+      });
+      flush();
+      return <div>{blocks}</div>;
+    }
+
     function PageCompetitor({cat, colors}) {
-      const [tab, setTab] = useState('asin');       // asin | category | growth
+      const [tab, setTab] = useState('asin');
       const [loading, setLoading] = useState(false);
       const [report, setReport] = useState(null);
       const [reportType, setReportType] = useState('');
-
-      // ── Tab: ASIN竞品分析 inputs ──
       const [asin, setAsin] = useState('');
       const [pastedTitle, setPastedTitle] = useState('');
       const [pastedBullets, setPastedBullets] = useState('');
       const [pastedReviews, setPastedReviews] = useState('');
-
-      // ── Tab: 类目分析 inputs ──
       const [catName, setCatName] = useState('');
       const [catNotes, setCatNotes] = useState('');
-
-      // ── Tab: 增量分析 inputs ──
       const [growthAsin, setGrowthAsin] = useState('');
       const [growthTitle, setGrowthTitle] = useState('');
       const [growthBullets, setGrowthBullets] = useState('');
       const [growthIssues, setGrowthIssues] = useState('');
 
-      // ── Run ASIN competitor analysis ──────────────────────────
+      var catDesc = cat === '童装' ? '儿童服装/童装(Kids Apparel)' : '家居用品(Home Decor)';
+      var catDescShort = cat === '童装' ? '儿童服装/童装' : '家居用品';
+
       async function runAsinAnalysis() {
-        if(!asin.trim() && !pastedTitle.trim()) {
-          alert('请至少输入ASIN或产品标题');return;
-        }
+        if(!asin.trim() && !pastedTitle.trim()) { alert('请至少输入ASIN或产品标题'); return; }
         setLoading(true); setReport(null);
-        const catDesc = cat === '童装' ? '儿童服装/童装(Kids Apparel)' : '家居用品(Home Decor/Home Furnishings)';
-        const prompt = `你是Amazon ${catDesc}类目的资深运营专家，请对以下竞品进行深度分析：
-
-ASIN: ${asin||'(未提供)'}
-产品标题: ${pastedTitle||'(未提供)'}
-Bullet Points: ${pastedBullets||'(未提供)'}
-评论摘录: ${pastedReviews||'(未提供)'}
-
-请从专业运营视角，用中文输出以下完整分析报告（使用Markdown格式，每个章节用##标题）：
-
-## 一、畅销原因分析
-分析该产品畅销的核心原因：价格定位、视觉卖点、差异化因素、目标人群匹配度等
-
-## 二、文案诊断
-- 标题结构分析（关键词布局、前80字符吸引力、品类词使用）
-- Bullet Points质量评分与具体问题
-- 文案整体可优化方向（给出具体改写建议，至少3条）
-
-## 三、产品改进建议
-基于${catDesc}类目经验，分析产品可以改进的方向：材质/设计/尺寸/包装/配件等
-
-## 四、Q&A关键信息
-买家最常关心的问题类型有哪些？卖家应该提前在文案或Q&A中解答哪些内容？
-
-## 五、评论洞察
-- 好评核心：客户最喜欢什么
-- 差评痛点：客户最不满意什么
-- 新需求信号：评论中有没有潜在的新产品/新功能需求
-
-## 六、竞品优缺点总结
-| 维度 | 优势 | 劣势 |
-|---|---|---|
-（用表格列出5-6个维度）
-
-## 七、超车策略建议
-综合以上分析，给出系统性的超车方案：
-- 产品层面（如何差异化）
-- 价格层面（如何定价才能有竞争力）
-- 文案层面（给出优化后的标题示例）
-- 图片/视觉层面
-- 推广层面
-
-请分析全面、具体、实用，避免泛泛而谈。`;
-
+        var p = '你是Amazon ' + catDesc + '类目资深运营专家，请对以下竞品进行深度分析：\n\n'
+          + 'ASIN: ' + (asin||'(未提供)') + '\n'
+          + '产品标题: ' + (pastedTitle||'(未提供)') + '\n'
+          + 'Bullet Points: ' + (pastedBullets||'(未提供)') + '\n'
+          + '评论摘录: ' + (pastedReviews||'(未提供)') + '\n\n'
+          + '请用中文输出完整分析报告（Markdown格式，##开头的章节标题）：\n\n'
+          + '## 一、畅销原因分析\n分析畅销核心原因：价格定位、视觉卖点、差异化因素、目标人群匹配度\n\n'
+          + '## 二、文案诊断\n- 标题结构分析（关键词布局、前80字符、品类词）\n- Bullet Points质量问题\n- 具体改写建议（至少3条）\n\n'
+          + '## 三、产品改进建议\n基于' + catDesc + '经验，分析改进方向：材质/设计/尺寸/包装/配件\n\n'
+          + '## 四、Q&A关键信息\n买家最常问的问题类型？卖家应提前在文案中解答哪些内容？\n\n'
+          + '## 五、评论洞察\n- 好评核心：客户最喜欢什么\n- 差评痛点：最不满意什么\n- 新需求信号：评论中潜在需求\n\n'
+          + '## 六、竞品优缺点总结\n用表格列出5-6个维度的优势和劣势\n| 维度 | 优势 | 劣势 |\n|---|---|---|\n\n'
+          + '## 七、超车策略建议\n- 产品层面（如何差异化）\n- 价格层面（如何定价）\n- 文案层面（给出优化后标题示例）\n- 图片/视觉层面\n- 推广层面\n\n'
+          + '请分析全面、具体、实用，避免泛泛而谈。';
         try {
-          const result = await callClaudeAPI(prompt, `你是Amazon ${catDesc}资深运营专家，擅长竞品分析和超车策略。请用中文输出详细专业的分析报告。`);
-          setReport(result);
-          setReportType('asin');
-        } catch(err) { alert('分析失败：'+err.message); }
+          var r = await callClaudeAPI(p, '你是Amazon ' + catDesc + '资深运营专家，请用中文输出详细专业的分析报告。');
+          setReport(r); setReportType('asin');
+        } catch(err) { alert('分析失败：' + err.message); }
         setLoading(false);
       }
 
-      // ── Run category analysis ─────────────────────────────────
       async function runCategoryAnalysis() {
         if(!catName.trim()) { alert('请输入类目名称'); return; }
         setLoading(true); setReport(null);
-        const catDesc = cat === '童装' ? '儿童服装/童装' : '家居用品';
-        const prompt = `你是Amazon ${catDesc}类目的资深市场分析专家，请对以下类目进行全面分析：
-
-类目名称: ${catName}
-品类大类: ${catDesc}
-补充说明: ${catNotes||'无'}
-
-请用中文输出以下完整类目分析报告（使用Markdown格式）：
-
-## 一、类目基本面
-- 市场规模与增长趋势
-- 竞争烈度评估（1-10分并说明原因）
-- 进入门槛分析
-- 季节性规律
-
-## 二、价格带分布
-| 价格区间 | 市场占比 | 竞争程度 | 建议定位 |
-|---|---|---|---|
-（列出低/中/高价区间，给出最优竞争价格带建议）
-
-## 三、当前热卖款式
-详细描述目前什么样的款式在卖：
-- 主流图案/设计风格
-- 热卖颜色/配色方案
-- 尺寸/规格偏好
-- 具体的爆款特征
-
-## 四、新品趋势（未来6-12个月）
-- 正在崛起的新风格/新元素
-- 值得押注的细分方向
-- 具体款式趋势预测
-
-## 五、类目优势与风险
-**优势：**（至少3点）
-**风险/劣势：**（至少3点）
-**适合进入的卖家画像：**
-
-## 六、开发建议
-
-### 产品开发方向
-给出3-5个具体的产品开发方向（越具体越好，如"带有感恩节南瓜图案的儿童连体睡衣"）
-
-### 定价策略
-- 新品期定价建议
-- 成熟期定价策略
-- 促销节点建议
-
-### 文案写法
-- 标题公式（给出模板）
-- 核心卖点提炼方向
-- 差异化措辞建议
-
-### 图片/视觉建议
-主图、场景图、细节图的拍摄/制作重点
-
-请确保分析具体且实用，基于真实的Amazon市场规律。`;
-
+        var p = '你是Amazon ' + catDescShort + '类目资深市场分析专家，请对以下类目进行全面分析：\n\n'
+          + '类目名称: ' + catName + '\n'
+          + '品类大类: ' + catDescShort + '\n'
+          + '补充说明: ' + (catNotes||'无') + '\n\n'
+          + '请用中文输出完整类目分析报告（Markdown格式）：\n\n'
+          + '## 一、类目基本面\n市场规模与增长趋势、竞争烈度（1-10分）、进入门槛、季节性规律\n\n'
+          + '## 二、价格带分布\n| 价格区间 | 市场占比 | 竞争程度 | 建议定位 |\n|---|---|---|---|\n低价/中价/高价区间，最优竞争价格带建议\n\n'
+          + '## 三、当前热卖款式\n主流图案/设计风格、热卖颜色、尺寸规格偏好、具体爆款特征\n\n'
+          + '## 四、新品趋势（未来6-12个月）\n正在崛起的新风格/元素、值得押注的细分方向、具体款式趋势\n\n'
+          + '## 五、类目优势与风险\n优势（至少3点）、风险/劣势（至少3点）、适合进入的卖家画像\n\n'
+          + '## 六、开发建议\n\n'
+          + '### 产品开发方向\n3-5个具体产品开发方向（越具体越好）\n\n'
+          + '### 定价策略\n新品期/成熟期定价、促销节点建议\n\n'
+          + '### 文案写法\n标题公式模板、核心卖点提炼、差异化措辞\n\n'
+          + '### 图片/视觉建议\n主图、场景图、细节图的制作重点\n\n'
+          + '请确保分析具体实用，基于真实Amazon市场规律。';
         try {
-          const result = await callClaudeAPI(prompt, `你是Amazon ${catDesc}类目市场分析专家，擅长类目研究和产品开发策略。请用中文输出详细的类目分析报告。`);
-          setReport(result);
-          setReportType('category');
-        } catch(err) { alert('分析失败：'+err.message); }
+          var r = await callClaudeAPI(p, '你是Amazon ' + catDescShort + '类目市场分析专家，请用中文输出详细类目分析报告。');
+          setReport(r); setReportType('category');
+        } catch(err) { alert('分析失败：' + err.message); }
         setLoading(false);
       }
 
-      // ── Run growth / increment analysis ──────────────────────
       async function runGrowthAnalysis() {
-        if(!growthAsin.trim() && !growthTitle.trim()) {
-          alert('请至少输入ASIN或产品标题'); return;
-        }
+        if(!growthAsin.trim() && !growthTitle.trim()) { alert('请至少输入ASIN或产品标题'); return; }
         setLoading(true); setReport(null);
-        const catDesc = cat === '童装' ? '儿童服装/童装(Kids Apparel)' : '家居用品(Home Decor)';
-        const prompt = `你是Amazon ${catDesc}类目的资深增长运营专家，请对以下产品进行多维度增量分析：
-
-ASIN: ${growthAsin||'(未提供)'}
-产品标题: ${growthTitle||'(未提供)'}
-当前Bullet Points: ${growthBullets||'(未提供)'}
-当前存在的问题/痛点: ${growthIssues||'(未提供)'}
-品类: ${catDesc}
-
-请从以下每个维度进行深入分析，并给出**具体可执行**的实操建议：
-
-## 一、价格优化空间
-- 当前定价合理性评估
-- 调价时机与幅度建议
-- 组合销售/捆绑建议
-- 优惠券/折扣策略
-
-## 二、文案优化方案
-**标题优化：**
-- 问题诊断
-- 优化后标题示例（直接给出2-3个版本）
-
-**Bullet Points优化：**
-- 逐条诊断
-- 优化建议与示例
-
-**Search Terms优化：**
-- 关键词布局建议
-- 长尾词挖掘方向
-
-## 三、A+页面制作建议
-- 推荐模块组合（哪几个模块）
-- 每个模块的内容方向
-- 视觉风格建议
-- 核心差异化卖点如何在A+中呈现
-
-## 四、视频制作方向
-- 视频类型建议（主图视频/品牌视频）
-- 内容脚本框架（开场→卖点→场景→CTA）
-- 时长与节奏建议
-- 视觉要素清单
-
-## 五、变体开发建议
-| 变体维度 | 扩展方向 | 市场潜力 | 优先级 |
-|---|---|---|---|
-（颜色/尺寸/图案/材质/套装等维度，列出高潜力扩展方向）
-
-## 六、评论运营策略
-- 如何系统性积累好评
-- 差评应对话术框架
-- 如何把差评痛点转化为产品改进
-
-## 七、增量优先级排序
-综合以上分析，按ROI从高到低排列增量行动计划：
-1. 立即可做（1周内）
-2. 短期计划（1个月内）
-3. 中期规划（3个月内）
-
-请确保每条建议都有具体的操作步骤，不要泛泛而谈。`;
-
+        var p = '你是Amazon ' + catDesc + '类目资深增长运营专家，请对以下产品进行多维度增量分析：\n\n'
+          + 'ASIN: ' + (growthAsin||'(未提供)') + '\n'
+          + '产品标题: ' + (growthTitle||'(未提供)') + '\n'
+          + '当前Bullet Points: ' + (growthBullets||'(未提供)') + '\n'
+          + '当前问题/痛点: ' + (growthIssues||'(未提供)') + '\n'
+          + '品类: ' + catDesc + '\n\n'
+          + '请从以下维度深入分析，给出具体可执行的实操建议：\n\n'
+          + '## 一、价格优化空间\n当前定价合理性、调价时机与幅度、捆绑销售、优惠券策略\n\n'
+          + '## 二、文案优化方案\n\n'
+          + '### 标题优化\n问题诊断 + 优化后标题示例（直接给出2-3个版本）\n\n'
+          + '### Bullet Points优化\n逐条诊断 + 优化建议与示例\n\n'
+          + '### Search Terms优化\n关键词布局建议、长尾词挖掘方向\n\n'
+          + '## 三、A+页面制作建议\n推荐模块组合、每个模块内容方向、视觉风格、差异化卖点呈现\n\n'
+          + '## 四、视频制作方向\n视频类型、内容脚本框架（开场→卖点→场景→CTA）、时长与节奏、视觉要素清单\n\n'
+          + '## 五、变体开发建议\n| 变体维度 | 扩展方向 | 市场潜力 | 优先级 |\n|---|---|---|---|\n颜色/尺寸/图案/材质/套装等高潜力方向\n\n'
+          + '## 六、评论运营策略\n系统积累好评方法、差评应对话术框架、把差评转化为产品改进\n\n'
+          + '## 七、增量优先级排序\n按ROI从高到低：立即可做（1周内）、短期计划（1个月）、中期规划（3个月）\n\n'
+          + '请确保每条建议都有具体操作步骤，不要泛泛而谈。';
         try {
-          const result = await callClaudeAPI(prompt, `你是Amazon ${catDesc}增长运营专家，擅长多维度产品增量分析和实操方案制定。请用中文输出专业详细的增量分析报告。`);
-          setReport(result);
-          setReportType('growth');
-        } catch(err) { alert('分析失败：'+err.message); }
+          var r = await callClaudeAPI(p, '你是Amazon ' + catDesc + '增长运营专家，请用中文输出专业详细的增量分析报告。');
+          setReport(r); setReportType('growth');
+        } catch(err) { alert('分析失败：' + err.message); }
         setLoading(false);
       }
 
-      // ── Download report as printable HTML ────────────────────
       function downloadReport() {
         if(!report) return;
-        const titles = {
-          asin: `竞品分析报告_${asin||catName||'产品'}_${new Date().toISOString().slice(0,10)}`,
-          category: `类目分析报告_${catName}_${new Date().toISOString().slice(0,10)}`,
-          growth: `增量分析报告_${growthAsin||growthTitle.slice(0,10)||'产品'}_${new Date().toISOString().slice(0,10)}`
-        };
-        const title = titles[reportType] || '分析报告';
-        // Convert markdown to HTML
-        function mdToHtml(md) {
-          return md
-            .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-            .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-            .replace(/^#### (.+)$/gm, '<h4>$1</h4>')
-            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-            .replace(/\*(.+?)\*/g, '<em>$1</em>')
-            .replace(/^\| (.+) \|$/gm, function(line) {
-              const cells = line.split('|').map(c=>c.trim()).filter(c=>c&&c!=='---'&&!/^-+$/.test(c));
-              if(cells.length===0) return '';
-              return '<tr>'+cells.map(c=>'<td>'+c+'</td>').join('')+'</tr>';
-            })
-            .replace(/(<tr>.*<\/tr>\n?)+/g, m=>'<table>'+m+'</table>')
-            .replace(/^- (.+)$/gm, '<li>$1</li>')
-            .replace(/(<li>.*<\/li>\n?)+/g, m=>'<ul>'+m+'</ul>')
-            .replace(/^\d+\. (.+)$/gm, '<li>$1</li>')
-            .replace(/\n{2,}/g, '</p><p>')
-            .replace(/^(?!<[htuol])(.+)$/gm, '$1');
-        }
-        const htmlContent = mdToHtml(report);
-        const acColor = cat==='童装'?'#ec4899':'#0ea5e9';
-        const html = `<!DOCTYPE html>
-<html lang="zh"><head><meta charset="UTF-8">
-<title>${title}</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;600;700&display=swap');
-  body{font-family:'Noto Sans SC',sans-serif;max-width:900px;margin:0 auto;padding:40px;color:#1e293b;line-height:1.8;font-size:14px;}
-  h1{color:${acColor};font-size:24px;border-bottom:3px solid ${acColor};padding-bottom:12px;margin-bottom:24px;}
-  h2{color:${acColor};font-size:18px;margin-top:32px;margin-bottom:12px;padding:8px 16px;background:${acColor}12;border-left:4px solid ${acColor};border-radius:0 6px 6px 0;}
-  h3{color:#374151;font-size:15px;margin-top:20px;margin-bottom:8px;font-weight:700;}
-  h4{color:#6b7280;font-size:14px;margin-top:16px;margin-bottom:6px;}
-  table{width:100%;border-collapse:collapse;margin:16px 0;font-size:13px;}
-  th,td{border:1px solid #e2e8f0;padding:8px 12px;text-align:left;}
-  th{background:${acColor}15;font-weight:700;color:${acColor};}
-  tr:nth-child(even){background:#f8fafc;}
-  ul,ol{padding-left:24px;margin:8px 0;}
-  li{margin:4px 0;}
-  strong{color:#1e293b;}
-  p{margin:8px 0;}
-  .meta{font-size:12px;color:#94a3b8;margin-bottom:32px;}
-  @media print{body{padding:20px;}h2{page-break-after:avoid;}}
-</style>
-</head><body>
-<h1>${tab==='asin'?'🔍 竞品分析报告':tab==='category'?'📊 类目分析报告':'📈 产品增量分析报告'}</h1>
-<div class="meta">品类：${cat} &nbsp;|&nbsp; 生成时间：${new Date().toLocaleString('zh-CN')} &nbsp;|&nbsp; POD SOP系统 v3.1</div>
-<p>${htmlContent}</p>
-</body></html>`;
-        const blob = new Blob([html], {type:'text/html;charset=utf-8'});
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href=url; a.download=title+'.html'; a.click();
+        var fileNames = {asin:'竞品分析_'+(asin||pastedTitle.slice(0,8)), category:'类目分析_'+catName, growth:'增量分析_'+(growthAsin||growthTitle.slice(0,8))};
+        var fileName = (fileNames[reportType]||'分析报告') + '_' + new Date().toISOString().slice(0,10);
+        var reportTitles = {asin:'🔍 竞品分析报告', category:'📊 类目分析报告', growth:'📈 产品增量分析报告'};
+        var acColor = colors.ac;
+        // Convert markdown to basic HTML
+        var html = report
+          .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+          .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+          .replace(/^## (.+)$/gm,'</p><h2>$1</h2><p>')
+          .replace(/^### (.+)$/gm,'</p><h3>$1</h3><p>')
+          .replace(/^#### (.+)$/gm,'</p><h4>$1</h4><p>')
+          .replace(/^[-*] (.+)$/gm,'<li>$1</li>')
+          .replace(/^(\d+)\. (.+)$/gm,'<li>$2</li>')
+          .replace(/^\| (.+) \|$/gm, function(line){
+            var cells=line.split('|').map(function(s){return s.trim();}).filter(function(s){return s;});
+            if(cells.every(function(s){return /^[-:]+$/.test(s);})) return '';
+            return '<tr>'+cells.map(function(c){return '<td>'+c+'</td>';}).join('')+'</tr>';
+          })
+          .replace(/\n/g,'<br>');
+        var doc = '<!DOCTYPE html><html lang="zh"><head><meta charset="UTF-8"><title>'+fileName+'</title>'
+          +'<style>body{font-family:system-ui,sans-serif;max-width:900px;margin:0 auto;padding:40px;color:#1e293b;line-height:1.8;font-size:14px;}'
+          +'h1{color:'+acColor+';font-size:22px;border-bottom:3px solid '+acColor+';padding-bottom:10px;}'
+          +'h2{color:'+acColor+';font-size:17px;margin-top:28px;padding:8px 16px;background:'+acColor+'12;border-left:4px solid '+acColor+';border-radius:0 6px 6px 0;}'
+          +'h3{color:#374151;font-size:14px;margin-top:18px;font-weight:700;border-bottom:1px solid #e2e8f0;padding-bottom:4px;}'
+          +'table{width:100%;border-collapse:collapse;margin:14px 0;} th,td{border:1px solid #e2e8f0;padding:7px 11px;text-align:left;font-size:13px;}'
+          +'th{background:'+acColor+'18;font-weight:700;color:'+acColor+';} tr:nth-child(even){background:#f8fafc;}'
+          +'li{margin:3px 0;} strong{font-weight:700;} .meta{font-size:11px;color:#94a3b8;margin-bottom:28px;}'
+          +'@media print{h2{page-break-after:avoid;}}</style></head>'
+          +'<body><h1>'+(reportTitles[reportType]||'分析报告')+'</h1>'
+          +'<div class="meta">品类：'+cat+' | 生成时间：'+new Date().toLocaleString('zh-CN')+' | POD SOP v3.1</div>'
+          +'<p>'+html+'</p></body></html>';
+        var blob = new Blob([doc], {type:'text/html;charset=utf-8'});
+        var url = URL.createObjectURL(blob);
+        var a = document.createElement('a');
+        a.href=url; a.download=fileName+'.html'; a.click();
         URL.revokeObjectURL(url);
       }
 
-      // ── Render markdown report ────────────────────────────────
-      function ReportDisplay({text}) {
-        if(!text) return null;
-        const acColor = colors.ac;
-        const lines = text.split('\n');
-        const elements = [];
-        let tableRows = [];
-        let listItems = [];
-        let key = 0;
-
-        function flushTable() {
-          if(tableRows.length>0) {
-            const headerRow = tableRows[0];
-            const dataRows = tableRows.slice(2);
-            const thStyle = {background:acColor+'18',color:acColor,padding:'6px 10px',border:'1px solid #e2e8f0',fontWeight:700,textAlign:'left',fontSize:11};
-            const tdStyleEven = {padding:'6px 10px',border:'1px solid #e2e8f0',fontSize:12,background:'white'};
-            const tdStyleOdd  = {padding:'6px 10px',border:'1px solid #e2e8f0',fontSize:12,background:'#f8fafc'};
-            const theadRow = <tr>{headerRow.map(function(cell,ci){ return <th key={ci} style={thStyle}>{cell}</th>; })}</tr>;
-            const tbodyRows = dataRows.map(function(row,ri) {
-              const cells = row.map(function(cell,ci) {
-                return <td key={ci} style={ri%2===0?tdStyleEven:tdStyleOdd}>{cell}</td>;
-              });
-              return <tr key={ri}>{cells}</tr>;
-            });
-            elements.push(
-              <table key={key++} style={{width:'100%',borderCollapse:'collapse',margin:'12px 0',fontSize:12}}>
-                <thead>{theadRow}</thead>
-                <tbody>{tbodyRows}</tbody>
-              </table>
-            );
-            tableRows=[];
-          }
-        }
-        function flushList() {
-          if(listItems.length>0) {
-            elements.push(<ul key={key++} style={{paddingLeft:20,margin:'6px 0'}}>{listItems}</ul>);
-            listItems=[];
-          }
-        }
-
-        lines.forEach(function(line) {
-          if(line.startsWith('## ')) {
-            flushTable();flushList();
-            elements.push(<div key={key++} style={{background:acColor+'12',borderLeft:'4px solid '+acColor,borderRadius:'0 8px 8px 0',padding:'8px 16px',margin:'20px 0 10px',fontWeight:800,fontSize:15,color:acColor}}>{line.slice(3)}</div>);
-          } else if(line.startsWith('### ')) {
-            flushTable();flushList();
-            elements.push(<div key={key++} style={{fontWeight:700,fontSize:14,color:'#374151',margin:'14px 0 6px',padding:'4px 0',borderBottom:'1px solid #e2e8f0'}}>{line.slice(4)}</div>);
-          } else if(line.startsWith('#### ')) {
-            flushList();
-            elements.push(<div key={key++} style={{fontWeight:600,fontSize:13,color:acColor,margin:'10px 0 4px'}}>{line.slice(5)}</div>);
-          } else if(line.match(/^\|.+\|$/)) {
-            flushList();
-            const cells=line.split('|').map(function(c){return c.trim();}).filter(function(c){return c;});
-            if(!cells.every(function(c){return /^[-:]+$/.test(c);})) tableRows.push(cells);
-          } else if(line.match(/^[-*] /)) {
-            flushTable();
-            const content=line.slice(2);
-            const html=content.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>');
-            listItems.push(<li key={key++} style={{fontSize:13,lineHeight:1.7,color:'#374151',marginBottom:2}} dangerouslySetInnerHTML={{__html:html}} />);
-          } else if(line.match(/^\d+\. /)) {
-            flushTable();
-            const content=line.replace(/^\d+\. /,'');
-            const html=content.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>');
-            listItems.push(<li key={key++} style={{fontSize:13,lineHeight:1.7,color:'#374151',marginBottom:2}} dangerouslySetInnerHTML={{__html:html}} />);
-          } else if(line.trim()) {
-            flushTable();flushList();
-            const html=line.replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>').replace(/\*(.+?)\*/g,'<em>$1</em>');
-            elements.push(<p key={key++} style={{fontSize:13,lineHeight:1.8,color:'#374151',margin:'4px 0'}} dangerouslySetInnerHTML={{__html:html}} />);
-          } else {
-            flushTable();flushList();
-          }
-        });
-        flushTable();flushList();
-        return <div>{elements}</div>;
-      }
-
-      const tabDefs = [
-        {id:'asin',   icon:'🔍', label:'竞品分析'},
-        {id:'category',icon:'📊', label:'类目分析'},
-        {id:'growth', icon:'📈', label:'增量分析'}
-      ];
+      var tabDefs = [{id:'asin',icon:'🔍',label:'竞品分析'},{id:'category',icon:'📊',label:'类目分析'},{id:'growth',icon:'📈',label:'增量分析'}];
 
       return (
         <div style={{display:'flex',flexDirection:'column',gap:16}}>
-          {/* Header */}
           <div style={{borderRadius:12,padding:'14px 20px',background:colors.grad,color:'white'}}>
             <div style={{fontWeight:800,fontSize:17}}>🔍 竞品研究中心</div>
             <div style={{fontSize:12,opacity:0.85,marginTop:2}}>竞品分析 · 类目全景 · 产品增量 · 支持下载报告</div>
           </div>
-
-          {/* Tabs */}
           <div style={{display:'flex',gap:8}}>
             {tabDefs.map(function(t){
               return <button key={t.id} onClick={function(){setTab(t.id);setReport(null);}} className="btn"
@@ -3282,27 +3126,18 @@ ASIN: ${growthAsin||'(未提供)'}
             })}
           </div>
 
-          {/* ── TAB: ASIN竞品分析 ── */}
           {tab==='asin'&&<div className="card" style={{display:'flex',flexDirection:'column',gap:12}}>
             <div style={{fontWeight:700,fontSize:15,color:colors.ac}}>🔍 竞品ASIN深度分析</div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-              <div>
-                <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>竞品ASIN</div>
-                <input value={asin} onChange={function(e){setAsin(e.target.value);}} placeholder="B0XXXXXXXXX" style={{width:'100%',boxSizing:'border-box'}} />
-              </div>
-              <div>
-                <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>产品标题（粘贴）</div>
-                <input value={pastedTitle} onChange={function(e){setPastedTitle(e.target.value);}} placeholder="粘贴Amazon产品标题..." style={{width:'100%',boxSizing:'border-box'}} />
-              </div>
+              <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>竞品ASIN</div>
+                <input value={asin} onChange={function(e){setAsin(e.target.value);}} placeholder="B0XXXXXXXXX" style={{width:'100%',boxSizing:'border-box'}} /></div>
+              <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>产品标题（粘贴）</div>
+                <input value={pastedTitle} onChange={function(e){setPastedTitle(e.target.value);}} placeholder="粘贴Amazon产品标题..." style={{width:'100%',boxSizing:'border-box'}} /></div>
             </div>
-            <div>
-              <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>Bullet Points（粘贴，可选）</div>
-              <textarea value={pastedBullets} onChange={function(e){setPastedBullets(e.target.value);}} rows={3} placeholder="粘贴产品的5条Bullet Points..." style={{width:'100%',boxSizing:'border-box'}} />
-            </div>
-            <div>
-              <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>评论摘录（粘贴几条差评或好评，可选）</div>
-              <textarea value={pastedReviews} onChange={function(e){setPastedReviews(e.target.value);}} rows={3} placeholder="粘贴一些典型评论，尤其是差评..." style={{width:'100%',boxSizing:'border-box'}} />
-            </div>
+            <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>Bullet Points（可选）</div>
+              <textarea value={pastedBullets} onChange={function(e){setPastedBullets(e.target.value);}} rows={3} placeholder="粘贴产品的5条Bullet Points..." style={{width:'100%',boxSizing:'border-box'}} /></div>
+            <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>评论摘录（可选）</div>
+              <textarea value={pastedReviews} onChange={function(e){setPastedReviews(e.target.value);}} rows={3} placeholder="粘贴一些典型评论，尤其是差评..." style={{width:'100%',boxSizing:'border-box'}} /></div>
             <div style={{padding:'8px 12px',background:'#f0f9ff',borderRadius:8,fontSize:12,color:'#0369a1'}}>
               💡 提供越多原始文案，分析越精准。至少填写ASIN或标题中的一项。
             </div>
@@ -3312,18 +3147,13 @@ ASIN: ${growthAsin||'(未提供)'}
             </button>
           </div>}
 
-          {/* ── TAB: 类目分析 ── */}
           {tab==='category'&&<div className="card" style={{display:'flex',flexDirection:'column',gap:12}}>
             <div style={{fontWeight:700,fontSize:15,color:colors.ac}}>📊 类目全景分析</div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-              <div>
-                <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>类目名称 *</div>
-                <input value={catName} onChange={function(e){setCatName(e.target.value);}} placeholder={cat==='童装'?'例如：儿童睡衣、婴儿连体衣':'例如：门盖、窗帘、桌布'} style={{width:'100%',boxSizing:'border-box'}} />
-              </div>
-              <div>
-                <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>补充说明（可选）</div>
-                <input value={catNotes} onChange={function(e){setCatNotes(e.target.value);}} placeholder="例如：主要做节日款、价格在$15-25..." style={{width:'100%',boxSizing:'border-box'}} />
-              </div>
+              <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>类目名称 *</div>
+                <input value={catName} onChange={function(e){setCatName(e.target.value);}} placeholder={cat==='童装'?'例如：儿童睡衣、婴儿连体衣':'例如：门盖、窗帘、桌布'} style={{width:'100%',boxSizing:'border-box'}} /></div>
+              <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>补充说明（可选）</div>
+                <input value={catNotes} onChange={function(e){setCatNotes(e.target.value);}} placeholder="例如：主要做节日款、价格$15-25..." style={{width:'100%',boxSizing:'border-box'}} /></div>
             </div>
             <div style={{padding:'8px 12px',background:'#f0fdf4',borderRadius:8,fontSize:12,color:'#16a34a'}}>
               💡 当前品类：<strong>{cat}</strong>，分析将聚焦{cat==='童装'?'儿童服装市场':'家居用品市场'}的相关规律。
@@ -3334,29 +3164,20 @@ ASIN: ${growthAsin||'(未提供)'}
             </button>
           </div>}
 
-          {/* ── TAB: 增量分析 ── */}
           {tab==='growth'&&<div className="card" style={{display:'flex',flexDirection:'column',gap:12}}>
             <div style={{fontWeight:700,fontSize:15,color:colors.ac}}>📈 产品增量分析</div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-              <div>
-                <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>自家产品ASIN</div>
-                <input value={growthAsin} onChange={function(e){setGrowthAsin(e.target.value);}} placeholder="B0XXXXXXXXX" style={{width:'100%',boxSizing:'border-box'}} />
-              </div>
-              <div>
-                <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>产品标题</div>
-                <input value={growthTitle} onChange={function(e){setGrowthTitle(e.target.value);}} placeholder="粘贴当前产品标题..." style={{width:'100%',boxSizing:'border-box'}} />
-              </div>
+              <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>自家产品ASIN</div>
+                <input value={growthAsin} onChange={function(e){setGrowthAsin(e.target.value);}} placeholder="B0XXXXXXXXX" style={{width:'100%',boxSizing:'border-box'}} /></div>
+              <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>产品标题</div>
+                <input value={growthTitle} onChange={function(e){setGrowthTitle(e.target.value);}} placeholder="粘贴当前产品标题..." style={{width:'100%',boxSizing:'border-box'}} /></div>
             </div>
-            <div>
-              <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>当前Bullet Points（可选）</div>
-              <textarea value={growthBullets} onChange={function(e){setGrowthBullets(e.target.value);}} rows={3} placeholder="粘贴当前产品Bullet Points..." style={{width:'100%',boxSizing:'border-box'}} />
-            </div>
-            <div>
-              <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>目前遇到的问题/痛点（可选）</div>
-              <textarea value={growthIssues} onChange={function(e){setGrowthIssues(e.target.value);}} rows={2} placeholder="例如：转化率低、好评少、流量上不去、变体太少..." style={{width:'100%',boxSizing:'border-box'}} />
-            </div>
+            <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>当前Bullet Points（可选）</div>
+              <textarea value={growthBullets} onChange={function(e){setGrowthBullets(e.target.value);}} rows={3} placeholder="粘贴当前产品Bullet Points..." style={{width:'100%',boxSizing:'border-box'}} /></div>
+            <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>目前遇到的问题/痛点（可选）</div>
+              <textarea value={growthIssues} onChange={function(e){setGrowthIssues(e.target.value);}} rows={2} placeholder="例如：转化率低、好评少、流量上不去..." style={{width:'100%',boxSizing:'border-box'}} /></div>
             <div style={{padding:'8px 12px',background:'#fdf4ff',borderRadius:8,fontSize:12,color:'#7c3aed'}}>
-              💡 分析将从价格、文案、A+、视频、变体、评论6个维度给出具体实操方案。
+              💡 将从价格、文案、A+、视频、变体、评论6个维度给出具体实操方案。
             </div>
             <button onClick={runGrowthAnalysis} disabled={loading} className="btn"
               style={{background:colors.ac,color:'white',padding:'12px',fontSize:14,fontWeight:700,opacity:loading?0.6:1}}>
@@ -3364,29 +3185,26 @@ ASIN: ${growthAsin||'(未提供)'}
             </button>
           </div>}
 
-          {/* Loading */}
           {loading&&<div style={{textAlign:'center',padding:32,background:'white',borderRadius:12,border:'1px solid #e2e8f0'}}>
             <Spinner />
             <div style={{marginTop:12,fontSize:14,color:colors.ac,fontWeight:600}}>AI正在深度分析中...</div>
             <div style={{fontSize:12,color:'#94a3b8',marginTop:6}}>通常需要30-60秒，请耐心等待</div>
           </div>}
 
-          {/* Report */}
           {report&&!loading&&<div style={{display:'flex',flexDirection:'column',gap:0}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'12px 16px',background:colors.ac,borderRadius:'12px 12px 0 0',color:'white'}}>
               <div style={{fontWeight:700,fontSize:14}}>
                 {reportType==='asin'?'🔍 竞品分析报告':reportType==='category'?'📊 类目分析报告':'📈 增量分析报告'}
               </div>
-              <button onClick={downloadReport}
-                style={{padding:'6px 16px',background:'white',color:colors.ac,border:'none',borderRadius:6,fontSize:12,cursor:'pointer',fontWeight:700}}>
+              <button onClick={downloadReport} style={{padding:'6px 16px',background:'white',color:colors.ac,border:'none',borderRadius:6,fontSize:12,cursor:'pointer',fontWeight:700}}>
                 📥 下载报告
               </button>
             </div>
-            <div style={{background:'white',border:'1px solid #e2e8f0',borderTop:'none',borderRadius:'0 0 12px 12px',padding:'16px 20px',maxHeight:700,overflowY:'auto'}}>
-              <ReportDisplay text={report} />
+            <div style={{background:'white',border:'1px solid #e2e8f0',borderTop:'none',borderRadius:'0 0 12px 12px',padding:'16px 20px',maxHeight:680,overflowY:'auto'}}>
+              <ReportDisplay text={report} acColor={colors.ac} />
             </div>
-            <div style={{padding:'10px 14px',background:'#f0fdf4',borderRadius:'0 0 8px 8px',fontSize:12,color:'#16a34a',display:'flex',gap:6,alignItems:'center'}}>
-              ✅ 分析完成 · 点击「下载报告」保存为HTML文件，可用浏览器打印为PDF
+            <div style={{padding:'10px 14px',background:'#f0fdf4',borderRadius:'0 0 8px 8px',fontSize:12,color:'#16a34a'}}>
+              ✅ 分析完成 · 点击「下载报告」保存HTML，浏览器打印可转为PDF
             </div>
           </div>}
         </div>
