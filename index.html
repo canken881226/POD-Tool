@@ -113,7 +113,7 @@
 
     const S = {
       g: function(key) { try { const d=localStorage.getItem(key); return d?JSON.parse(d):null; } catch(e) { return null; } },
-      s: function(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch(e) {} }
+      s: function(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); return true; } catch(e) { console.error('localStorage.setItem failed for key:',key,'error:',e.message); return false; } }
     };
     const daysUntil = function(dateStr) {
       const diff = new Date(dateStr) - new Date();
@@ -694,7 +694,7 @@
             const finalImgs = meaningful.length > 0 ? meaningful :
               pageB64s.map(function(b, idx){ return {localB64:b, name:'page'+(idx+1)+'.jpg', elements:[], aiDesc:'整页', w:0, h:0}; });
 
-            // Step4: Save to cp_images_index
+            // Step4: Save to cp_images_index (with fallback for large files)
             const existing = S.g('cp_images_index') || [];
             const newEntry = {
               id: String(Date.now()),
@@ -710,15 +710,30 @@
               images: finalImgs,
               createdAt: new Date().toISOString()
             };
-            // Save images index (without large base64 if too big)
-            const entryToSave = {...newEntry};
-            try {
-              S.s('cp_images_index', [...existing, entryToSave]);
-            } catch(storageErr) {
-              // If too large, save without images
-              entryToSave.images = finalImgs.map(function(img){return {...img, localB64:'[too_large]'};});
-              S.s('cp_images_index', [...existing, entryToSave]);
+            // Try saving with full images first
+            var saved = false;
+            var entryToSave = {...newEntry};
+            // Attempt 1: full images
+            if(!saved) saved = S.s('cp_images_index', [...existing, entryToSave]);
+            // Attempt 2: images without base64 data (keep metadata)
+            if(!saved) {
+              entryToSave.images = finalImgs.map(function(img){return {name:img.name,elements:img.elements,aiDesc:img.aiDesc,w:img.w,h:img.h,localB64:'[stripped]'};});
+              saved = S.s('cp_images_index', [...existing, entryToSave]);
             }
+            // Attempt 3: no images at all
+            if(!saved) {
+              entryToSave.images = [];
+              saved = S.s('cp_images_index', [...existing, entryToSave]);
+            }
+            // Attempt 4: only keep last 20 entries (evict oldest)
+            if(!saved && existing.length > 0) {
+              var trimmed = existing.slice(-15);
+              saved = S.s('cp_images_index', [...trimmed, entryToSave]);
+            }
+            if(!saved) {
+              throw new Error('localStorage存储失败（空间不足），请清除浏览器缓存后重试');
+            }
+            pending.storageNote = saved ? ('图片：'+(entryToSave.images.length>0&&entryToSave.images[0].localB64!='[stripped]'?'已保存':'已压缩')) : '无图片';
 
             // Also sync banned words to cp_db for immediate use
             const cpDb = S.g('cp_db') || DEFAULT_CP_DB;
@@ -2547,6 +2562,35 @@
 
           {/* ── SETTINGS TAB ── */}
           {tab==='settings'&&<div className="card" style={{display:'flex',flexDirection:'column',gap:12}}>
+            <div style={{padding:'10px 14px',background:'#fafafa',border:'1px solid #e2e8f0',borderRadius:8}}>
+              <div style={{fontWeight:700,fontSize:12,color:'#64748b',marginBottom:8}}>🔍 数据验证工具</div>
+              <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                <button className="btn" style={{fontSize:11,padding:'4px 10px',background:'#3b82f6',color:'white'}} onClick={function(){
+                  var raw=localStorage.getItem('cp_images_index');
+                  if(!raw){alert('cp_images_index 为空，未存储任何数据\n\n可能原因：PDF处理失败、存储空间不足、无痕模式');return;}
+                  var data=JSON.parse(raw);
+                  var msg='已存储 '+data.length+' 条侵权记录：\n\n';
+                  data.forEach(function(e,i){msg+=(i+1)+'. 原告：'+e.plaintiff+' ('+e.risk_level+')\n   禁用词：'+((e.banned_elements||[]).length)+'个  图片：'+((e.images||[]).length)+'张\n   时间：'+new Date(e.createdAt).toLocaleString('zh-CN')+'\n\n';});
+                  alert(msg);
+                }}>📋 查看已存储数据</button>
+                <button className="btn" style={{fontSize:11,padding:'4px 10px',background:'#8b5cf6',color:'white'}} onClick={function(){
+                  var keys=['cp_images_index','cp_db'];
+                  var msg='LocalStorage 使用情况：\n\n';
+                  var total=0;
+                  keys.forEach(function(k){var v=localStorage.getItem(k);var sz=v?Math.round(v.length/1024):0;total+=sz;msg+=k+'：'+(v?sz+'KB，'+JSON.parse(v).length+'条':'空')+'\n';});
+                  msg+='\n合计：'+total+'KB / 5120KB（浏览器上限）';
+                  if(total>4000) msg+='\n⚠️ 存储接近上限！请清理旧数据或清空图片。';
+                  alert(msg);
+                }}>💾 查看存储空间</button>
+                <button className="btn" style={{fontSize:11,padding:'4px 10px',background:'#10b981',color:'white'}} onClick={function(){
+                  var data=S.g('cp_images_index')||[];setCpImages(data);alert('已刷新，图库共'+data.length+'条记录');
+                }}>🔄 强制刷新图库</button>
+                <button className="btn" style={{fontSize:11,padding:'4px 10px',background:'#ef4444',color:'white'}} onClick={function(){
+                  if(!confirm('确定清空所有侵权图库数据？此操作不可恢复！')) return;
+                  localStorage.removeItem('cp_images_index');localStorage.removeItem('cp_db');setCpImages([]);alert('已清空');
+                }}>🗑️ 清空全部数据</button>
+              </div>
+            </div>
             <div style={{fontWeight:700,fontSize:15,color:colors.ac}}>⚙️ GitHub云存储配置</div>
             <div style={{padding:'10px 14px',background:'#fef3c7',borderRadius:8,fontSize:12,color:'#92400e'}}>
               💡 图片将上传到GitHub仓库，所有同事共享同一图库。管理员配置一次即可。
@@ -2710,6 +2754,12 @@
 
           {/* ── LIBRARY TAB ── */}
           {tab==='library'&&<div style={{display:'flex',flexDirection:'column',gap:12}}>
+            <div style={{display:'flex',gap:8,alignItems:'center',padding:'8px 12px',background:'#f0fdf4',borderRadius:8,fontSize:12}}>
+              <span style={{color:'#16a34a',fontWeight:700}}>📚 图库共 {cpImages.length} 条记录</span>
+              <span style={{color:'#94a3b8'}}>|</span>
+              <span style={{color:'#64748b'}}>localStorage: {Math.round((localStorage.getItem('cp_images_index')||'').length/1024)}KB</span>
+              <button onClick={function(){setCpImages(S.g('cp_images_index')||[]);}} style={{marginLeft:'auto',fontSize:11,padding:'2px 8px',borderRadius:4,border:'1px solid #16a34a',background:'white',color:'#16a34a',cursor:'pointer'}}>🔄 刷新</button>
+            </div>
             <div style={{display:'flex',gap:10,alignItems:'center'}}>
               <input value={search} onChange={function(e){setSearch(e.target.value);}}
                 placeholder="搜索品牌名、元素关键词..."
