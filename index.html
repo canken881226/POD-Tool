@@ -277,7 +277,8 @@
         "门贴":{d:"门贴",p:["peel", "stick", "self", "adhesive", "removable", "door", "stickers", "decals", "murals", "sticker", "decal", "mural", "wrap", "cover", "wallpaper", "skin", "poster", "vinyl", "waterproof", "washable", "renter", "friendly", "bedroom", "bathroom", "kitchen"],s:["peel", "stick", "self", "adhesive", "removable", "door", "stickers", "decals"]},
         "圆形桌套":{d:"圆形桌套",p:["round", "table", "cover", "tablecloth", "fitted", "elastic", "protector", "durable", "reusable", "waterproof", "oxford", "fabric", "home", "kitchen", "indoor", "outdoor", "dining", "patio", "garden", "balcony", "wedding", "banquet", "catering", "event", "restaurant"],s:["round", "table", "cover", "tablecloth", "fitted", "elastic", "protector", "durable"]},
         "窗幔":{d:"窗幔",p:["Valance", "Window", "Treatment", "Topper", "Swag", "Cornice", "Short", "Curtains", "Kitchen", "Bathroom", "Living", "Room", "Bedroom", "Small", "Rod", "Pocket", "Tie", "Faux", "Roman", "Box", "Pleat", "Ruffled", "Blackout", "Thermal", "Sheer"],s:["Valance", "Window", "Treatment", "Topper", "Swag", "Cornice", "Short", "Curtains"]},
-        "静电窗膜":{d:"静电窗膜",p:["static", "cling", "window", "privacy", "film", "non", "adhesive", "frosted", "glass", "removable", "reusable", "blocking", "heat", "control", "sun", "light", "filtering", "bathroom", "kitchen", "bedroom", "office", "door", "sliding", "renter", "friendly"],s:["static", "cling", "window", "privacy", "film", "non", "adhesive", "frosted"]},
+        "静电窗膜":{d:"静电窗膜",p:["static", "cling", "window", "privacy", "film", "non", "adhesive", "frosted", "glass", "removable", "reusable", "blocking", "heat", "control", "sun", "light", "filtering", "bathroom", "kitchen", "bedroom", "office", "door", "sliding", "renter", "friendly"],s:["static", "cling", "window", "privacy", "film", "non", "adhesive", "frosted"],
+        "横幅":{d:"横幅",p:["banner backdrop", "photo backdrop", "party backdrop", "backdrop banner", "background banner", "wall banner", "decorative backdrop", "tapestry backdrop", "photo background", "party background", "party banner backdrop", "photo booth backdrop", "event backdrop", "wall backdrop decor", "decorative wall banner", "fabric backdrop", "photography backdrop", "background cloth backdrop", "room backdrop decoration", "hanging wall banner", "party decoration backdrop", "photo booth background", "event decoration backdrop", "party photo background", "wall hanging backdrop", "home decoration banner", "room wall tapestry backdrop", "indoor party backdrop", "background wall decor", "photo background banner", "party decorations", "event decorations", "photo booth decorations", "festival decorations", "birthday decorations", "holiday decorations", "celebration decorations", "home wall decor", "room decorations", "stage backdrop decor", "fabric banner backdrop", "polyester backdrop", "large backdrop banner", "wall hanging tapestry", "lightweight backdrop", "reusable backdrop", "foldable backdrop", "indoor outdoor banner", "photo booth cloth backdrop"],s:["banner", "backdrop", "tapestry", "wall", "decor", "hanging", "background", "cloth", "fabric", "decoration", "room", "home", "party", "event", "photography", "booth", "studio", "prop", "scene", "reusable", "indoor", "outdoor", "display", "large", "decorative", "celebration"]}},
         "水晶贴":{d:"水晶贴",p:["transfer", "paper", "decal", "film", "crystal", "sticker", "raised", "glossy", "peel", "and", "stick", "diy", "craft", "tumbler", "cup", "bottle", "phone", "case", "decoration", "wall", "decor", "home", "cabinet", "plates", "kitchen"],s:["transfer", "paper", "decal", "film", "crystal", "sticker", "raised", "glossy"]}
       }
     };
@@ -747,6 +748,17 @@
 
             pending.status = 'done';
             pending.result = newEntry;
+            // Async sync to GitHub (no await - don't block queue)
+            if(localStorage.getItem(GH_CFG_KEY)) {
+              try {
+                var ghCfg = JSON.parse(localStorage.getItem(GH_CFG_KEY)||'{}');
+                if(ghCfg.token && ghCfg.owner && ghCfg.repo) {
+                  var allEntries = S.g('cp_images_index')||[];
+                  var stripped = allEntries.map(function(e){return {id:e.id,plaintiff:e.plaintiff,works:e.works,style_description:e.style_description,style_keywords:e.style_keywords,banned_elements:e.banned_elements,risk_level:e.risk_level,case_no:e.case_no,filed_date:e.filed_date,notes:e.notes,createdAt:e.createdAt,images:(e.images||[]).map(function(img){return {name:img.name,url:img.url||'',elements:img.elements||[],aiDesc:img.aiDesc||''};})};});
+                  saveJsonToGitHub(stripped,'cp_images_index.json').catch(function(){});
+                }
+              } catch(ge){}
+            }
 
           } catch(err) {
             if(fileTimeoutId) clearTimeout(fileTimeoutId);
@@ -1473,6 +1485,7 @@
       '门贴':      {seamless:false, ar:'9:16',  arFlag:'--ar 9:16'},
       '窗户贴':    {seamless:false, ar:'3:2',   arFlag:'--ar 3:2'},
       '楼梯贴':    {seamless:false, ar:'9:50',  arFlag:'--ar 9:50'},
+      '横幅':      {seamless:false, ar:'16:9',  arFlag:'--ar 16:9'},
     };
     function getHomeCatSpec(subcat) {
       return HOME_CAT_SPECS[subcat] || {seamless:true, ar:'1:1', arFlag:'--ar 1:1 --tile'};
@@ -1486,8 +1499,8 @@
       const combos=data.selectedCombos||[];
       const theme=data.theme||{};
       const isHome=cat==='家居';
-      const homeCatList=['水晶贴','门盖','门贴','窗户贴','楼梯贴','烫衣板罩(标准)','烫衣板罩(小型)','可折叠熨衣垫','门挂熨衣垫','圆形桌套','窗幔','静电窗膜'];
-      const homeCatEN={'水晶贴':'Crystal Sticker','门盖':'Door Cover','门贴':'Door Sticker','窗户贴':'Window Sticker','楼梯贴':'Stair Sticker','烫衣板罩(标准)':'Ironing Board Cover Standard','烫衣板罩(小型)':'Ironing Board Cover Small','可折叠熨衣垫':'Foldable Ironing Mat','门挂熨衣垫':'Door Hang Ironing Pad','圆形桌套':'Round Table Cover','窗幔':'Window Valance','静电窗膜':'Static Window Film'};
+      const homeCatList=['水晶贴','门盖','门贴','窗户贴','楼梯贴','烫衣板罩(标准)','烫衣板罩(小型)','可折叠熨衣垫','门挂熨衣垫','圆形桌套','窗幔','静电窗膜','横幅'];
+      const homeCatEN={'水晶贴':'Crystal Sticker','门盖':'Door Cover','门贴':'Door Sticker','窗户贴':'Window Sticker','楼梯贴':'Stair Sticker','烫衣板罩(标准)':'Ironing Board Cover Standard','烫衣板罩(小型)':'Ironing Board Cover Small','可折叠熨衣垫':'Foldable Ironing Mat','门挂熨衣垫':'Door Hang Ironing Pad','圆形桌套':'Round Table Cover','窗幔':'Window Valance','静电窗膜':'Static Window Film','横幅':'Banner Backdrop'};
 
       // 10种差异化风格修饰词
       const STYLE_MODS = [
@@ -2206,21 +2219,36 @@
       const [extracted,setExtracted]   = useState(null); // AI extracted result
       const [pdfQueue,setPdfQueue]     = useState(function(){return getPdfStatusList();});
 
+      // Load data from GitHub on first mount if localStorage empty
+      useEffect(function(){
+        async function initData() {
+          var local = S.g(CP_IMG_KEY)||[];
+          if(local.length === 0 && ghOwner && ghRepo) {
+            try {
+              var ghData = await loadJsonFromGitHub('cp_images_index.json');
+              if(ghData && ghData.length > 0) {
+                S.s(CP_IMG_KEY, ghData);
+                setCpImages(ghData);
+                console.log('Loaded '+ghData.length+' entries from GitHub');
+                // Also load cp_db
+                var ghDb = await loadJsonFromGitHub('cp_db.json');
+                if(ghDb && ghDb.length > 0) S.s('cp_db', ghDb);
+              }
+            } catch(e) { console.warn('GitHub load failed:', e.message); }
+          }
+        }
+        initData();
+      }, []);
+
       // Listen for queue updates from background processor
       useEffect(function(){
         function onQueueUpdate(){
-          // Read queue status from memory (not localStorage)
           setPdfQueue(getPdfStatusList());
-          // Refresh image library from localStorage
           setCpImages(S.g(CP_IMG_KEY)||[]);
         }
         window.addEventListener('pdf_queue_update', onQueueUpdate);
-        // Poll every 2s to stay in sync
         const timer = setInterval(onQueueUpdate, 2000);
-        // Kick off processor in case there are pending items already
-        // (handles page navigation - items added before nav are still in memory)
         setTimeout(processPdfQueue, 500);
-        // Init from any existing memory queue on mount
         onQueueUpdate();
         return function(){
           window.removeEventListener('pdf_queue_update', onQueueUpdate);
@@ -2261,6 +2289,80 @@
         return data.content.download_url;
       }
 
+      // ── Save JSON data file to GitHub (persistent cloud storage) ──
+      async function saveJsonToGitHub(data, filename) {
+        if(!ghToken||!ghRepo||!ghOwner) return false; // No GitHub config, skip
+        var path = 'pod-data/'+filename;
+        var url = 'https://api.github.com/repos/'+ghOwner+'/'+ghRepo+'/contents/'+path;
+        var content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
+        // Check if file exists to get its SHA (needed for update)
+        var sha = null;
+        try {
+          var getRes = await fetch(url, {headers:{'Authorization':'token '+ghToken}});
+          if(getRes.ok) { var existing = await getRes.json(); sha = existing.sha; }
+        } catch(e) {}
+        var body = {message:'Update '+filename+' - '+new Date().toISOString(), content:content};
+        if(sha) body.sha = sha;
+        var putRes = await fetch(url, {
+          method:'PUT',
+          headers:{'Authorization':'token '+ghToken,'Content-Type':'application/json'},
+          body: JSON.stringify(body)
+        });
+        return putRes.ok;
+      }
+
+      // ── Load JSON data file from GitHub ──────────────────────────
+      async function loadJsonFromGitHub(filename) {
+        if(!ghOwner||!ghRepo) return null;
+        var url = 'https://api.github.com/repos/'+ghOwner+'/'+ghRepo+'/contents/pod-data/'+filename;
+        // Try with token first, then without (for public repos)
+        var headers = ghToken ? {'Authorization':'token '+ghToken} : {};
+        try {
+          var res = await fetch(url, {headers:headers});
+          if(!res.ok) return null;
+          var file = await res.json();
+          // GitHub returns base64-encoded content
+          var text = decodeURIComponent(escape(atob(file.content.split('\n').join(''))));
+          return JSON.parse(text);
+        } catch(e) { return null; }
+      }
+
+      // ── Persist cp_images: localStorage + GitHub JSON ────────────
+      async function persistImagesCloud(arr) {
+        // Always save to localStorage first (instant)
+        setCpImages(arr);
+        S.s(CP_IMG_KEY, arr);
+        // Then async save to GitHub (cloud backup, no await needed)
+        if(ghToken && ghRepo && ghOwner) {
+          // Strip large base64 image data before saving to GitHub
+          var stripped = arr.map(function(entry) {
+            return {
+              id: entry.id,
+              plaintiff: entry.plaintiff,
+              works: entry.works,
+              style_description: entry.style_description,
+              style_keywords: entry.style_keywords,
+              banned_elements: entry.banned_elements,
+              risk_level: entry.risk_level,
+              case_no: entry.case_no,
+              filed_date: entry.filed_date,
+              notes: entry.notes,
+              createdAt: entry.createdAt,
+              // Keep only image URLs (GitHub URLs, not base64)
+              images: (entry.images||[]).map(function(img) {
+                return {name:img.name, url:img.url||'', elements:img.elements||[], aiDesc:img.aiDesc||''};
+              })
+            };
+          });
+          saveJsonToGitHub(stripped, 'cp_images_index.json').then(function(ok) {
+            if(ok) console.log('Synced cp_images_index.json to GitHub');
+          }).catch(function(e) { console.warn('GitHub sync failed:', e.message); });
+          // Also save cp_db
+          var cpDb = S.g('cp_db') || [];
+          saveJsonToGitHub(cpDb, 'cp_db.json').catch(function(){});
+        }
+      }
+
       // ── Compress image before upload ───────────────────────────
       function compressImage(base64, maxW, quality) {
         return new Promise(function(resolve) {
@@ -2283,9 +2385,45 @@
         const files = Array.from(e.target.files);
         if(!files.length) return;
         if(!window.PDF_MEM_QUEUE) window.PDF_MEM_QUEUE = [];
+
+        // ── Duplicate detection ──────────────────────────────────
+        // Check against: existing library entries + current queue
+        var existingEntries = S.g('cp_images_index') || [];
+        var existingNames = existingEntries.map(function(e) {
+          return (e.notes||'').replace('PDF导入：','').toLowerCase().trim();
+        });
+        var queueNames = (window.PDF_MEM_QUEUE||[]).map(function(q) {
+          return q.fileName.toLowerCase().trim();
+        });
+        var duplicates = [];
+        var nonDuplicates = [];
+        for(var di=0; di<files.length; di++) {
+          var fname = files[di].name.toLowerCase().trim();
+          var inLibrary = existingNames.some(function(n){ return n === fname; });
+          var inQueue = queueNames.some(function(n){ return n === fname; });
+          if(inLibrary || inQueue) {
+            duplicates.push(files[di].name + (inLibrary?' (已在图库中)':' (已在队列中)'));
+          } else {
+            nonDuplicates.push(files[di]);
+          }
+        }
+        if(duplicates.length > 0) {
+          var dupMsg = '⚠️ 检测到重复文件：\n\n' + duplicates.join('\n') + '\n\n';
+          if(nonDuplicates.length === 0) {
+            alert(dupMsg + '所有文件均已上传过，已取消。');
+            e.target.value = '';
+            return;
+          }
+          var proceed = confirm(dupMsg + '其余 '+nonDuplicates.length+' 个文件未重复，是否继续上传未重复的文件？');
+          if(!proceed) { e.target.value=''; return; }
+        }
+        var filesToProcess = nonDuplicates.length > 0 ? nonDuplicates : [];
+        if(filesToProcess.length === 0) { e.target.value=''; return; }
+        // ── End duplicate detection ──────────────────────────────
+
         const newItems = [];
-        for(let fi=0;fi<files.length;fi++){
-          const file=files[fi];
+        for(let fi=0;fi<filesToProcess.length;fi++){
+          const file=filesToProcess[fi];
           try {
             // Read as ArrayBuffer (kept in memory, NOT localStorage)
             const arrayBuf=await new Promise(function(res,rej){
@@ -2308,7 +2446,7 @@
         setPdfQueue(getPdfStatusList());
         e.target.value='';
         // Start background processing
-        processPdfQueue();
+        if(newItems.length > 0) processPdfQueue();
       }
 
       // ── PDF.js: render page to canvas at high DPI ──────────────
@@ -2509,7 +2647,7 @@
           createdAt: new Date().toISOString()
         };
         const updated = [...cpImages, entry];
-        persistImages(updated);
+        await persistImagesCloud(updated);
         // Auto-sync banned elements to cp_db for immediate use across all tool modules
         const existingCpDb = S.g('cp_db')||DEFAULT_CP_DB;
         const alreadyExists = existingCpDb.some(function(x){return x.id===entry.id;});
@@ -2526,7 +2664,7 @@
       // ── Delete entry ───────────────────────────────────────────
       function deleteEntry(id) {
         const updated = cpImages.filter(function(e){return e.id!==id;});
-        persistImages(updated);
+        persistImagesCloud(updated);
         setDeleteId(null);
       }
 
@@ -2567,28 +2705,56 @@
               <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
                 <button className="btn" style={{fontSize:11,padding:'4px 10px',background:'#3b82f6',color:'white'}} onClick={function(){
                   var raw=localStorage.getItem('cp_images_index');
-                  if(!raw){alert('cp_images_index 为空，未存储任何数据\n\n可能原因：PDF处理失败、存储空间不足、无痕模式');return;}
+                  if(!raw){alert('本地localStorage为空\n\n如已配置GitHub，点「从GitHub加载」恢复数据');return;}
                   var data=JSON.parse(raw);
-                  var msg='已存储 '+data.length+' 条侵权记录：\n\n';
-                  data.forEach(function(e,i){msg+=(i+1)+'. 原告：'+e.plaintiff+' ('+e.risk_level+')\n   禁用词：'+((e.banned_elements||[]).length)+'个  图片：'+((e.images||[]).length)+'张\n   时间：'+new Date(e.createdAt).toLocaleString('zh-CN')+'\n\n';});
+                  var msg='本地已存 '+data.length+' 条记录：\n\n';
+                  data.forEach(function(e,i){msg+=(i+1)+'. '+e.plaintiff+' ('+e.risk_level+') 禁用词:'+((e.banned_elements||[]).length)+'个 时间:'+new Date(e.createdAt).toLocaleString('zh-CN')+'\n';});
                   alert(msg);
-                }}>📋 查看已存储数据</button>
-                <button className="btn" style={{fontSize:11,padding:'4px 10px',background:'#8b5cf6',color:'white'}} onClick={function(){
-                  var keys=['cp_images_index','cp_db'];
-                  var msg='LocalStorage 使用情况：\n\n';
-                  var total=0;
-                  keys.forEach(function(k){var v=localStorage.getItem(k);var sz=v?Math.round(v.length/1024):0;total+=sz;msg+=k+'：'+(v?sz+'KB，'+JSON.parse(v).length+'条':'空')+'\n';});
-                  msg+='\n合计：'+total+'KB / 5120KB（浏览器上限）';
-                  if(total>4000) msg+='\n⚠️ 存储接近上限！请清理旧数据或清空图片。';
-                  alert(msg);
-                }}>💾 查看存储空间</button>
-                <button className="btn" style={{fontSize:11,padding:'4px 10px',background:'#10b981',color:'white'}} onClick={function(){
-                  var data=S.g('cp_images_index')||[];setCpImages(data);alert('已刷新，图库共'+data.length+'条记录');
-                }}>🔄 强制刷新图库</button>
+                }}>📋 查看本地数据</button>
+                <button className="btn" style={{fontSize:11,padding:'4px 10px',background:'#10b981',color:'white'}} onClick={async function(){
+                  if(!ghOwner||!ghRepo){alert('请先配置GitHub信息');return;}
+                  var data=await loadJsonFromGitHub('cp_images_index.json');
+                  if(!data||data.length===0){alert('GitHub上暂无数据（pod-data/cp_images_index.json不存在）');return;}
+                  S.s(CP_IMG_KEY,data);setCpImages(data);
+                  var dbData=await loadJsonFromGitHub('cp_db.json');
+                  if(dbData) S.s('cp_db',dbData);
+                  alert('✅ 已从GitHub加载 '+data.length+' 条记录到本地！');
+                }}>☁️ 从GitHub加载</button>
+                <button className="btn" style={{fontSize:11,padding:'4px 10px',background:'#7c3aed',color:'white'}} onClick={async function(){
+                  var data=S.g(CP_IMG_KEY)||[];
+                  if(!ghToken||!ghOwner||!ghRepo){alert('请先配置GitHub Token');return;}
+                  var ok=await saveJsonToGitHub(data,'cp_images_index.json');
+                  var db=S.g('cp_db')||[];
+                  await saveJsonToGitHub(db,'cp_db.json');
+                  alert(ok?'✅ 已手动同步到GitHub！\n路径: '+ghOwner+'/'+ghRepo+'/pod-data/cp_images_index.json':'❌ 同步失败，请检查Token和仓库权限');
+                }}>☁️ 手动同步GitHub</button>
+                <button className="btn" style={{fontSize:11,padding:'4px 10px',background:'#f59e0b',color:'white'}} onClick={function(){
+                  var data={cp_images_index:S.g(CP_IMG_KEY)||[],cp_db:S.g('cp_db')||[]};
+                  var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+                  var url=URL.createObjectURL(blob);var a=document.createElement('a');
+                  a.href=url;a.download='侵权数据备份_'+new Date().toISOString().slice(0,10)+'.json';a.click();
+                  URL.revokeObjectURL(url);
+                }}>📥 导出JSON备份</button>
+                <label className="btn" style={{fontSize:11,padding:'4px 10px',background:'#64748b',color:'white',cursor:'pointer'}}>
+                  📤 从JSON恢复
+                  <input type="file" accept=".json" style={{display:'none'}} onChange={function(e){
+                    var file=e.target.files[0];if(!file)return;
+                    var r=new FileReader();
+                    r.onload=function(ev){
+                      try{
+                        var d=JSON.parse(ev.target.result);
+                        if(d.cp_images_index){S.s(CP_IMG_KEY,d.cp_images_index);setCpImages(d.cp_images_index);}
+                        if(d.cp_db) S.s('cp_db',d.cp_db);
+                        alert('✅ 恢复成功！侵权记录：'+(d.cp_images_index||[]).length+'条');
+                      }catch(err){alert('文件格式错误：'+err.message);}
+                    };
+                    r.readAsText(file);e.target.value='';
+                  }} />
+                </label>
                 <button className="btn" style={{fontSize:11,padding:'4px 10px',background:'#ef4444',color:'white'}} onClick={function(){
-                  if(!confirm('确定清空所有侵权图库数据？此操作不可恢复！')) return;
-                  localStorage.removeItem('cp_images_index');localStorage.removeItem('cp_db');setCpImages([]);alert('已清空');
-                }}>🗑️ 清空全部数据</button>
+                  if(!confirm('确定清空本地数据？GitHub备份不受影响。')) return;
+                  localStorage.removeItem('cp_images_index');localStorage.removeItem('cp_db');setCpImages([]);alert('已清空本地数据');
+                }}>🗑️ 清空本地</button>
               </div>
             </div>
             <div style={{fontWeight:700,fontSize:15,color:colors.ac}}>⚙️ GitHub云存储配置</div>
