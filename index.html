@@ -696,7 +696,41 @@
             const finalImgs = meaningful.length > 0 ? meaningful :
               pageB64s.map(function(b, idx){ return {localB64:b, name:'page'+(idx+1)+'.jpg', elements:[], aiDesc:'整页', w:0, h:0}; });
 
-            // Step4: Save to cp_images_index (with fallback for large files)
+            // Step4: Upload images to GitHub (async, non-blocking)
+            // Then save TEXT-ONLY entry to localStorage (no base64 = no size limit)
+            var ghImgUrls = [];
+            var ghCfgNow = JSON.parse(localStorage.getItem('gh_config')||'{}');
+            if(ghCfgNow.token && ghCfgNow.owner && ghCfgNow.repo && finalImgs.length > 0) {
+              for(var gi=0; gi<Math.min(finalImgs.length,6); gi++) {
+                try {
+                  var imgUrl = await saveJsonToGitHub(
+                    {b64: finalImgs[gi].localB64},
+                    'img_'+String(Date.now())+'_'+gi+'.json'
+                  );
+                  // Actually upload image directly
+                  var imgB64 = finalImgs[gi].localB64;
+                  var imgContent = imgB64.includes(',') ? imgB64.split(',')[1] : imgB64;
+                  var imgPath = 'copyright-images/'+pending.fileName.replace('.pdf','')+'_'+gi+'.jpg';
+                  var imgApiUrl = 'https://api.github.com/repos/'+ghCfgNow.owner+'/'+ghCfgNow.repo+'/contents/'+imgPath;
+                  var imgRes = await fetch(imgApiUrl, {
+                    method:'PUT',
+                    headers:{'Authorization':'token '+ghCfgNow.token,'Content-Type':'application/json'},
+                    body: JSON.stringify({message:'Add copyright image', content:imgContent})
+                  });
+                  if(imgRes.ok) {
+                    var imgData = await imgRes.json();
+                    ghImgUrls.push({
+                      url: imgData.content.download_url,
+                      name: finalImgs[gi].name||('img_'+gi),
+                      elements: finalImgs[gi].elements||[],
+                      aiDesc: finalImgs[gi].aiDesc||''
+                    });
+                  }
+                } catch(imgErr) { console.warn('Image upload failed:', imgErr.message); }
+              }
+            }
+
+            // Save text-only entry to localStorage (NO base64 images)
             const existing = S.g('cp_images_index') || [];
             const newEntry = {
               id: String(Date.now()),
@@ -709,33 +743,21 @@
               case_no: parsed.case_no||'',
               filed_date: parsed.filed_date||'',
               notes: 'PDF导入：'+pending.fileName,
-              images: finalImgs,
+              images: ghImgUrls,
               createdAt: new Date().toISOString()
             };
-            // Try saving with full images first
-            var saved = false;
-            var entryToSave = {...newEntry};
-            // Attempt 1: full images
-            if(!saved) saved = S.s('cp_images_index', [...existing, entryToSave]);
-            // Attempt 2: images without base64 data (keep metadata)
+            // localStorage only stores text data - tiny size, always fits
+            var saved = S.s('cp_images_index', [...existing, newEntry]);
             if(!saved) {
-              entryToSave.images = finalImgs.map(function(img){return {name:img.name,elements:img.elements,aiDesc:img.aiDesc,w:img.w,h:img.h,localB64:'[stripped]'};});
-              saved = S.s('cp_images_index', [...existing, entryToSave]);
-            }
-            // Attempt 3: no images at all
-            if(!saved) {
-              entryToSave.images = [];
-              saved = S.s('cp_images_index', [...existing, entryToSave]);
-            }
-            // Attempt 4: only keep last 20 entries (evict oldest)
-            if(!saved && existing.length > 0) {
-              var trimmed = existing.slice(-15);
-              saved = S.s('cp_images_index', [...trimmed, entryToSave]);
+              // If still full, evict oldest 10 and retry
+              var trimmed = existing.slice(-10);
+              saved = S.s('cp_images_index', [...trimmed, newEntry]);
             }
             if(!saved) {
-              throw new Error('localStorage存储失败（空间不足），请清除浏览器缓存后重试');
+              // Last resort: save this entry alone (clear all old)
+              saved = S.s('cp_images_index', [newEntry]);
             }
-            pending.storageNote = saved ? ('图片：'+(entryToSave.images.length>0&&entryToSave.images[0].localB64!='[stripped]'?'已保存':'已压缩')) : '无图片';
+            pending.storageNote = ghImgUrls.length > 0 ? ('图片已上传GitHub '+ghImgUrls.length+'张') : '纯文字记录（无GitHub配置）';
 
             // Also sync banned words to cp_db for immediate use
             const cpDb = S.g('cp_db') || DEFAULT_CP_DB;
