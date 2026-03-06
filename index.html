@@ -178,7 +178,35 @@
     };
 
     // 调用Claude API with web_search
-        const callClaudeWithSearch = async (systemPrompt, userPrompt) => {
+        // ── Call Claude API with image ─────────────────────────────
+    const callClaudeWithImage = async function(prompt, imageData, systemPrompt) {
+      const apiKey = getApiKey();
+      if(!apiKey) throw new Error('请先设置 API Key');
+      // imageData is base64 data URL: "data:image/jpeg;base64,..."
+      const base64 = imageData.includes(',') ? imageData.split(',')[1] : imageData;
+      const mediaType = imageData.startsWith('data:image/png') ? 'image/png'
+                      : imageData.startsWith('data:image/gif') ? 'image/gif'
+                      : imageData.startsWith('data:image/webp') ? 'image/webp'
+                      : 'image/jpeg';
+      const resp = await fetch('https://api.anthropic.com/v1/messages', {
+        method:'POST',
+        headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body: JSON.stringify({
+          model:'claude-sonnet-4-20250514',
+          max_tokens:1500,
+          system: systemPrompt||'You are a helpful assistant.',
+          messages:[{role:'user',content:[
+            {type:'image',source:{type:'base64',media_type:mediaType,data:base64}},
+            {type:'text',text:prompt}
+          ]}]
+        })
+      });
+      if(!resp.ok){const e=await resp.json().catch(function(){return {};});throw new Error((e.error&&e.error.message)||('HTTP '+resp.status));}
+      const data=await resp.json();
+      return (data.content&&data.content[0]&&data.content[0].text)||'';
+    };
+
+    const callClaudeWithSearch = async (systemPrompt, userPrompt) => {
       const apiKey = getApiKey();
       if (!apiKey) throw new Error('请先设置 API Key');
 
@@ -2006,16 +2034,39 @@
 
       async function runCp() {
         if(!images.length){alert('请先上传图案');return;}
-        setLoadCp(true);const allRes=[];
+        setLoadCp(true);
+        const allRes=[];
         for(let i=0;i<images.length;i++){
           const img=images[i];
           try{
-            const r=await callClaudeAPI('分析这张POD图案，识别主要设计元素和风格。只输JSON：{"elements":["元素1","元素2","元素3"],"style":"整体风格","ip_concerns":["潜在IP或角色"]}','POD版权审查员，只输JSON');
-            let parsed={elements:[],style:'',ip_concerns:[]};
-            try{const c=r.replace(/```json|```/g,'').trim();const si=c.indexOf('{'),ei=c.lastIndexOf('}');if(si>=0&&ei>=0)parsed=JSON.parse(c.slice(si,ei+1));}catch(e){}
-            const checkText=[...(parsed.elements||[]),(parsed.style||''),...(parsed.ip_concerns||[])].join(' ');
+            // Deep analysis: elements + scene + holiday + product context + IP check
+            var analysisPrompt = 'You are a POD (Print-On-Demand) product expert and copyright specialist. '
+              + 'Analyze this product mockup image carefully. Output JSON ONLY:\n'
+              + '{\n'
+              + '  "elements": ["main design elements, max 6"],\n'
+              + '  "style": "overall art style (e.g. watercolor, flat vector, cartoon)",\n'
+              + '  "colors": ["dominant colors, max 4"],\n'
+              + '  "holiday": "specific holiday if clearly present, else null (e.g. Christmas, Halloween, Thanksgiving, Easter, Valentines Day, 4th of July, Mothers Day, Fathers Day, New Year, Hanukkah)",\n'
+              + '  "scene": "specific use scene (e.g. birthday party, wedding, nursery, outdoor, everyday home decor, beach, sports, back to school)",\n'
+              + '  "season": "season if applicable (Spring/Summer/Fall/Winter) else null",\n'
+              + '  "target_audience": "who this is for (e.g. kids girls 3-8, women 25-45, dog owners, gardeners)",\n'
+              + '  "mood": "emotional tone (e.g. cute/playful, elegant/luxury, rustic/cozy, bold/vibrant, minimalist)",\n'
+              + '  "product_context": "what product is shown in mockup (e.g. t-shirt on model, wall banner in living room, door mat at entrance, window sticker on glass)",\n'
+              + '  "scene_confidence": "high/medium/low - how confident you are about the scene/holiday detection",\n'
+              + '  "ip_concerns": ["any characters, logos, or designs that may be copyrighted or trademarked"]\n'
+              + '}';
+            const r = await callClaudeWithImage(analysisPrompt, img.data, 'POD expert. JSON only, no markdown.');
+            let parsed={elements:[],style:'',colors:[],holiday:null,scene:'',season:null,target_audience:'',mood:'',product_context:'',scene_confidence:'low',ip_concerns:[]};
+            try{
+              const rc=r.replace(/```json|```/g,'').trim();
+              const si=rc.indexOf('{'),ei=rc.lastIndexOf('}');
+              if(si>=0&&ei>=0) parsed=JSON.parse(rc.slice(si,ei+1));
+            }catch(e){}
+            const checkText=[...(parsed.elements||[]),(parsed.style||''),(parsed.holiday||''),...(parsed.ip_concerns||[])].join(' ');
             allRes.push({name:img.name,parsed:parsed,alerts:checkCpRisk(checkText)});
-          }catch(err){allRes.push({name:img.name,parsed:{elements:[],style:'',ip_concerns:[]},alerts:[],error:err.message});}
+          }catch(err){
+            allRes.push({name:img.name,parsed:{elements:[],style:'',colors:[],holiday:null,scene:'',season:null,target_audience:'',mood:'',product_context:'',scene_confidence:'low',ip_concerns:[]},alerts:[],error:err.message});
+          }
         }
         setCpResults(allRes);persist({cpResults:allRes});setLoadCp(false);
       }
@@ -2033,18 +2084,42 @@
         const banNote=banWordsL?'STRICTLY FORBIDDEN - do NOT use anywhere: '+banWordsL+(banStylesL?'. Forbidden styles: '+banStylesL+'.'  :'.')+' ':'';
         const imgInfos=images.map(function(img,idx){
           const cp=cpResults[idx];
-          const elems=(cp&&cp.parsed&&cp.parsed.elements&&cp.parsed.elements.length>0)?cp.parsed.elements:[];
-          const style=(cp&&cp.parsed&&cp.parsed.style)||'';
-          return {name:img.name,data:img.data,elements:elems,style:style,
-            elemStr:elems.length>0?elems.join(', '):img.name.replace(/\.[^.]+$/,'').replace(/[_\-]+/g,' ')};
+          const parsed=(cp&&cp.parsed)||{};
+          const elems=(parsed.elements&&parsed.elements.length>0)?parsed.elements:[];
+          const elemStr=elems.length>0?elems.join(', '):img.name.replace(/\.[^.]+$/,'').replace(/[_\-]+/g,' ');
+          // Build scene context string for AI prompts
+          var sceneCtx='';
+          if(parsed.holiday&&parsed.holiday!='null'&&parsed.holiday!='none') sceneCtx+='Holiday: '+parsed.holiday+'. ';
+          if(parsed.scene) sceneCtx+='Scene: '+parsed.scene+'. ';
+          if(parsed.season&&parsed.season!='null') sceneCtx+='Season: '+parsed.season+'. ';
+          if(parsed.target_audience) sceneCtx+='Target: '+parsed.target_audience+'. ';
+          if(parsed.mood) sceneCtx+='Mood: '+parsed.mood+'. ';
+          if(parsed.product_context) sceneCtx+='Product shown: '+parsed.product_context+'. ';
+          if(parsed.colors&&parsed.colors.length>0) sceneCtx+='Colors: '+parsed.colors.join(', ')+'. ';
+          // Primary focus: holiday > scene > general elements
+          var primaryFocus=parsed.holiday&&parsed.holiday!='null'?parsed.holiday:(parsed.scene||elemStr);
+          var isFocused=(parsed.scene_confidence==='high'||parsed.scene_confidence==='medium')&&(parsed.holiday||parsed.scene);
+          return {name:img.name,data:img.data,elements:elems,style:parsed.style||'',
+            elemStr:elemStr,sceneCtx:sceneCtx,primaryFocus:primaryFocus,
+            holiday:parsed.holiday,scene:parsed.scene,isFocused:isFocused,
+            targetAudience:parsed.target_audience,mood:parsed.mood};
         });
         // STEP 1: Generate parent title
         var parentTitle='';
         try{
+          // Detect dominant holiday/scene across all images for parent title context
+          var dominantHoliday='', dominantScene='';
+          imgInfos.forEach(function(info){
+            if(info.holiday&&info.holiday!='null'&&!dominantHoliday) dominantHoliday=info.holiday;
+            if(info.scene&&!dominantScene) dominantScene=info.scene;
+          });
+          var parentContext=dominantHoliday?'(these variants target '+dominantHoliday+')'
+            :dominantScene?'(these variants target '+dominantScene+' scene)':'';
           var pp='You are an Amazon Listing expert. Generate ONE parent ASIN title for '+cat+' product, sub-category: '+selCat+'. '
-            +'This parent title must be GENERIC with NO specific design or pattern elements. '
+            +parentContext+'. '
+            +'Parent title must be GENERIC - NO specific design, pattern, or character names. '
             +'Use top keywords: '+kwTop+'. '+banNote
-            +'RULES: max 150 chars, include category + key attributes + use cases. JSON only: {"parent_title":"..."}';
+            +'RULES: max 150 chars, include category + key attributes + main use occasions. JSON only: {"parent_title":"..."}';
           const pr=await callClaudeAPI(pp,'Amazon Listing expert. JSON only, no markdown.');
           try{const pc=pr.replace(/```json|```/g,'').trim();const psi=pc.indexOf('{'),pei=pc.lastIndexOf('}');if(psi>=0&&pei>=0){const pj=JSON.parse(pc.slice(psi,pei+1));parentTitle=pj.parent_title||'';}}catch(e){}
         }catch(err){parentTitle='[Parent Title Failed: '+err.message+']';}
@@ -2056,17 +2131,37 @@
           const colorField=info.elements.length>0
             ?info.elements.slice(0,3).map(function(e){return e.charAt(0).toUpperCase()+e.slice(1);}).join(' ')
             :info.elemStr.split(/[\s_\-]+/).slice(0,3).map(function(w){return w.charAt(0).toUpperCase()+w.slice(1);}).join(' ');
-          var cp2='You are an Amazon Listing expert for Amazon '+cat+' (sub-category: '+selCat+'). '
+          // Build focused scene instruction
+          var sceneInstruction='';
+          if(info.holiday&&info.holiday!='null'){
+            sceneInstruction='IMPORTANT: This design is specifically for '+info.holiday+'! '
+              +'ALL bullets and description MUST focus on '+info.holiday+' occasions, gifting, decorating, and celebrations. '
+              +'Include '+info.holiday+'-specific keywords throughout. ';
+          } else if(info.isFocused&&info.scene){
+            sceneInstruction='IMPORTANT: This design targets "'+info.scene+'" specifically! '
+              +'ALL bullets and description MUST focus on this exact scene/occasion. ';
+          }
+          if(info.targetAudience) sceneInstruction+='Primary audience: '+info.targetAudience+'. ';
+          if(info.mood) sceneInstruction+='Tone/mood: '+info.mood+'. ';
+
+          var cp2='You are an Amazon Listing expert. Write for Amazon '+cat+' (sub-category: '+selCat+'). '
             +'Parent ASIN title: "'+parentTitle+'". '
-            +'This child variant design: '+info.elemStr+(info.style?' [style: '+info.style+']':'')+'. '
-            +'Color field: "'+colorField+'". '
+            +'Design elements: '+info.elemStr+(info.style?' [style: '+info.style+']':'')+'. '
+            +(info.sceneCtx?'Context: '+info.sceneCtx:'')
+            +sceneInstruction
+            +'Color field value: "'+colorField+'". '
             +banNote
-            +'TASK: Write complete child variant listing:\n'
-            +'1. child_title: Replace ONLY the design/pattern part of parent title with "'+info.elemStr+'". Keep all other words identical. Max 150 chars.\n'
+            +'TASK - Write complete child variant listing following Amazon A9+Cosmo algorithm best practices:\n'
+            +'1. child_title: Replace ONLY the design/pattern part of parent title with "'+info.elemStr+(info.holiday&&info.holiday!='null'?' '+info.holiday:'')+'" description. Keep all other words identical to parent. Max 150 chars.\n'
             +'2. color: "'+colorField+'"\n'
-            +'3. bullets: 5 bullets, each 180-220 chars. Each MUST describe THIS specific design "'+info.elemStr+'" - its visual appeal, mood, occasion fit, use scenarios. Start each with ALL-CAPS keyword + " - ".\n'
-            +'4. description: min 250 words. Amazon HTML format (<b>key phrase</b>, <br><br> between paragraphs). Focus on this design theme, visual details, occasions, emotional appeal.\n'
-            +'5. search_terms: space-separated only, NO commas, STRICTLY under 250 chars. Use from: '+kwAll+'. No words from title.\n'
+            +'3. bullets: 5 bullets, 180-220 chars each. '+(sceneInstruction?'Focus ALL on '+info.primaryFocus+' occasion/scene. ':'Focus on this specific design. ')
+              +'Each must highlight: [B1: main use occasion+scene] [B2: visual design details+emotional appeal] [B3: product quality+features] [B4: gifting or styling tips] [B5: versatility+care/sizing]. '
+              +'Start each with ALL-CAPS keyword + " - ". Include specific '+info.primaryFocus+' phrases naturally.\n'
+            +'4. description: min 250 words. Amazon HTML (<b>key phrase</b>, <br><br> between paragraphs). '
+              +'Open with this design and its '+(info.holiday||info.scene||'use')+' appeal. '
+              +'Paragraph 1: vivid description of design+occasion. Para 2: who loves it+gifting angle. Para 3: product details+quality. Para 4: styling/use tips. Para 5: call to action.\n'
+            +'5. search_terms: space-separated, NO commas, UNDER 250 chars. Pull from: '+kwAll
+              +(info.holiday&&info.holiday!='null'?'. Also include: '+info.holiday.toLowerCase().replace(/\s+/g,' ')+' gifts '+info.holiday.toLowerCase().replace(/\s+/g,' ')+' decor ':'')+'. No words from title.\n'
             +'Output JSON only: {"child_title":"...","color":"...","bullets":["...x5"],"description":"HTML...","search_terms":"..."}';
           try{
             const r=await callClaudeAPI(cp2,'Amazon Listing expert. JSON only, no markdown.');
@@ -2178,8 +2273,16 @@
               {cpResults.map(function(r,i){
                 const ok=!r.alerts||r.alerts.length===0;
                 return <div key={i} style={{padding:'10px',borderRadius:8,background:ok?'#f0fdf4':'#fef2f2',border:'1.5px solid '+(ok?'#bbf7d0':'#fecaca')}}>
-                  <div style={{fontWeight:600,fontSize:12,marginBottom:4}}>{r.name}</div>
-                  <div style={{fontSize:11,color:'#64748b'}}>识别元素：{(r.parsed.elements||[]).join('、')||'未识别'}</div>
+                  <div style={{fontWeight:600,fontSize:12,marginBottom:6}}>{r.name}</div>
+                  <div style={{display:'flex',flexWrap:'wrap',gap:4,marginBottom:4}}>
+                    {r.parsed.holiday&&r.parsed.holiday!='null'&&<span style={{fontSize:10,padding:'2px 7px',background:'#fef3c7',borderRadius:10,color:'#92400e',fontWeight:700}}>🎄 {r.parsed.holiday}</span>}
+                    {r.parsed.scene&&<span style={{fontSize:10,padding:'2px 7px',background:'#eff6ff',borderRadius:10,color:'#1d4ed8',fontWeight:700}}>🎯 {r.parsed.scene}</span>}
+                    {r.parsed.season&&r.parsed.season!='null'&&<span style={{fontSize:10,padding:'2px 7px',background:'#f0fdf4',borderRadius:10,color:'#16a34a'}}>🍂 {r.parsed.season}</span>}
+                    {r.parsed.mood&&<span style={{fontSize:10,padding:'2px 7px',background:'#fdf4ff',borderRadius:10,color:'#7e22ce'}}>{r.parsed.mood}</span>}
+                  </div>
+                  <div style={{fontSize:11,color:'#64748b',marginBottom:2}}>🎨 元素：{(r.parsed.elements||[]).join('、')||'未识别'}</div>
+                  {r.parsed.target_audience&&<div style={{fontSize:11,color:'#64748b',marginBottom:2}}>👥 受众：{r.parsed.target_audience}</div>}
+                  {r.parsed.product_context&&<div style={{fontSize:11,color:'#64748b',marginBottom:4}}>📦 效果图：{r.parsed.product_context}</div>}
                   {ok?<div style={{fontSize:11,color:'#16a34a',marginTop:4}}>✅ 未检测到侵权风险</div>:
                   <div style={{marginTop:6}}>{r.alerts.map(function(a,j){return <div key={j} style={{fontSize:11,padding:'4px 8px',background:'#fee2e2',borderRadius:4,marginBottom:3,color:'#dc2626'}}>⚠️ {a.entry.artist}（{a.level==='high'?'高风险':'中风险'}）{a.elHits.length>0?' 禁用：'+a.elHits.join(','):''}</div>;})}</div>}
                 </div>;
