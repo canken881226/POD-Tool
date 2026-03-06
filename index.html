@@ -2292,21 +2292,22 @@
 
       // ── Save JSON data file to GitHub (persistent cloud storage) ──
       async function saveJsonToGitHub(data, filename) {
-        if(!ghToken||!ghRepo||!ghOwner) return false; // No GitHub config, skip
+        var ghCfg = JSON.parse(localStorage.getItem('gh_config')||'{}');
+        var _token=ghCfg.token||'', _owner=ghCfg.owner||'', _repo=ghCfg.repo||'';
+        if(!_token||!_repo||!_owner) return false;
         var path = 'pod-data/'+filename;
-        var url = 'https://api.github.com/repos/'+ghOwner+'/'+ghRepo+'/contents/'+path;
+        var url = 'https://api.github.com/repos/'+_owner+'/'+_repo+'/contents/'+path;
         var content = btoa(unescape(encodeURIComponent(JSON.stringify(data, null, 2))));
-        // Check if file exists to get its SHA (needed for update)
         var sha = null;
         try {
-          var getRes = await fetch(url, {headers:{'Authorization':'token '+ghToken}});
+          var getRes = await fetch(url, {headers:{'Authorization':'token '+_token}});
           if(getRes.ok) { var existing = await getRes.json(); sha = existing.sha; }
         } catch(e) {}
         var body = {message:'Update '+filename+' - '+new Date().toISOString(), content:content};
         if(sha) body.sha = sha;
         var putRes = await fetch(url, {
           method:'PUT',
-          headers:{'Authorization':'token '+ghToken,'Content-Type':'application/json'},
+          headers:{'Authorization':'token '+_token,'Content-Type':'application/json'},
           body: JSON.stringify(body)
         });
         return putRes.ok;
@@ -2314,15 +2315,15 @@
 
       // ── Load JSON data file from GitHub ──────────────────────────
       async function loadJsonFromGitHub(filename) {
-        if(!ghOwner||!ghRepo) return null;
-        var url = 'https://api.github.com/repos/'+ghOwner+'/'+ghRepo+'/contents/pod-data/'+filename;
-        // Try with token first, then without (for public repos)
-        var headers = ghToken ? {'Authorization':'token '+ghToken} : {};
+        var ghCfg = JSON.parse(localStorage.getItem('gh_config')||'{}');
+        var _token=ghCfg.token||'', _owner=ghCfg.owner||'', _repo=ghCfg.repo||'';
+        if(!_owner||!_repo) return null;
+        var url = 'https://api.github.com/repos/'+_owner+'/'+_repo+'/contents/pod-data/'+filename;
+        var headers = _token ? {'Authorization':'token '+_token} : {};
         try {
           var res = await fetch(url, {headers:headers});
           if(!res.ok) return null;
           var file = await res.json();
-          // GitHub returns base64-encoded content
           var text = decodeURIComponent(escape(atob(file.content.split('\n').join(''))));
           return JSON.parse(text);
         } catch(e) { return null; }
@@ -2334,7 +2335,7 @@
         setCpImages(arr);
         S.s(CP_IMG_KEY, arr);
         // Then async save to GitHub (cloud backup, no await needed)
-        if(ghToken && ghRepo && ghOwner) {
+        var _ghCfg=JSON.parse(localStorage.getItem('gh_config')||'{}'); if(_ghCfg.token && _ghCfg.repo && _ghCfg.owner) {
           // Strip large base64 image data before saving to GitHub
           var stripped = arr.map(function(entry) {
             return {
