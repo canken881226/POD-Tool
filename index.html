@@ -2162,16 +2162,13 @@
           });
           var parentContext=dominantHoliday?'(these variants target '+dominantHoliday+')'
             :dominantScene?'(these variants target '+dominantScene+' scene)':'';
-          var pp='You are a professional Amazon copywriter. Write ONE parent ASIN title for a '+cat+' product (sub-category: '+selCat+'). '
+          var pp='You are a senior Amazon copywriter. Write ONE parent ASIN title for a '+cat+' product (sub-category: '+selCat+'). '
             +parentContext+' '
-            +'RULES:\n'
-            +'- Title Casing: Capitalize Every Word Except prepositions (for, with, in, on, at, to, of, and, or, but)\n'
-            +'- Max 150 characters. Write naturally like a skilled copywriter, NOT like keyword stuffing\n'
-            +'- Include the most important 2-3 search keywords woven naturally into a readable phrase\n'
-            +'- NO specific design/pattern/character names (this is the parent listing)\n'
-            +'- NO duplicate words anywhere in the title\n'
-            +'- Sound like a real product title a human would write\n'
-            +'Reference keywords (use only what fits naturally, do NOT stuff all of them): '+kwTop+' '
+            +'The parent title is generic - it covers all design variants, so no specific patterns or characters. '
+            +'Write it as a clean, natural product title: category keyword + key feature/attribute + main use case. '
+            +'Title Case rules: capitalize every content word; lowercase: a, an, the, and, but, or, for, in, of, on, to, with. '
+            +'Max 150 chars. No duplicate words. Sound like a real human wrote it. '
+            +'Use 2-3 of these keywords only if they fit naturally (do NOT use all): '+kwTop+'. '
             +banNote
             +'Output JSON only: {"parent_title":"..."}';
           const pr=await callClaudeWithImage(pp, imgInfos[0].data, 'Amazon Listing expert. JSON only, no markdown.');
@@ -2192,22 +2189,32 @@
         for(let i=0;i<imgInfos.length;i++){
           const info=imgInfos[i];
           if(i>0) await new Promise(function(res){setTimeout(res,2500);});
-          // Color: extract 1 key noun from each element phrase, pick top 3, join with space
-          var _skipWords = ['the','and','with','for','in','on','at','of','a','an','text','design','pattern','art','style','print','image','graphic','figure','silhouette','swirling','flowing','wearing'];
-          var _colorParts = (info.elements.length>0 ? info.elements : [info.elemStr])
-            .slice(0,4)
+          // Color: AI elements only (never filename), extract best noun per phrase, max 3 words
+          var _adjectives = ['long','warm','soft','bright','dark','light','deep','rich','bold','vivid','cute','sweet','tender','golden','silver','glowing','shiny','pretty','beautiful','lovely','elegant','magical','dreamy','delicate','gentle','tiny','large','small','big','tall','short','round','flat','wide','old','young','new','fresh','happy','joyful','peaceful','serene'];
+          var _skipWords2 = ['the','and','with','for','in','on','at','of','a','an','its','are','was','has','text','design','pattern','art','style','print','image','graphic','figure','silhouette','swirling','flowing','wearing','featuring','surrounded','decorated','illustrated','abstract','traditional','modern','vintage','classic','simple','complex'];
+          var _srcElements = info.elements.length>0 ? info.elements : [];
+          // If no AI elements detected, use elemStr but strip filename extensions/underscores
+          if(_srcElements.length===0 && info.elemStr) {
+            var _clean = info.elemStr.replace(/\.[a-z]{2,4}$/i,'').replace(/[_\-0-9]+/g,' ').trim();
+            if(_clean.length>2) _srcElements = [_clean];
+          }
+          var _colorParts = _srcElements
+            .slice(0,5)
             .map(function(phrase){
-              // From each phrase, take the first meaningful noun (skip adjectives/filler)
-              var words = phrase.split(/[\s\/,]+/).filter(function(w){
-                return w.length>2 && !_skipWords.includes(w.toLowerCase());
-              });
+              var words = phrase.split(/[\s\/,\-]+/)
+                .map(function(w){ return w.replace(/[^a-zA-Z]/g,''); })
+                .filter(function(w){
+                  return w.length>2
+                    && !_skipWords2.includes(w.toLowerCase())
+                    && !_adjectives.includes(w.toLowerCase());
+                });
               return words[0] || '';
             })
-            .filter(function(w){ return w.length>0; })
-            .filter(function(w,i,arr){ return arr.indexOf(w)===i; }) // dedupe
+            .filter(function(w){ return w.length>1; })
+            .filter(function(w,i,arr){ return arr.map(function(x){return x.toLowerCase();}).indexOf(w.toLowerCase())===i; })
             .slice(0,3)
             .map(function(w){ return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase(); });
-          const colorField = _colorParts.join(' ') || 'Multicolor';
+          const colorField = _colorParts.length>0 ? _colorParts.join(' ') : 'Multicolor';
           // Build focused scene instruction
           var sceneInstruction='';
           if(info.holiday&&info.holiday!='null'){
@@ -2221,32 +2228,45 @@
           if(info.targetAudience) sceneInstruction+='Primary audience: '+info.targetAudience+'. ';
           if(info.mood) sceneInstruction+='Tone/mood: '+info.mood+'. ';
 
-          var cp2='You are a professional Amazon copywriter. Write a complete product listing for a '+cat+' (sub-category: '+selCat+'). '
-            +'Product design: '+info.elemStr+(info.style?' in '+info.style+' style':'')+'. '
-            +(info.sceneCtx?'Context clues from image: '+info.sceneCtx:'')
-            +sceneInstruction
-            +banNote
-            +'Parent ASIN title (for reference): "'+parentTitle+'"\n\n'
-            +'WRITING STANDARDS - follow all of these strictly:\n'
-            +'- Title Casing throughout: Capitalize Every Word Except prepositions (for, with, in, on, at, to, of, and, or, but, a, an, the)\n'
-            +'- Write like a skilled human copywriter. Natural, fluent English. NOT keyword stuffing\n'
-            +'- Zero duplicate words: never repeat the same word twice across title, bullets, or search terms\n'
-            +'- Keywords must appear naturally in sentences, never forced or bolted on\n'
-            +'- Every sentence must be smooth and readable on its own\n\n'
+          var _occasion = info.holiday&&info.holiday!='null' ? info.holiday : (info.scene||'');
+          var _focusNote = _occasion
+            ? 'This product is designed for '+_occasion+'. Make this feel essential for '+_occasion+' - mention it naturally in the title, weave it through the bullets, and open the description with it. Do not force it awkwardly; let it flow.'
+            : 'Focus on the design aesthetic and lifestyle appeal. Let the writing feel aspirational and specific to who would love this product.';
+
+          var cp2 = 'You are a senior Amazon copywriter with 10+ years experience writing for lifestyle and home decor brands. '
+            +'You write copy that sells through emotion and clarity - never through keyword stuffing. '
+            +'You understand Amazon SEO but always prioritize readability over keyword density.\n\n'
+            +'PRODUCT INFO:\n'
+            +'- Category: '+cat+' / '+selCat+'\n'
+            +'- Design: '+info.elemStr+(info.style?' ('+info.style+' style)':'')+' '+_focusNote+'\n'
+            +(info.sceneCtx ? '- Image context: '+info.sceneCtx+'\n' : '')
+            +'- Parent title (keep same structure): "'+parentTitle+'"\n'
+            +banNote+'\n\n'
+            +'WRITING RULES (non-negotiable):\n'
+            +'1. Title Case: Capitalize Every Content Word. Only lowercase: a, an, the, and, but, or, for, nor, at, by, for, in, of, on, to, up, with\n'
+            +'2. No duplicate words anywhere - not within the title, not across bullets, not in search terms that repeat title words\n'
+            +'3. Bullets must each start with 2-3 ALL-CAPS words + " - ", then read as a complete, natural sentence\n'
+            +'4. Vary sentence structure - avoid starting bullets the same way or using the same adjectives\n'
+            +'5. Sound like a real person wrote this, not a template. Each listing should feel fresh.\n\n'
             +'DELIVERABLES:\n'
-            +'1. child_title: Modify ONLY the design/pattern description part of the parent title to reflect "'+info.elemStr+(info.holiday&&info.holiday!='null'?' for '+info.holiday:'')+'". Keep all structural words identical. Max 150 chars. Title Case.\n'
-            +'2. color: "'+colorField+'" (already provided, use exactly as-is)\n'
-            +'3. bullets: Write 5 compelling bullet points, each 150-200 chars. '
-              +(info.holiday&&info.holiday!='null'?'This is a '+info.holiday+' product - every bullet must naturally tie back to '+info.holiday+' occasions, gifting, or decorating. ':'This design suits '+info.primaryFocus+' - weave this context into each bullet naturally. ')
-              +'Structure: [B1: the occasion/scene this shines in] [B2: what makes this design special - visual details and emotional feel] [B3: quality and product features] [B4: perfect as a gift - who will love it and why] [B5: practical details - size, care, versatility]. '
-              +'Each bullet starts with 2-3 ALL-CAPS words + " - " then flows into natural prose. Use different opening keywords for each bullet. No repeated words across all 5 bullets.\n'
-            +'4. description: 250-350 words. Use Amazon HTML: <b>key phrase</b> for 3-4 important phrases, <br><br> between paragraphs. '
-              +'5 paragraphs: [P1: Hook - open with the design and '+(info.holiday||info.scene||'its appeal')+', paint a picture] [P2: Who is this for, gifting angle, emotional connection] [P3: Product quality, materials, craftsmanship] [P4: How to use it, styling ideas, occasions] [P5: Short call to action]. '
-              +'Write flowing prose, not bullet lists inside the description. No keyword stuffing.\n'
-            +'5. search_terms: Space-separated words only, NO commas, STRICTLY under 250 characters total. '
-              +'Choose the most relevant terms from this list that do NOT already appear in the title: '+kwAll
-              +(info.holiday&&info.holiday!='null'?' '+info.holiday.toLowerCase()+' gift '+info.holiday.toLowerCase()+' decor':'')+'. Remove any word already in the child_title. Count chars carefully.\n\n'
-            +'Output JSON only, no markdown: {"child_title":"...","color":"'+colorField+'","bullets":["B1","B2","B3","B4","B5"],"description":"HTML here","search_terms":"words here"}';
+            +'child_title: Swap only the design descriptor in the parent title to reflect "'+info.elemStr+(info.holiday&&info.holiday!='null'?' for '+info.holiday:'')+'". Identical structure, just the design part changes. Max 150 chars.\n'
+            +'color: "'+colorField+'" - use exactly this, do not change it.\n'
+            +'bullets: Exactly 5 bullets, each 150-190 chars. Think of them as 5 different reasons to buy: '
+            +'[B1: when and where you use this - paint the scene] '
+            +'[B2: what makes this design unique and emotionally resonant] '
+            +'[B3: product quality, material, construction] '
+            +'[B4: gifting - who to give it to and why they will love it] '
+            +'[B5: practical details - dimensions, care, setup]. '
+            +'Use varied vocabulary. Each bullet should feel completely different from the others.\n'
+            +'description: 280-350 words. Amazon HTML only (<b>phrase</b> for 3-5 key phrases, <br><br> between paragraphs). '
+            +'Write 5 paragraphs: [Hook - start with a scene or emotion that connects to this design] [Who loves this and why - be specific about the person] [What sets this product apart - quality and craftsmanship] [How to use it, style it, display it] [Closing - one warm sentence + call to action]. '
+            +'Vary sentence length. Use vivid but not overwrought language. No bullet points inside the description.\n'
+            +'search_terms: Pick terms from this list that are NOT already in child_title: '+kwAll
+            +(info.holiday&&info.holiday!='null'?' '+info.holiday.toLowerCase()+' gift '+info.holiday.toLowerCase()+' decor':'')
+            +'. Space-separated, no commas, no repeated words, under 250 characters total.\n\n'
+            +'Output valid JSON only, no markdown:\n'
+            +'{"child_title":"...","color":"'+colorField+'","bullets":["B1","B2","B3","B4","B5"],"description":"HTML","search_terms":"words"}';
+
           try{
             const r=await callClaudeWithImage(cp2, info.data, 'Amazon Listing expert. JSON only, no markdown.');
             let p=null;
