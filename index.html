@@ -2022,38 +2022,67 @@
 
       async function runListing() {
         if(!images.length){alert('请先上传图案');return;}
+        if(!selCat){alert('请先选择品类');return;}
         setLoadListing(true);
-        const kwCat=(KW_DB[cat]||{})[selCat];
-        const kwStr=kwCat?'关键词：'+kwCat.p.slice(0,6).join(',')+' '+kwCat.s.join(','):'';
-        const riskNote=cpResults.some(function(r){return r.alerts&&r.alerts.length>0;})?'规避侵权元素':'';
-        // Load ban list for this listing session
+        const kwCat=(KW_DB[cat]||{})[selCat]||{p:[],s:[]};
+        const kwTop=kwCat.p.slice(0,12).join(' ');
+        const kwAll=kwCat.p.slice(0,20).join(' ')+' '+kwCat.s.join(' ');
         const cpBansL=getCpBanList();
         const banWordsL=cpBansL.banned.slice(0,20).join(', ');
         const banStylesL=cpBansL.styleKws.slice(0,8).join(', ');
+        const banNote=banWordsL?'STRICTLY FORBIDDEN - do NOT use anywhere: '+banWordsL+(banStylesL?'. Forbidden styles: '+banStylesL+'.'  :'.')+' ':'';
+        const imgInfos=images.map(function(img,idx){
+          const cp=cpResults[idx];
+          const elems=(cp&&cp.parsed&&cp.parsed.elements&&cp.parsed.elements.length>0)?cp.parsed.elements:[];
+          const style=(cp&&cp.parsed&&cp.parsed.style)||'';
+          return {name:img.name,data:img.data,elements:elems,style:style,
+            elemStr:elems.length>0?elems.join(', '):img.name.replace(/\.[^.]+$/,'').replace(/[_\-]+/g,' ')};
+        });
+        // STEP 1: Generate parent title
+        var parentTitle='';
+        try{
+          var pp='You are an Amazon Listing expert. Generate ONE parent ASIN title for '+cat+' product, sub-category: '+selCat+'. '
+            +'This parent title must be GENERIC with NO specific design or pattern elements. '
+            +'Use top keywords: '+kwTop+'. '+banNote
+            +'RULES: max 150 chars, include category + key attributes + use cases. JSON only: {"parent_title":"..."}';
+          const pr=await callClaudeAPI(pp,'Amazon Listing expert. JSON only, no markdown.');
+          try{const pc=pr.replace(/```json|```/g,'').trim();const psi=pc.indexOf('{'),pei=pc.lastIndexOf('}');if(psi>=0&&pei>=0){const pj=JSON.parse(pc.slice(psi,pei+1));parentTitle=pj.parent_title||'';}}catch(e){}
+        }catch(err){parentTitle='[Parent Title Failed: '+err.message+']';}
+        // STEP 2: Generate each child variant
         const allListings=[];
-        for(let i=0;i<images.length;i++){
-          const img=images[i];
-          const elemDesc=cpResults[i]?(cpResults[i].parsed.elements||[]).join('/'):'';
-          const imgDesc=img.name+(elemDesc?'('+elemDesc+')':'');
-          const bulletEmojis=['🌟','✨','💎','🎯','🎁'];
-          const cpBanNote=banWordsL?'NEVER use these infringing words/brands/elements in title, bullets, or keywords: '+banWordsL+'. Avoid these infringing styles: '+banStylesL+'. ':'';
-          const prompt='Generate Amazon '+cat+' Product Listing in English. Pattern: '+imgDesc+'. Category: '+(selCat||'general')+'. '+kwStr+' '+cpBanNote+(riskNote?'Avoid infringing elements.':'')+' RULES: title max 150 chars. 5 bullets each min 150 chars starting with ALL-CAPS keyword then dash. Description min 200 words using Amazon HTML: <b>bold</b> for keywords, <br><br> between paragraphs. Keywords: space-separated words sorted by search volume high-to-low, NO commas, TOTAL MUST BE UNDER 250 CHARACTERS EXACTLY - count chars and stop before 250. No repeated words from title/bullets. JSON ONLY no markdown: {"title":"...","bullets":["KEYWORD - detail x5"],"description":"<b>Title</b><br><br>Para...","keywords":"kw1 kw2 kw3"}';
+        for(let i=0;i<imgInfos.length;i++){
+          const info=imgInfos[i];
+          if(i>0) await new Promise(function(res){setTimeout(res,2500);});
+          const colorField=info.elements.length>0
+            ?info.elements.slice(0,3).map(function(e){return e.charAt(0).toUpperCase()+e.slice(1);}).join(' ')
+            :info.elemStr.split(/[\s_\-]+/).slice(0,3).map(function(w){return w.charAt(0).toUpperCase()+w.slice(1);}).join(' ');
+          var cp2='You are an Amazon Listing expert for Amazon '+cat+' (sub-category: '+selCat+'). '
+            +'Parent ASIN title: "'+parentTitle+'". '
+            +'This child variant design: '+info.elemStr+(info.style?' [style: '+info.style+']':'')+'. '
+            +'Color field: "'+colorField+'". '
+            +banNote
+            +'TASK: Write complete child variant listing:\n'
+            +'1. child_title: Replace ONLY the design/pattern part of parent title with "'+info.elemStr+'". Keep all other words identical. Max 150 chars.\n'
+            +'2. color: "'+colorField+'"\n'
+            +'3. bullets: 5 bullets, each 180-220 chars. Each MUST describe THIS specific design "'+info.elemStr+'" - its visual appeal, mood, occasion fit, use scenarios. Start each with ALL-CAPS keyword + " - ".\n'
+            +'4. description: min 250 words. Amazon HTML format (<b>key phrase</b>, <br><br> between paragraphs). Focus on this design theme, visual details, occasions, emotional appeal.\n'
+            +'5. search_terms: space-separated only, NO commas, STRICTLY under 250 chars. Use from: '+kwAll+'. No words from title.\n'
+            +'Output JSON only: {"child_title":"...","color":"...","bullets":["...x5"],"description":"HTML...","search_terms":"..."}';
           try{
-            const r=await callClaudeAPI(prompt,'You are an Amazon Listing expert. Output JSON ONLY, no markdown, no explanation.');
+            const r=await callClaudeAPI(cp2,'Amazon Listing expert. JSON only, no markdown.');
             let p=null;
-            try{const c=r.replace(/```json|```/g,'').trim();const si=c.indexOf('{'),ei=c.lastIndexOf('}');if(si>=0&&ei>=0)p=JSON.parse(c.slice(si,ei+1));}catch(e){}
-            if(p&&p.keywords){const kws=p.keywords.trim().split(/\s+/);let kr='';for(let ki=0;ki<kws.length;ki++){const kn=(kr?kr+' ':'')+kws[ki];if(kn.length>250)break;kr=kn;}p.keywords=kr;}
-            // Post-check: scan generated listing for banned words
-            let cpListingWarnings=[];
-            if(p){
-              const checkText=[p.title||'',...(p.bullets||[]),p.keywords||''].join(' ').toLowerCase();
-              cpBansL.banned.forEach(function(b){if(b&&checkText.indexOf(b.toLowerCase())>=0)cpListingWarnings.push(b);});
-            }
-            allListings.push({imageName:img.name,imageIdx:i+1,cpWarnings:cpListingWarnings,...(p||{title:'生成失败',bullets:[],description:'',keywords:''})});
+            try{const rc=r.replace(/```json|```/g,'').trim();const si=rc.indexOf('{'),ei=rc.lastIndexOf('}');if(si>=0&&ei>=0)p=JSON.parse(rc.slice(si,ei+1));}catch(e){}
+            if(p&&p.search_terms){const kws=p.search_terms.trim().split(/\s+/);let kr='';for(let ki=0;ki<kws.length;ki++){const kn=(kr?kr+' ':'')+kws[ki];if(kn.length>250)break;kr=kn;}p.search_terms=kr;}
+            let cpWarnings=[];
+            if(p){const chk=[p.child_title||'',...(p.bullets||[]),p.search_terms||''].join(' ').toLowerCase();cpBansL.banned.forEach(function(b){if(b&&chk.indexOf(b.toLowerCase())>=0)cpWarnings.push(b);});}
+            allListings.push({imageName:info.name,imageIdx:i+1,parentTitle:parentTitle,
+              title:(p&&p.child_title)||'',color:(p&&p.color)||colorField,
+              bullets:(p&&p.bullets)||[],description:(p&&p.description)||'',
+              search_terms:(p&&p.search_terms)||'',cpWarnings:cpWarnings});
           }catch(err){
-            allListings.push({imageName:img.name,imageIdx:i+1,title:'失败:'+err.message,bullets:[],description:'',searchTerms:''});
+            allListings.push({imageName:info.name,imageIdx:i+1,parentTitle:parentTitle,
+              title:'失败:'+err.message,color:colorField,bullets:[],description:'',search_terms:'',cpWarnings:[]});
           }
-          if(i<images.length-1)await new Promise(function(res){setTimeout(res,3000);});
         }
         setListings(allListings);persist({listings:allListings});
         setLoadListing(false);
@@ -2061,26 +2090,16 @@
 
       function downloadCSV() {
         if(!listings.length)return;
-        const esc=function(s){return '"'+(s||'').toString().replace(/"/g,'""')+'"'};
-        const header=['#','图片名称','标题','Bullet 1','Bullet 2','Bullet 3','Bullet 4','Bullet 5','描述(含HTML标签)','关键词(<=250字符)'];
+        const esc=function(s){return '"'+(s||'').toString().replace(/"/g,'""')+'"';};
         const kwTrim=function(kw){if(!kw)return '';const ws=kw.trim().split(/\s+/);let r='';for(let i=0;i<ws.length;i++){const n=(r?r+' ':'')+ws[i];if(n.length>250)break;r=n;}return r;};
-        const rows=listings.map(function(l,li){return [
-          li+1,
-          l.imageName||'',
-          l.title||'',
-          (l.bullets||[])[0]||'',
-          (l.bullets||[])[1]||'',
-          (l.bullets||[])[2]||'',
-          (l.bullets||[])[3]||'',
-          (l.bullets||[])[4]||'',
-          (l.description||''),
-          kwTrim(l.keywords||l.searchTerms||'')
-        ];});
-        const csv=[header,...rows].map(function(r){return r.map(esc).join(',');}).join('\r\n');
-        const bom='﻿';
-        const blob=new Blob([bom+csv],{type:'text/csv;charset=utf-8;'});
-        const url=URL.createObjectURL(blob);
-        const a=document.createElement('a');
+        const header=['类型','图片/说明','标题','Color','Bullet 1','Bullet 2','Bullet 3','Bullet 4','Bullet 5','描述(HTML)','关键词(≤250字)'];
+        const parentRow=['PARENT','父ASIN',listings[0]&&listings[0].parentTitle||'','','','','','','','',''];
+        const childRows=listings.map(function(l,li){return ['CHILD-'+(li+1),l.imageName||'',l.title||'',l.color||'',
+          (l.bullets||[])[0]||'',(l.bullets||[])[1]||'',(l.bullets||[])[2]||'',(l.bullets||[])[3]||'',(l.bullets||[])[4]||'',
+          l.description||'',kwTrim(l.search_terms||l.keywords||'')];});
+        const csv=[header,parentRow,...childRows].map(function(r){return r.map(esc).join(',');}).join('\r\n');
+        const blob=new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
+        const url=URL.createObjectURL(blob);const a=document.createElement('a');
         a.href=url;a.download='Listing_'+cat+'_'+new Date().toISOString().slice(0,10)+'.csv';
         document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
       }
@@ -2181,11 +2200,22 @@
             </div>
             {loadListing&&<div style={{textAlign:'center',padding:16}}><Spinner /><div style={{fontSize:11,color:'#64748b',marginTop:4}}>正在逐图生成，共{images.length}张...</div></div>}
             {listings.length>0&&!loadListing&&<div style={{display:'flex',flexDirection:'column',gap:10}}>
+              {/* Parent ASIN Title Card */}
+              {listings[0]&&listings[0].parentTitle&&<div style={{border:'3px solid '+colors.ac,borderRadius:10,overflow:'hidden'}}>
+                <div style={{background:colors.ac,padding:'8px 14px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                  <div style={{fontWeight:800,fontSize:13,color:'white'}}>📦 父ASIN标题（所有变体共用）</div>
+                  <CopyBtn text={listings[0].parentTitle} label="复制" />
+                </div>
+                <div style={{padding:'12px 14px',background:'#f0fdf4'}}>
+                  <div style={{fontSize:14,fontWeight:700,color:'#1e293b',lineHeight:1.6}}>{listings[0].parentTitle}</div>
+                  <div style={{fontSize:11,color:'#64748b',marginTop:4}}>字符数：{listings[0].parentTitle.length}/150</div>
+                </div>
+              </div>}
               {listings.map(function(lst,li){
                 return <div key={li} style={{border:'2px solid '+colors.ac+'40',borderRadius:10,overflow:'hidden'}}>
                   <div style={{background:colors.ac+'15',padding:'8px 14px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                    <div style={{fontWeight:700,fontSize:13,color:colors.ac}}>🖼️ 图{lst.imageIdx}：{lst.imageName}</div>
-                    <CopyBtn text={[lst.title,'','Bullet Points:'].concat(lst.bullets||[]).concat(['','描述：'+lst.description,'搜索词：'+lst.searchTerms]).join('\n')} label="📋 复制全部" />
+                    <div style={{fontWeight:700,fontSize:13,color:colors.ac}}>🖼️ 变体{lst.imageIdx}：{lst.imageName}</div>
+                    <CopyBtn text={['子标题: '+lst.title,'Color: '+lst.color,'','Bullet Points:'].concat(lst.bullets||[]).concat(['','描述：'+lst.description,'关键词：'+lst.search_terms]).join('\n')} label="📋 复制全部" />
                   </div>
                   <div style={{padding:'10px',display:'flex',flexDirection:'column',gap:6}}>
                     {(lst.cpWarnings||[]).length>0&&<div style={{padding:'8px 12px',background:'#fef2f2',borderRadius:6,border:'1px solid #fecaca'}}>
@@ -2194,10 +2224,15 @@
                     </div>}
                     <div style={{background:'#f8fafc',borderRadius:6,padding:'8px 10px'}}>
                       <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:3}}>
-                        <span style={{fontSize:11,fontWeight:700,color:'#475569'}}>标题</span><CopyBtn text={lst.title||''} />
+                        <span style={{fontSize:11,fontWeight:700,color:'#475569'}}>子ASIN标题 ({(lst.title||'').length}/150)</span><CopyBtn text={lst.title||''} />
                       </div>
-                      <div style={{fontSize:11,color:'#1e293b',lineHeight:1.5}}>{lst.title||'-'}</div>
+                      <div style={{fontSize:12,color:'#1e293b',lineHeight:1.6,fontWeight:600}}>{lst.title||'-'}</div>
                     </div>
+                    {lst.color&&<div style={{background:'#fef9c3',borderRadius:6,padding:'8px 10px',marginBottom:8,display:'flex',alignItems:'center',gap:8}}>
+                      <span style={{fontSize:11,fontWeight:700,color:'#92400e'}}>🎨 Color：</span>
+                      <span style={{fontSize:13,fontWeight:700,color:'#1e293b'}}>{lst.color}</span>
+                      <CopyBtn text={lst.color} label="复制Color" />
+                    </div>}
                     <div style={{background:'#f8fafc',borderRadius:6,padding:'8px 10px'}}>
                       <div style={{fontSize:11,fontWeight:700,color:'#475569',marginBottom:4}}>Bullet Points</div>
                       {(lst.bullets||[]).map(function(b,bi){
@@ -2209,7 +2244,7 @@
                         })}
                     </div>
                     <div style={{display:'grid',gridTemplateColumns:'1fr',gap:4}}>
-                      {[['描述',lst.description],['关键词',lst.keywords||lst.searchTerms]].map(function(x){return <div key={x[0]} style={{background:'#f8fafc',borderRadius:6,padding:'8px 10px'}}>
+                      {[['描述',lst.description],['关键词',lst.keywords||lst.search_terms]].map(function(x){return <div key={x[0]} style={{background:'#f8fafc',borderRadius:6,padding:'8px 10px'}}>
                         <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:3}}>
                           <span style={{fontSize:11,fontWeight:700,color:'#475569'}}>{x[0]}</span><CopyBtn text={x[1]||''} />
                         </div>
