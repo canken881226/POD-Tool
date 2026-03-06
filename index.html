@@ -182,6 +182,10 @@
     const callClaudeWithImage = async function(prompt, imageData, systemPrompt) {
       const apiKey = getApiKey();
       if(!apiKey) throw new Error('请先设置 API Key');
+      // Fallback to text-only if no image data
+      if(!imageData || imageData.length < 100) {
+        return callClaudeAPI(prompt, systemPrompt);
+      }
       // imageData is base64 data URL: "data:image/jpeg;base64,..."
       const base64 = imageData.includes(',') ? imageData.split(',')[1] : imageData;
       const mediaType = imageData.startsWith('data:image/png') ? 'image/png'
@@ -2012,7 +2016,7 @@
     function PageListing({cat,colors}) {
       const SK='listing_'+cat;
       const init=S.g(SK)||{};
-      const [images,setImages] = useState(init.images||[]);
+      const [images,setImages] = useState([]);  // images kept in memory only, not localStorage
       const [selCat,setSelCat] = useState(init.selCat||'');
       const [cpResults,setCpResults] = useState(init.cpResults||[]);
       const [listings,setListings] = useState(init.listings||[]);
@@ -2029,7 +2033,7 @@
         const files=Array.from(e.target.files);
         Promise.all(files.map(function(f){
           return new Promise(function(res){const r=new FileReader();r.onload=function(ev){res({name:f.name,data:ev.target.result});};r.readAsDataURL(f);});
-        })).then(function(imgs){setImages(imgs);persist({images:imgs,cpResults:[],listing:null,aplusPrompts:[],videoPrompts:[]});setCpResults([]);setListings([]);setAplusPrompts([]);setVideoPrompts([]);});
+        })).then(function(imgs){setImages(imgs);persist({imageNames:imgs.map(function(x){return x.name;}),cpResults:[],listings:[],aplusPrompts:[],videoPrompts:[]});setCpResults([]);setListings([]);setAplusPrompts([]);setVideoPrompts([]);});
       }
 
       async function runCp() {
@@ -2120,8 +2124,18 @@
             +'Parent title must be GENERIC - NO specific design, pattern, or character names. '
             +'Use top keywords: '+kwTop+'. '+banNote
             +'RULES: max 150 chars, include category + key attributes + main use occasions. JSON only: {"parent_title":"..."}';
-          const pr=await callClaudeAPI(pp,'Amazon Listing expert. JSON only, no markdown.');
-          try{const pc=pr.replace(/```json|```/g,'').trim();const psi=pc.indexOf('{'),pei=pc.lastIndexOf('}');if(psi>=0&&pei>=0){const pj=JSON.parse(pc.slice(psi,pei+1));parentTitle=pj.parent_title||'';}}catch(e){}
+          const pr=await callClaudeWithImage(pp, imgInfos[0].data, 'Amazon Listing expert. JSON only, no markdown.');
+          try{const pc=pr.replace(/```json|```/g,'').trim();const psi=pc.indexOf('{'),pei=pc.lastIndexOf('}');if(psi>=0&&pei>=0){const pj=JSON.parse(pc.slice(psi,pei+1));parentTitle=pj.parent_title||'';
+            // Strip banned words from parent title
+            cpBansL.banned.forEach(function(ban){
+              if(!ban||!parentTitle) return;
+              var banLower=ban.toLowerCase();
+              var titleLower=parentTitle.toLowerCase();
+              if(titleLower.indexOf(banLower)>=0){
+                parentTitle=parentTitle.split(new RegExp(ban,'gi')).join('').replace(/  +/g,' ').trim();
+              }
+            });
+          }}catch(e){}
         }catch(err){parentTitle='[Parent Title Failed: '+err.message+']';}
         // STEP 2: Generate each child variant
         const allListings=[];
@@ -2164,12 +2178,23 @@
               +(info.holiday&&info.holiday!='null'?'. Also include: '+info.holiday.toLowerCase().replace(/\s+/g,' ')+' gifts '+info.holiday.toLowerCase().replace(/\s+/g,' ')+' decor ':'')+'. No words from title.\n'
             +'Output JSON only: {"child_title":"...","color":"...","bullets":["...x5"],"description":"HTML...","search_terms":"..."}';
           try{
-            const r=await callClaudeAPI(cp2,'Amazon Listing expert. JSON only, no markdown.');
+            const r=await callClaudeWithImage(cp2, info.data, 'Amazon Listing expert. JSON only, no markdown.');
             let p=null;
             try{const rc=r.replace(/```json|```/g,'').trim();const si=rc.indexOf('{'),ei=rc.lastIndexOf('}');if(si>=0&&ei>=0)p=JSON.parse(rc.slice(si,ei+1));}catch(e){}
             if(p&&p.search_terms){const kws=p.search_terms.trim().split(/\s+/);let kr='';for(let ki=0;ki<kws.length;ki++){const kn=(kr?kr+' ':'')+kws[ki];if(kn.length>250)break;kr=kn;}p.search_terms=kr;}
+            // Auto-remove banned words from generated content (no warnings shown)
+            if(p && cpBansL.banned.length > 0){
+              cpBansL.banned.forEach(function(ban){
+                if(!ban) return;
+                var stripBan=function(s){if(!s)return s;return s.split(ban).join('').replace(/  +/g,' ').trim();};
+                var stripBanI=function(s){if(!s)return s;var parts=s.split(new RegExp(ban,'i'));return parts.join('').replace(/  +/g,' ').trim();};
+                if(p.child_title) p.child_title=stripBanI(p.child_title);
+                if(p.bullets) p.bullets=p.bullets.map(stripBanI);
+                if(p.description) p.description=stripBanI(p.description);
+                if(p.search_terms) p.search_terms=stripBanI(p.search_terms);
+              });
+            }
             let cpWarnings=[];
-            if(p){const chk=[p.child_title||'',...(p.bullets||[]),p.search_terms||''].join(' ').toLowerCase();cpBansL.banned.forEach(function(b){if(b&&chk.indexOf(b.toLowerCase())>=0)cpWarnings.push(b);});}
             allListings.push({imageName:info.name,imageIdx:i+1,parentTitle:parentTitle,
               title:(p&&p.child_title)||'',color:(p&&p.color)||colorField,
               bullets:(p&&p.bullets)||[],description:(p&&p.description)||'',
