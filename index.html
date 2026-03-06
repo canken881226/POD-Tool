@@ -2192,12 +2192,22 @@
         for(let i=0;i<imgInfos.length;i++){
           const info=imgInfos[i];
           if(i>0) await new Promise(function(res){setTimeout(res,2500);});
-          // Color: max 3 meaningful element words, skip generic filler words
-          var _colorWords = (info.elements.length>0 ? info.elements : info.elemStr.split(/[\s_\-]+/))
-            .filter(function(w){ return w.length>2 && !['the','and','with','for','text','design','pattern','art','style','print','image','graphic'].includes(w.toLowerCase()); })
+          // Color: extract 1 key noun from each element phrase, pick top 3, join with space
+          var _skipWords = ['the','and','with','for','in','on','at','of','a','an','text','design','pattern','art','style','print','image','graphic','figure','silhouette','swirling','flowing','wearing'];
+          var _colorParts = (info.elements.length>0 ? info.elements : [info.elemStr])
+            .slice(0,4)
+            .map(function(phrase){
+              // From each phrase, take the first meaningful noun (skip adjectives/filler)
+              var words = phrase.split(/[\s\/,]+/).filter(function(w){
+                return w.length>2 && !_skipWords.includes(w.toLowerCase());
+              });
+              return words[0] || '';
+            })
+            .filter(function(w){ return w.length>0; })
+            .filter(function(w,i,arr){ return arr.indexOf(w)===i; }) // dedupe
             .slice(0,3)
             .map(function(w){ return w.charAt(0).toUpperCase()+w.slice(1).toLowerCase(); });
-          const colorField = _colorWords.join(' ') || info.elemStr.split(/[\s_\-]+/).slice(0,2).map(function(w){return w.charAt(0).toUpperCase()+w.slice(1);}).join(' ');
+          const colorField = _colorParts.join(' ') || 'Multicolor';
           // Build focused scene instruction
           var sceneInstruction='';
           if(info.holiday&&info.holiday!='null'){
