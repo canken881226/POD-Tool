@@ -111,7 +111,24 @@
 
     // ========== 工具函数 ==========
 
-    const S = {
+    // Startup cleanup: strip old base64 images to free localStorage space
+      (function cleanOldBase64(){
+        try {
+          var raw = localStorage.getItem('cp_images_index');
+          if(!raw) return;
+          var data = JSON.parse(raw);
+          var changed = false;
+          data.forEach(function(entry) {
+            (entry.images||[]).forEach(function(img) {
+              if(img.localB64 && img.localB64.length > 100) { img.localB64='[cleared]'; changed=true; }
+              if(img.url && img.url.startsWith('data:') && img.url.length > 100) { img.url='[cleared]'; changed=true; }
+            });
+          });
+          if(changed) localStorage.setItem('cp_images_index', JSON.stringify(data));
+        } catch(e) {}
+      })();
+
+      const S = {
       g: function(key) { try { const d=localStorage.getItem(key); return d?JSON.parse(d):null; } catch(e) { return null; } },
       s: function(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); return true; } catch(e) { console.error('localStorage.setItem failed for key:',key,'error:',e.message); return false; } }
     };
@@ -153,7 +170,7 @@
       const resp = await fetch('https://api.anthropic.com/v1/messages', {
         method:'POST',
         headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-        body: JSON.stringify({model:'claude-sonnet-4-5-20250929',max_tokens:4000,system:systemPrompt||'',messages:[{role:'user',content:prompt}]})
+        body: JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,system:systemPrompt||'',messages:[{role:'user',content:prompt}]})
       });
       const data = await resp.json();
       if (data.error) throw new Error(data.error.message);
@@ -175,7 +192,7 @@
             "anthropic-dangerous-direct-browser-access": "true"
           },
           body: JSON.stringify({
-            model: "claude-sonnet-4-5-20250929",
+            model: "claude-sonnet-4-20250514",
             max_tokens: 4000,
             system: systemPrompt,
             tools: [{ type: "web_search_20250305", name: "web_search" }],
@@ -537,6 +554,15 @@
     }
 
     async function processPdfQueue() {
+      // Pre-flight: check API key
+      var _preApiKey = localStorage.getItem('pod_api_key') || '';
+      if(!_preApiKey) {
+        (window.PDF_MEM_QUEUE||[]).forEach(function(q){
+          if(q.status==='pending') { q.status='error'; q.error='请先在顶部设置API Key'; }
+        });
+        window.dispatchEvent(new Event('pdf_queue_update'));
+        return;
+      }
       // Reset any items stuck as 'processing' (from previous crashed run)
       (window.PDF_MEM_QUEUE||[]).forEach(function(q) {
         if(q.status === 'processing') { q.status = 'pending'; q.error = ''; }
@@ -661,7 +687,7 @@
                     'anthropic-dangerous-direct-browser-access':'true'
                   },
                   body: JSON.stringify({
-                    model:'claude-sonnet-4-5-20250929',
+                    model:'claude-sonnet-4-20250514',
                     max_tokens:1500,
                     system:'You are a copyright expert. Output JSON only.',
                     messages:[{role:'user', content:[
@@ -786,7 +812,18 @@
           } catch(err) {
             if(fileTimeoutId) clearTimeout(fileTimeoutId);
             pending.status = 'error';
-            pending.error = err.message;
+            // Give more specific error messages
+            var errMsg = err.message || String(err);
+            if(errMsg === 'Failed to fetch') {
+              errMsg = 'Failed to fetch：请检查 1)API Key是否已设置 2)网络是否正常 3)刷新页面重试';
+            } else if(errMsg.includes('401')) {
+              errMsg = 'API Key无效或已过期，请重新设置';
+            } else if(errMsg.includes('429')) {
+              errMsg = 'API请求过于频繁，请等待1分钟后重试';
+            } else if(errMsg.includes('timeout') || errMsg.includes('超时')) {
+              errMsg = '处理超时，PDF可能过大，请尝试上传页数较少的文件';
+            }
+            pending.error = errMsg;
           }
 
           if(fileTimeoutId) clearTimeout(fileTimeoutId);
@@ -1964,7 +2001,7 @@
         const files=Array.from(e.target.files);
         Promise.all(files.map(function(f){
           return new Promise(function(res){const r=new FileReader();r.onload=function(ev){res({name:f.name,data:ev.target.result});};r.readAsDataURL(f);});
-        })).then(function(imgs){setImages(imgs);persist({images:imgs,cpResults:[],listing:null,aplusPrompts:[],videoPrompts:[]});setCpResults([]);setListing(null);setAplusPrompts([]);setVideoPrompts([]);});
+        })).then(function(imgs){setImages(imgs);persist({images:imgs,cpResults:[],listing:null,aplusPrompts:[],videoPrompts:[]});setCpResults([]);setListings([]);setAplusPrompts([]);setVideoPrompts([]);});
       }
 
       async function runCp() {
