@@ -1,6 +1,178 @@
 [
   {
-    "id": "1773048831661",
+    "id": "1772760349929",
+    "plaintiff": "CARRIE HENDRIX",
+    "works": [
+      "花卉插画作品1",
+      "花卉插画作品2"
+    ],
+    "style_description": "充满活力的水彩风格花卉插画，以粉红色和红色调为主的手绘花朵图案，具有水彩晕染效果和黑色线条勾勒，风格鲜艳明快",
+    "style_keywords": [
+      "水彩花卉",
+      "粉红色花朵",
+      "手绘插画",
+      "活力风格",
+      "花卉图案"
+    ],
+    "banned_elements": [
+      "CARRIE HENDRIX",
+      "粉红色水彩花卉图案",
+      "带黑色勾边的手绘花朵",
+      "水彩晕染效果花卉"
+    ],
+    "risk_level": "urgent",
+    "case_no": "25-cv-901",
+    "filed_date": "2025-07-01",
+    "notes": "PDF导入：隐匿案件曝光合集！Keith花卉插画、水杯包专利、TIRED-ASS 俚语商标、硅胶滤网、蒸汽清洁器速查下架！.pdf",
+    "images": [
+      {
+        "localB64": "[cleared]",
+        "name": "page1.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0
+      },
+      {
+        "localB64": "[cleared]",
+        "name": "page2.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0
+      },
+      {
+        "localB64": "[cleared]",
+        "name": "page3.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0
+      },
+      {
+        "localB64": "[cleared]",
+        "name": "page4.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0
+      },
+      {
+        "localB64": "[cleared]",
+        "name": "page5.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0
+      },
+      {
+        "localB64": "[cleared]",
+        "name": "page6.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0
+      }
+    ],
+    "createdAt": "2026-03-06T01:25:49.929Z"
+  },
+  {
+    "id": "1772760802004",
+    "plaintiff": "Yee San Loh",
+    "works": [
+      "Mother Sauces",
+      "Peppers",
+      "Squash",
+      "Brassica Oleracea",
+      "Nigiri",
+      "Soups",
+      "Coffee",
+      "Mozzarella",
+      "Milk & Cream",
+      "Coffee (brewing methods)",
+      "Cassette Tape"
+    ],
+    "style_description": "水彩手绘风格的食物教育海报，包含各类食材、烹饪方法、咖啡制作等主题，采用清新淡雅的配色和细腻的水彩插画技法，具有治愈系美学特征",
+    "style_keywords": [
+      "水彩食物插画",
+      "烹饪教育海报",
+      "治愈系风格",
+      "食材知识图谱",
+      "手绘美食图鉴"
+    ],
+    "banned_elements": [
+      "Yee San Loh",
+      "母酱汁海报",
+      "辣椒品种图",
+      "南瓜品种图",
+      "甘蓝菜科图",
+      "寿司海报",
+      "汤品图谱",
+      "咖啡制作方法",
+      "马苏里拉奶酪",
+      "牛奶与奶油",
+      "咖啡器具图",
+      "磁带复古元素",
+      "水彩食物教育海报的任何复制或衍生"
+    ],
+    "risk_level": "urgent",
+    "case_no": "26-cv-01020",
+    "filed_date": "2025-01-29",
+    "notes": "PDF导入：200家店铺被告有名单，警惕这16张刚被代理的新版权图！.pdf",
+    "images": [
+      {
+        "name": "page1.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page2.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page3.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page4.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page5.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page6.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      }
+    ],
+    "createdAt": "2026-03-06T01:33:22.040Z"
+  },
+  {
+    "id": "1772761102158",
     "plaintiff": "Olga Zikova",
     "works": [
       "Capybara with a leaf",
@@ -10,28 +182,887 @@
       "Happybara",
       "Capybara with a pizza"
     ],
-    "style_description": "可爱幽默的水豚插画风格，灵感来源于日本动漫，以友善的动物和日常生活片段为主题",
+    "style_description": "可爱幽默的插画风格，灵感来源于日本动漫、旅行见闻与自然美景，以友善的动物（尤其是水豚）和日常生活片段为核心创作主题",
     "style_keywords": [
       "水豚",
       "卡皮巴拉",
-      "可爱动物",
-      "日系插画",
-      "幽默风格",
-      "卡通动物"
+      "Capybara",
+      "可爱",
+      "幽默",
+      "日本动漫风格",
+      "萌系",
+      "动物插画",
+      "日常生活场景"
     ],
     "banned_elements": [
       "Olga Zikova",
       "水豚插画",
       "Capybara",
       "卡皮巴拉",
-      "可爱水豚造型",
-      "圆润动物形象"
+      "叶子水豚",
+      "万圣节水豚",
+      "蜜蜂水豚",
+      "雪地水豚",
+      "快乐水豚",
+      "披萨水豚",
+      "棕色圆润水豚形象",
+      "简约线条勾勒的水豚",
+      "温馨治愈系水豚角色"
     ],
     "risk_level": "urgent",
-    "case_no": "26-cv-00592、26-cv-00593",
-    "filed_date": "2026-1-20",
+    "case_no": "26-cv-00592, 26-cv-00593",
+    "filed_date": "2026-01-20",
     "notes": "PDF导入：284店被诉！Keith律所代理Olga Zikova水豚Capybara卡皮巴拉插画版权，速查店铺的图片是否“撞车”.pdf",
+    "images": [
+      {
+        "name": "page1.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page2.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page3.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page4.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page5.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page6.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      }
+    ],
+    "createdAt": "2026-03-06T01:38:22.158Z"
+  },
+  {
+    "id": "1772761316031",
+    "plaintiff": "Ivaylo Nikolaev Nikolov",
+    "works": [
+      "动物油画",
+      "风景油画",
+      "印象派风景与静物油画"
+    ],
+    "style_description": "保加利亚当代画家Ivaylo的印象派油画作品，擅长动物与风景题材，色彩明快、光影细腻，笔触灵动，作品具有浓郁的印象派风格与欧美艺术市场审美",
+    "style_keywords": [
+      "印象派油画",
+      "动物油画",
+      "风景油画",
+      "色彩明快",
+      "光影细腻",
+      "静物油画"
+    ],
+    "banned_elements": [
+      "Ivaylo Nikolaev Nikolov",
+      "Ivaylo",
+      "印象派动物油画",
+      "印象派风景油画",
+      "长颈鹿油画",
+      "公鸡油画",
+      "孔雀油画",
+      "马油画",
+      "奶牛油画",
+      "地中海风景",
+      "向日葵田",
+      "秋季树林",
+      "海港油画"
+    ],
+    "risk_level": "high",
+    "case_no": "26-cv-01463",
+    "filed_date": "2026-02-09",
+    "notes": "PDF导入：300+店铺已在Keith律所起诉名单：全新代理66张版权图5案连发！.pdf",
+    "images": [
+      {
+        "name": "page1.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page2.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page3.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page4.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page5.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page6.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      }
+    ],
+    "createdAt": "2026-03-06T01:41:56.032Z"
+  },
+  {
+    "id": "1772761392614",
+    "plaintiff": "Danielle Marie Karwowski, Dmitry Veleryevich Barkov, Rickey Peoples",
+    "works": [
+      "meet me at the beach",
+      "Raven",
+      "Yggdrasil Tree of Life",
+      "Odin's Eye",
+      "Thor's Hammer",
+      "Odin Ravens",
+      "Halloween Scene",
+      "Winter Village",
+      "Duck in Reeds",
+      "Buffalo Soldiers"
+    ],
+    "style_description": "Danielle作品以简约现代风格为主，具有鲜明的视觉张力和高辨识度；Dmitry Barkov专注于北欧神话、斯堪的纳维亚民间传说及异教主题，作品充满神话符号如奥丁、雷神托尔、世界树等元素，具有强烈的凯尔特和维京艺术风格；Rickey Peoples创作人文与风景油画，涵盖万圣节场景、冬季村庄、自然野生动物和历史人物主题",
+    "style_keywords": [
+      "简约现代插画",
+      "北欧神话",
+      "维京艺术",
+      "凯尔特纹样",
+      "世界树",
+      "雷神之锤",
+      "奥丁乌鸦",
+      "人文风景油画",
+      "美式西部题材",
+      "自然野生动物"
+    ],
+    "banned_elements": [
+      "粉色比基尼晾衣绳",
+      "meet me at the beach文字",
+      "凯尔特纹样边框",
+      "乌鸦剪影配符文",
+      "世界树Yggdrasil图案",
+      "奥丁之眼符号",
+      "雷神之锤Mjolnir",
+      "维京船只元素",
+      "北欧卢恩符文",
+      "Buffalo Soldiers历史题材",
+      "美国国旗配骑兵",
+      "鸭子芦苇场景",
+      "万圣节南瓜灯场景",
+      "冬季村庄雪景"
+    ],
+    "risk_level": "urgent",
+    "case_no": "26-cv-00249, 26-cv-00251, 26-cv-00202",
+    "filed_date": "2026-02-11, 2026-02-10, 2026-02-04",
+    "notes": "PDF导入：Ference律所也大搞版权收割？！10张全新代理高危图速看规避.pdf",
+    "images": [
+      {
+        "name": "page1.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page2.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page3.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page4.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page5.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page6.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      }
+    ],
+    "createdAt": "2026-03-06T01:43:12.656Z"
+  },
+  {
+    "id": "1772761625190",
+    "plaintiff": "Grazyna Maniecka",
+    "works": [
+      "38 Ways to Make a Perfect Coffee"
+    ],
+    "style_description": "精美的信息图表海报，展示咖啡制作方法的图解设计，具有多层次的视觉设计和构思巧妙的信息呈现",
+    "style_keywords": [
+      "信息图表海报",
+      "咖啡主题",
+      "图解设计",
+      "教学类海报"
+    ],
+    "banned_elements": [
+      "Grazyna Maniecka",
+      "38 Ways to Make a Perfect Coffee",
+      "咖啡制作方法信息图",
+      "咖啡杯图解海报"
+    ],
+    "risk_level": "urgent",
+    "case_no": "26-cv-1177",
+    "filed_date": "2026/2/3",
+    "notes": "PDF导入：Keith 单日连发5案，横扫超700店铺，版权商标双杀名单全面曝光！各位卖家速查下架！.pdf",
+    "images": [
+      {
+        "name": "page1.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page2.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page3.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page4.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page5.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page6.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      }
+    ],
+    "createdAt": "2026-03-06T01:47:05.190Z"
+  },
+  {
+    "id": "1772761837907",
+    "plaintiff": "Kristin Mastoras, Leeza Hernandez, Rebekah Leigh Marshall, Olivier Le Queinec",
+    "works": [
+      "Kristin Mastoras 版权画作品",
+      "Leeza Hernandez 黑猫艺术版画",
+      "Rebekah Leigh Marshall 复古主题插画",
+      "Olivier Le Queinec 摄影作品"
+    ],
+    "style_description": "Kristin Mastoras: 明亮大胆色彩的插画设计,包含蝴蝶结、格纹图案、狗狗等主题; Leeza Hernandez: 黑猫与植物结合的艺术插画风格; Rebekah Leigh Marshall: 以动物和乡村为灵感的复古风格插画,多以鸡、蛋、花卉等田园主题呈现; Olivier Le Queinec: 商业静物和旅行摄影,包含西部牛仔帽、靴子、复古美国元素等主题",
+    "style_keywords": [
+      "明亮大胆色彩",
+      "蝴蝶结图案",
+      "格纹图案",
+      "狗狗插画",
+      "黑猫艺术",
+      "植物盆栽",
+      "复古风格",
+      "田园动物",
+      "鸡蛋主题",
+      "西部牛仔",
+      "靴子帽子",
+      "美式复古",
+      "静物摄影"
+    ],
+    "banned_elements": [
+      "Kristin Mastoras",
+      "蝴蝶结装饰图案",
+      "粉色蓝色格纹蝴蝶结",
+      "金毛狗狗图案",
+      "圣诞装饰球插画",
+      "Leeza Hernandez",
+      "黑猫与植物组合",
+      "黄色花盆中的黑猫",
+      "棕色花架上的黑猫",
+      "篮子中的黑猫与绿植",
+      "Rebekah Leigh Marshall",
+      "Rainbow Egg Layers 鸡蛋图",
+      "Grow Good Things 花卉插画",
+      "The Chicken Alphabet 鸡字母表",
+      "各种品种鸡与彩色蛋",
+      "Olivier Le Queinec",
+      "西部牛仔帽与靴子摄影",
+      "复古木质背景牛仔主题",
+      "美国国旗与棒球",
+      "德克萨斯州旗帜元素"
+    ],
+    "risk_level": "urgent",
+    "case_no": "26-cv-834, 26-cv-835, 26-cv-836, 26-cv-839",
+    "filed_date": "2026/1/26",
+    "notes": "PDF导入：Keith 律所重拳出击！新发4案横扫近400店铺，最新版权被告名单紧急公布！.pdf",
+    "images": [
+      {
+        "name": "page1.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page2.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page3.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page4.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page5.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page6.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      }
+    ],
+    "createdAt": "2026-03-06T01:50:37.943Z"
+  },
+  {
+    "id": "1772761951056",
+    "plaintiff": "The Whiskey Ginger, LLC; Thiago Mellado; Chi Keung Lai; Stewart Creative, LLC (AIMEE STEWART)",
+    "works": [
+      "A Little Splash of Bourbon",
+      "Bring Your Ass Kickin' Boots",
+      "The Salty Mermaid",
+      "Don't Call Me Honey",
+      "Sunny Place",
+      "Old Rodeo Saloon",
+      "The Pineapple Parlor",
+      "Woah Whiskey",
+      "Amaretto",
+      "Prosecco",
+      "Cats Rule the Earth Tarot - Pisces",
+      "Hocus Pocus",
+      "Live By The Sun Love By The Moon",
+      "The Magician",
+      "Wheel of Fortune",
+      "The Lovers",
+      "The Moon",
+      "Pawmistry",
+      "Three of Pentacles",
+      "The Protector",
+      "Raccoon in Rainbow Trash Can",
+      "Bear with Rainbow",
+      "Raccoon with Coffee",
+      "Fox with Rainbow Tail",
+      "Crocodile with Guitar",
+      "Black and White Dog",
+      "Sloth on Rainbow Wave",
+      "Sloth and Koala Hug",
+      "Rocket Launch Rainbow",
+      "Hedgehog Give Me A Hug",
+      "Rainbow Giraffe",
+      "Sloth on Tree",
+      "Rainbow Dachshund",
+      "Toucan with Rainbow Beak",
+      "Animal Tower on Turtle",
+      "Flamingo with Rainbow Body",
+      "Peacock Rainbow Feathers",
+      "Elephant with Balloon",
+      "Koala Cat Bear Stack",
+      "Peacock Rainbow Tail",
+      "Treasure Hunt Bookshelf"
+    ],
+    "style_description": "包含复古俏皮美女插画、西部女牛仔艺术、威士忌风格家居装饰；猫咪塔罗牌可爱神秘风格；简洁矢量风格彩虹动物插画，明快色彩；奇幻风格数字艺术拼图",
+    "style_keywords": [
+      "复古美女插画",
+      "西部女牛仔",
+      "威士忌风格",
+      "俏皮家居装饰",
+      "猫咪塔罗牌",
+      "神秘灵性",
+      "彩虹动物",
+      "矢量风格",
+      "明快色彩",
+      "简洁构图",
+      "奇幻艺术",
+      "拼图设计",
+      "动物元素",
+      "复古西部",
+      "塔罗意象"
+    ],
+    "banned_elements": [
+      "The Whiskey Ginger",
+      "威士忌生姜",
+      "复古美女",
+      "女牛仔",
+      "Bourbon波本威士忌",
+      "Boots靴子",
+      "Mermaid美人鱼",
+      "Honey蜂蜜",
+      "Cats Rule the Earth Tarot猫咪塔罗牌",
+      "Hocus Pocus魔法",
+      "塔罗牌卡",
+      "猫咪形象",
+      "Andy Westface",
+      "彩虹元素",
+      "动物矢量插画",
+      "熊",
+      "浣熊",
+      "狐狸",
+      "鳄鱼",
+      "树懒",
+      "刺猬",
+      "长颈鹿",
+      "腊肠犬",
+      "巨嘴鸟",
+      "火烈鸟",
+      "孔雀",
+      "大象",
+      "考拉",
+      "AIMEE STEWART",
+      "Treasure Hunt Bookshelf奇幻书架",
+      "拼图艺术"
+    ],
+    "risk_level": "urgent",
+    "case_no": "26-cv-01216; 26-cv-01181; 26-cv-01178; 26-cv-01203",
+    "filed_date": "2026-02-03",
+    "notes": "PDF导入：Keith全新四起TRO来袭：警惕这42张高危版权图和1个商标词！.pdf",
+    "images": [
+      {
+        "name": "page1.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page2.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page3.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page4.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page5.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page6.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      }
+    ],
+    "createdAt": "2026-03-06T01:52:31.056Z"
+  },
+  {
+    "id": "1772762079271",
+    "plaintiff": "JONAS SEBASTIAN JODICKLE",
+    "works": [
+      "动物插画艺术作品",
+      "自然主题版画",
+      "狼主题艺术画",
+      "鹿主题艺术画",
+      "阴阳狮子艺术画"
+    ],
+    "style_description": "现代数字艺术风格，以神秘梦幻的动物肖像为主，特点是鲜艳的蓝色、紫色、橙色等强烈对比色彩，搭配宇宙星空、月亮、火焰等奇幻元素，动物形象具有灵性和神秘感",
+    "style_keywords": [
+      "梦幻动物肖像",
+      "宇宙星空背景",
+      "强烈对比色彩",
+      "蓝紫橙配色",
+      "神秘灵性动物",
+      "火焰光效",
+      "月亮元素",
+      "奇幻风格",
+      "数字艺术",
+      "狼鹿狮子肖像"
+    ],
+    "banned_elements": [
+      "JONAS SEBASTIAN JODICKLE品牌名称",
+      "蓝紫色调的狼艺术画",
+      "火焰冰霜对比元素的动物画",
+      "星空背景的动物肖像",
+      "发光眼睛的神秘动物形象",
+      "宇宙主题动物插画",
+      "阴阳对比的狮子图案",
+      "月亮元素的鹿插画"
+    ],
+    "risk_level": "urgent",
+    "case_no": "26-cv-207",
+    "filed_date": "2026-02-06",
+    "notes": "PDF导入：高尔夫握杆辅助器、可折叠宠物床、多功能梳妆台以及 Keith 版权画维权中！部分有名单速查！.pdf",
+    "images": [
+      {
+        "name": "page1.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page2.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page3.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page4.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page5.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page6.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      }
+    ],
+    "createdAt": "2026-03-06T01:54:39.271Z"
+  },
+  {
+    "id": "1772762571065",
+    "plaintiff": "VASYL DUDA (pen name: Dvarg), DMITRY BARKOV, DURAN DURAN Band, BINGSUN INC (MAWCLOS)",
+    "works": [
+      "VASYL DUDA flame-themed illustrations",
+      "DMITRY BARKOV romantic decorativism artworks",
+      "DURAN DURAN band trademarks and imagery",
+      "MAWCLOS branded apparel and footwear"
+    ],
+    "style_description": "VASYL DUDA作品以火焰元素为特征的数字插画；DMITRY BARKOV的浪漫装饰主义风格，灵感来源于世界各地装饰图案；DURAN DURAN乐队相关视觉元素和商标；MAWCLOS服装鞋类品牌商标",
+    "style_keywords": [
+      "火焰插画",
+      "彩色火焰动物",
+      "浪漫装饰主义",
+      "凯尔特纹样",
+      "神话图案",
+      "摇滚乐队视觉",
+      "80年代音乐风格",
+      "MAWCLOS商标",
+      "服装鞋帽品牌"
+    ],
+    "banned_elements": [
+      "VASYL DUDA",
+      "Dvarg",
+      "火焰龙插画",
+      "彩色火焰虎",
+      "火焰手势图案",
+      "彩虹色钢琴键",
+      "DMITRY BARKOV",
+      "FENRIR LOKI'S SON artwork",
+      "ODIN artwork",
+      "凯尔特装饰图案",
+      "DURAN DURAN",
+      "DURAN DURAN商标",
+      "乐队照片和标识",
+      "MAWCLOS",
+      "MAWCLOS商标",
+      "未授权使用上述任何受版权保护的插画或商标"
+    ],
+    "risk_level": "urgent",
+    "case_no": "25-cv-1844, 25-cv-1912, 25-cv-1275, 25-cv-5461",
+    "filed_date": "2025-11-29, 2025-12-09, 2025-11-21, 2025-09-22",
+    "notes": "PDF导入：六百多家店铺被告！最新商标、版权TRO案件合集预警，这些爆雷产品千万别碰！.pdf",
+    "images": [
+      {
+        "name": "page1.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page2.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page3.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page4.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page5.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      },
+      {
+        "name": "page6.jpg",
+        "elements": [],
+        "aiDesc": "整页",
+        "w": 0,
+        "h": 0,
+        "localB64": "[stripped]"
+      }
+    ],
+    "createdAt": "2026-03-06T02:02:51.119Z"
+  },
+  {
+    "id": "1772765306863",
+    "plaintiff": "Pan American World Airways, LLC",
+    "works": [
+      "PAN AM trademark",
+      "Pan Am blue globe logo",
+      "MindTraveler Barcelona fashion designs",
+      "Winnie Rosaline Kan animal illustrations",
+      "Tony Kelly photography works"
+    ],
+    "style_description": "泛美航空标志性蓝色地球标识；MindTraveler时尚服装设计，充满活力的冒险风格时装；Winnie Rosaline Kan以仓鼠和小宠物为主题的插画艺术；Tony Kelly专业艺术摄影作品",
+    "style_keywords": [
+      "航空公司标志",
+      "蓝色地球图案",
+      "时尚服装设计",
+      "条纹图案",
+      "格纹图案",
+      "动物插画",
+      "仓鼠",
+      "宠物艺术",
+      "专业摄影",
+      "滑雪主题摄影"
+    ],
+    "banned_elements": [
+      "PAN AM商标",
+      "泛美世界航空标志",
+      "蓝色地球标识",
+      "MindTraveler品牌服装产品图",
+      "Winnie Rosaline Kan动物插画",
+      "Tony Kelly摄影作品",
+      "服装产品图"
+    ],
+    "risk_level": "urgent",
+    "case_no": "26-cv-1266, 26-cv-1251, 26-cv-1245, 26-cv-175",
+    "filed_date": "2026-02-04",
+    "notes": "PDF导入：新旧势力合围！泛美世界航空商标 PAN AM 与 Keith 三案同步爆发，服装产品图成高危雷区！.pdf",
     "images": [],
-    "createdAt": "2026-03-09T09:33:51.661Z"
+    "createdAt": "2026-03-06T02:48:26.890Z"
+  },
+  {
+    "id": "1772765600136",
+    "plaintiff": "Kristin Mastoras, Leeza Hernandez, Olivier Le Queinec, Rebekah Leigh Marshall, Maria Hayden",
+    "works": [
+      "蝴蝶结图案插画",
+      "圣诞装饰蝴蝶结",
+      "条纹蝴蝶结插画",
+      "金色小狗图案",
+      "圣诞士兵装饰画",
+      "黑猫与植物盆栽插画系列",
+      "西部牛仔静物摄影",
+      "牛仔靴帽子静物组合",
+      "彩虹蛋鸡品种图谱",
+      "乡村公鸡插画",
+      "复古Pin-up风格招牌壁画"
+    ],
+    "style_description": "涉及多种风格：粉色蝴蝶结与圣诞装饰的温馨插画、黑猫与绿植的简约插画风格、西部牛仔复古摄影风格、英国乡村水彩手绘动物插画、美式复古Pin-up招牌设计",
+    "style_keywords": [
+      "蝴蝶结装饰",
+      "圣诞主题",
+      "黑猫与植物",
+      "西部牛仔",
+      "复古静物摄影",
+      "乡村公鸡",
+      "水彩手绘",
+      "复古招牌",
+      "Pin-up风格",
+      "金色小狗"
+    ],
+    "banned_elements": [
+      "Kristin Mastoras蝴蝶结系列图案",
+      "粉色蝴蝶结图案",
+      "圣诞装饰蝴蝶结",
+      "条纹蝴蝶结",
+      "金色小狗插画",
+      "Leeza Hernandez黑猫系列",
+      "黑猫与盆栽植物组合",
+      "Olivier Le Queinec西部牛仔摄影",
+      "牛仔靴帽子静物",
+      "Rebekah Leigh Marshall公鸡插画",
+      "彩虹蛋鸡品种图",
+      "乡村农场鸡群",
+      "Maria Hayden复古招牌",
+      "Snack Bar Menu招牌",
+      "Mom's Diner招牌",
+      "Tiki Bar招牌",
+      "Coffee招牌",
+      "Welcome Guests招牌",
+      "Dad's Garage招牌",
+      "Pizza Pies招牌"
+    ],
+    "risk_level": "urgent",
+    "case_no": "26-cv-00834, 26-cv-00835, 26-cv-00839, 26-cv-00836, 26-cv-00652",
+    "filed_date": "2025-01-26, 2026-01-26, 2026-01-21",
+    "notes": "PDF导入：又有28幅插画很危险！Keith律所全新五起版权案件来袭，卖家注意自查规避.pdf",
+    "images": [],
+    "createdAt": "2026-03-06T02:53:20.136Z"
   }
 ]
