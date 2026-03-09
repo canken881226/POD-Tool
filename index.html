@@ -1078,16 +1078,16 @@
         const isHome = cat==='家居';
         const catEn  = isHome ? 'home decor wall art stickers' : 'kids clothing apparel';
         if(sid===1) return {
-          sys:'You are a POD market research expert. Respond in Chinese. Output ONLY valid JSON, no markdown.',
-          usr:'Search Amazon and Etsy 2026 trends for '+catEn+' POD products. What patterns and elements are trending? Output ONLY this JSON: {"trending_elements":["元素1","元素2","元素3","元素4","元素5"],"trending_styles":["风格1","风格2","风格3"],"trending_colors":["配色1","配色2","配色3"],"summary":"一句话总结"}'
+          sys:'POD market research expert. Chinese. JSON only.',
+          usr:'Search Amazon Etsy 2026 '+catEn+' POD trends. Top elements, styles, colors. JSON: {"trending_elements":[5 items],"trending_styles":[3 items],"trending_colors":[3 items],"summary":"brief"}'
         };
         if(sid===2) return {
-          sys:'You are an Amazon POD sales analyst. Respond in Chinese. Output ONLY valid JSON, no markdown.',
-          usr:'Search Amazon bestsellers AND new arrivals for '+catEn+' POD products. Find: top selling elements, hot product title phrases (like "Funny Cat Mom Gift"), competitor new launch directions, market gaps. Output ONLY this JSON: {"hot_elements":["元素1","元素2","元素3"],"common_styles":["风格1","风格2"],"hot_titles":["热卖文案套路1","热卖文案套路2","热卖文案套路3"],"new_arrivals":["竞品新品方向1","竞品新品方向2","竞品新品方向3"],"market_gap":"市场空白机会","summary":"一句话总结"}'
+          sys:'Amazon POD sales analyst. Chinese. JSON only.',
+          usr:'Search Amazon bestsellers '+catEn+' POD. Hot elements, title patterns, market gaps. JSON: {"hot_elements":[3 items],"hot_titles":[3 items],"new_arrivals":[3 items],"market_gap":"brief","summary":"brief"}'
         };
         return {
-          sys:'You are a cross-category design researcher. Respond in Chinese. Output ONLY valid JSON, no markdown.',
-          usr:'Search top selling designs in '+cross+' for '+catEn+' POD inspiration. Output ONLY this JSON: {"universal_elements":["元素1","元素2","元素3"],"transferable_styles":["风格1","风格2"],"summary":"一句话总结"}'
+          sys:'Cross-category POD design researcher. Chinese. JSON only.',
+          usr:'Search top designs in '+cross+' for '+catEn+' POD inspiration. JSON: {"universal_elements":[3 items],"transferable_styles":[2 items],"summary":"brief"}'
         };
       }
 
@@ -1141,9 +1141,12 @@
           const errMsg=(r&&r.error)||'';
           const isRateLimit=errMsg.indexOf('429')>=0||errMsg.indexOf('rate_limit')>=0;
           if(isRateLimit && attempt<2){
-            const waitMs=60000*(attempt+1); // 60s, 120s
-            setStatus(function(prev){return {...prev,[sid]:'retrying'};});
-            await delay(waitMs);
+            const waitSec=attempt===0?90:150; // 90s first retry, 150s second
+            for(let t=waitSec;t>0;t--){
+              setStatus(function(prev){return {...prev,[sid]:'retrying('+t+'s)'};});
+              await delay(1000);
+            }
+            setStatus(function(prev){return {...prev,[sid]:'running'};});
           } else {
             return r;
           }
@@ -1185,11 +1188,13 @@
           const r=await runStepWithRetry(i);
           if(r&&!r.error) allR[i]=r;
           if(i<3){
-            // Visual countdown before next step
-            for(let t=60;t>0;t--){
+            // Wait 90s between steps to avoid rate limits
+            for(let t=90;t>0;t--){
               if(!S.g(SK+'_running')) break;
+              setStatus(function(prev){return {...prev,['wait']:t};});
               await delay(1000);
             }
+            setStatus(function(prev){const n={...prev};delete n['wait'];return n;});
           }
         }
         // 只有至少2步成功才自动生成汇总
@@ -1238,7 +1243,7 @@
             {/* 进度条 */}
             {(running||doneCount>0)&&<div style={{display:'flex',gap:6,marginTop:12}}>
               {steps.map(function(s){
-                const bg=status[s.id]==='done'?'rgba(255,255,255,0.9)':status[s.id]==='running'||status[s.id]==='retrying'?'rgba(255,255,255,0.5)':'rgba(255,255,255,0.2)';
+                const bg=status[s.id]==='done'?'rgba(255,255,255,0.9)':status[s.id]==='running'||status[s.id]==='retrying'||(status[s.id]&&status[s.id].startsWith('retrying('))?'rgba(255,255,255,0.5)':'rgba(255,255,255,0.2)';
                 return <div key={s.id} style={{flex:1,height:4,borderRadius:4,background:bg,transition:'background 0.5s'}}></div>;
               })}
             </div>}
