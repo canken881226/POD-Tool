@@ -878,6 +878,27 @@
 
       useEffect(function(){setPriorities(calculatePriorities());},[]);
 
+      // Global startup: sync cp_db banned words from GitHub so ALL users get latest data
+      useEffect(function(){
+        (async function(){
+          try {
+            var cfg=JSON.parse(localStorage.getItem('gh_config')||'{}');
+            if(cfg.owner&&cfg.repo&&cfg.token){
+              var url='https://api.github.com/repos/'+cfg.owner+'/'+cfg.repo+'/contents/cp_db.json';
+              var r=await fetch(url,{headers:{'Authorization':'token '+cfg.token,'Accept':'application/vnd.github.v3+json'}});
+              if(r.ok){
+                var d=await r.json();
+                var db=JSON.parse(atob(d.content.replace(/\n/g,'')));
+                if(db&&db.length>0){
+                  localStorage.setItem('cp_db',JSON.stringify(db));
+                  console.log('[Startup] cp_db synced from GitHub: '+db.length+' entries');
+                }
+              }
+            }
+          } catch(e){console.log('[Startup] cp_db sync skipped:',e.message);}
+        })();
+      },[]);
+
       function navTo(p){setPage(p);S.s('cur_page',p);}
       function switchCat(c){setCat(c);S.s('active_cat',c);}
       function addTask(task){const u=[...tasks,task];setTasks(u);S.s('confirmed_tasks',u);navTo('dashboard');}
@@ -1489,13 +1510,22 @@
           const si=c.indexOf('['),ei=c.lastIndexOf(']');
           if(si>=0&&ei>=0){
             const p=JSON.parse(c.slice(si,ei+1));
-            // Post-check: scan each combo for banned elements
+            // Post-check: REMOVE banned elements from combos (hard block, not just warn)
             const banList=getCpBanList().banned.map(function(b){return b.toLowerCase();});
+            function isBanned(el){
+              return banList.some(function(b){return b.length>1 && el.toLowerCase().indexOf(b)>=0;});
+            }
             const checkedP=p.map(function(combo){
-              const allEls=[...(combo.core_elements||[]),...(combo.trend_elements||[]),...(combo.connect_elements||[])];
-              const hits=allEls.filter(function(el){return banList.some(function(b){return el.toLowerCase().indexOf(b)>=0;});});
-              return hits.length>0?{...combo,_cpWarning:'包含疑似侵权元素：'+hits.join('、')}:combo;
+              const cleanCore=(combo.core_elements||[]).filter(function(el){return !isBanned(el);});
+              const cleanTrend=(combo.trend_elements||[]).filter(function(el){return !isBanned(el);});
+              const cleanConn=(combo.connect_elements||[]).filter(function(el){return !isBanned(el);});
+              const removed=(combo.core_elements||[]).concat(combo.trend_elements||[]).concat(combo.connect_elements||[]).filter(isBanned);
+              return {...combo,core_elements:cleanCore,trend_elements:cleanTrend,connect_elements:cleanConn,
+                _removedBanned:removed.length>0?removed:[]};
             });
+            // Alert if any were removed
+            const totalRemoved=checkedP.reduce(function(s,c){return s+(c._removedBanned||[]).length;},0);
+            if(totalRemoved>0) alert('⚠️ 已自动移除 '+totalRemoved+' 个侵权元素，方案已净化');
             setCombos(checkedP);upd('elementCombos',checkedP);setCustomInput('');
           }
           else alert('AI格式错误，请重试');
@@ -1647,9 +1677,12 @@
         const tTag=isHome?((homeCatEnName)+' '+(theme.en||theme.name||'')).trim():(ag==='newborn'?'NEWBORN':ag==='toddler'?'TODDLER':ag==='kids'?'KIDS':'YOUTH');
         const allP={};
         combos.forEach(function(combo){
-          const core=combo.core_elements||[];
-          const trend=combo.trend_elements||[];
-          const conn=combo.connect_elements||[];
+          // Final ban check before MJ generation - hard block
+          const _bans=getCpBanList().banned.map(function(b){return b.toLowerCase();});
+          function _isBanned(el){return _bans.some(function(b){return b.length>1&&el.toLowerCase().indexOf(b)>=0;});}
+          const core=(combo.core_elements||[]).filter(function(el){return !_isBanned(el);});
+          const trend=(combo.trend_elements||[]).filter(function(el){return !_isBanned(el);});
+          const conn=(combo.connect_elements||[]).filter(function(el){return !_isBanned(el);});
           const all=[...core,...trend,...conn];
           const colorStr=(combo.colors||[]).slice(0,3).join(', ')||'soft pastel colors';
           const ps=[];
@@ -1677,8 +1710,8 @@
               if(trend.length>0) els.push(trend[i%trend.length]);
               if(conn.length>0 && els.indexOf(conn[0])<0) els.push(conn[0]);
               const customPart=customEn?', '+customEn:'';
-              const banNote1=banStr?', avoid: '+banStr:'';
-              ps.push('/imagine prompt: '+els.join(', ')+', '+styleMod+', seamless repeating pattern, tileable, surface design'+customPart+banNote1+', '+colorStr+', FOR '+tTag+gMod+' apparel print, '+agCfg.size+' --ar 1:1 --tile --s '+agCfg.sty);
+              // NEVER put banned words in prompts - they would appear in the output
+              ps.push('/imagine prompt: '+els.join(', ')+', '+styleMod+', seamless repeating pattern, tileable, surface design'+customPart+', '+colorStr+', FOR '+tTag+gMod+' apparel print, '+agCfg.size+' --ar 1:1 --tile --s '+agCfg.sty);
             }
             for(let j=5;j<10;j++){
               const styleMod=STYLE_MODS[j];
@@ -1687,8 +1720,8 @@
               const support=all.length>1?all[(j+1)%all.length]:'';
               const customPart=customEn?', '+customEn:'';
               const singleMod='single '+hero+(support?', '+support:'')+', centered composition, isolated on white, NO background pattern';
-              const banNote2=banStr?', avoid: '+banStr:'';
-              ps.push('/imagine prompt: '+singleMod+', '+styleMod+customPart+banNote2+', '+colorStr+', FOR '+tTag+gMod+' apparel print, '+agCfg.size+' --ar 1:1 --s '+agCfg.sty);
+              // NEVER put banned words in prompts
+              ps.push('/imagine prompt: '+singleMod+', '+styleMod+customPart+', '+colorStr+', FOR '+tTag+gMod+' apparel print, '+agCfg.size+' --ar 1:1 --s '+agCfg.sty);
             }
           }
           allP[combo.name]=ps;
@@ -2619,20 +2652,22 @@
       // Load data from GitHub on first mount if localStorage empty
       useEffect(function(){
         async function initData() {
-          var local = S.g(CP_IMG_KEY)||[];
-          if(local.length === 0 && ghOwner && ghRepo) {
-            try {
-              var ghData = await loadJsonFromGitHub('cp_images_index.json');
-              if(ghData && ghData.length > 0) {
-                S.s(CP_IMG_KEY, ghData);
-                setCpImages(ghData);
-                console.log('Loaded '+ghData.length+' entries from GitHub');
-                // Also load cp_db
-                var ghDb = await loadJsonFromGitHub('cp_db.json');
-                if(ghDb && ghDb.length > 0) S.s('cp_db', ghDb);
-              }
-            } catch(e) { console.warn('GitHub load failed:', e.message); }
-          }
+          if(!ghOwner || !ghRepo) return;
+          try {
+            // Always pull latest from GitHub on startup - ensures all users see same data
+            var ghData = await loadJsonFromGitHub('cp_images_index.json');
+            if(ghData && ghData.length > 0) {
+              S.s(CP_IMG_KEY, ghData);
+              setCpImages(ghData);
+              console.log('[CP Sync] Loaded '+ghData.length+' entries from GitHub');
+            }
+            // Always sync cp_db (banned words) from GitHub
+            var ghDb = await loadJsonFromGitHub('cp_db.json');
+            if(ghDb && ghDb.length > 0) {
+              S.s('cp_db', ghDb);
+              console.log('[CP Sync] Banned words DB synced from GitHub: '+ghDb.length+' entries');
+            }
+          } catch(e) { console.warn('[CP Sync] GitHub load failed:', e.message); }
         }
         initData();
       }, []);
