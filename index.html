@@ -1704,27 +1704,51 @@
           const customNote=customEn?'\nExtra requirement: '+customEn:'';
           const seamlessSpec=isHome?(spec&&spec.seamless?'seamless repeating pattern, tileable':'single centered composition on clean background'):'';
 
+          var _tailFlag = isHome ? agCfg.ar+' --s '+agCfg.sty : agCfg.ar+' --s '+agCfg.sty;
+          var _p1to5spec = isHome
+            ? (spec&&spec.seamless ? 'seamless repeating pattern, tileable, surface design' : 'single centered composition, product design')
+            : 'seamless repeating pattern, tileable, surface design, --tile';
+          var _p6to10spec = isHome
+            ? 'single centered composition, product design, different style angle'
+            : 'single hero subject, centered composition, isolated on pure white background, NO pattern';
+
           const aiPrompt=
-            'You are a Midjourney expert generating 10 creative, diverse image prompts for a POD (print-on-demand) product.\n'
-            +'Product type: '+productCtx+'\n'
-            +(isHome?'Product item: '+homeCatEnName+'\n':'')
-            +'Design theme: '+(combo.nameCN||combo.name||'')+'\n'
-            +'Core elements (must include): '+core.join(', ')+'\n'
-            +'Trend elements (use selectively): '+trend.join(', ')+'\n'
-            +'Connecting elements: '+conn.join(', ')+'\n'
-            +'Color palette: '+colorStr+'\n'
-            +(customNote?customNote+'\n':'')
-            +'\nGenerate 10 VARIED Midjourney prompts. Rules:\n'
-            +'- Each prompt MUST start with: /imagine prompt:\n'
-            +'- Each must be visually distinct: vary composition, mood, element focus, level of detail\n'
-            +'- Prompts 1-5: '+(isHome?(spec&&spec.seamless?'seamless repeating pattern, tileable, surface design':'single composition product design'):'seamless pattern, tileable, surface design --tile')+'\n'
-            +'- Prompts 6-10: '+(isHome?'same as above but different style angle':'single hero subject, centered, isolated on white, NO background pattern')+'\n'
-            +'- Vary art styles across prompts: watercolor, flat vector, kawaii, folk art, geometric, vintage, boho, minimalist, painterly, pop art\n'
-            +'- Use specific, visual language: describe light, texture, composition, mood - not just element names\n'
-            +'- Colors: reference the palette but describe them evocatively (e.g. "dusty rose" not just "pink")\n'
-            +'- End each prompt with: '+agCfg.ar+' --s '+agCfg.sty+'\n'
-            +'- NO banned/trademarked content whatsoever\n'
-            +'\nOutput ONLY the 10 prompts, one per line, nothing else.';
+            'You are a professional Midjourney prompt writer for POD (print-on-demand) products.\n'
+            +'Your job is to write prompts that produce BEAUTIFUL, SELLABLE images - not keyword lists.\n\n'
+
+            +'PRODUCT CONTEXT:\n'
+            +'- Product: '+productCtx+(isHome?' / '+homeCatEnName:'')+' print design\n'
+            +'- Theme: '+(combo.nameCN||combo.name||'')+'\n'
+            +'- Design elements to work with: '+[...core,...trend,...conn].join(', ')+'\n'
+            +'- Color mood: '+colorStr+'\n'
+            +(customNote?'- Extra requirement: '+customNote+'\n':'')
+
+            +'\nTHE GOLDEN RULE - NEVER DO THIS:\n'
+            +'BAD: "flowers, butterflies, #FF69B4, #87CEEB, pop art style"\n'
+            +'This is just a keyword list. Midjourney needs to know WHAT THE IMAGE LOOKS LIKE.\n\n'
+
+            +'ALWAYS DO THIS INSTEAD - describe a real visual scene:\n'
+            +'GOOD: "a single oversized peony in full bloom, a delicate butterfly resting on its petal, soft blush pink petals catching warm light, pale sky blue background, bold graphic outlines, high contrast illustration"\n'
+            +'GOOD: "dense scattered wildflowers and dancing butterflies forming a repeating surface pattern, cotton candy pink and powder blue palette, clean flat vector shapes, playful and airy"\n\n'
+
+            +'HOW TO WRITE GREAT MJ PROMPTS:\n'
+            +'1. Paint a picture: describe what you SEE, not what things ARE\n'
+            +'2. Describe composition: is the subject centered? floating? clustered? scattered? diagonal?\n'
+            +'3. Describe light and mood: warm golden light / soft diffused glow / clean bright studio / dreamy haze\n'
+            +'4. Describe colors evocatively: "dusty mauve" not "purple", "butter yellow" not "yellow", "sage green" not "green"\n'
+            +'5. Describe art style with texture: "loose watercolor washes with visible brushstrokes" not just "watercolor"\n'
+            +'6. Each of the 10 prompts must feel like a COMPLETELY DIFFERENT visual concept\n\n'
+
+            +'GENERATE 10 PROMPTS:\n'
+            +'Prompts 1-5: '+_p1to5spec+'\n'
+            +'Prompts 6-10: '+_p6to10spec+'\n'
+            +'Each prompt ends with: '+_tailFlag+'\n'
+            +'Each prompt starts with: /imagine prompt:\n'
+            +'Vary across: composition angle, element focus, level of detail, lighting mood, art medium (watercolor/vector/folk art/geometric/painterly/kawaii/boho/vintage/minimalist/pop art)\n'
+            +'NO hex color codes in prompts - describe colors in words\n'
+            +'NO banned or trademarked content\n\n'
+
+            +'Output ONLY the 10 /imagine prompts, one per line, no numbering, no explanation.';
 
           try {
             const raw=await callClaudeAPI(aiPrompt,'Midjourney prompt expert. Output prompts only, one per line.');
