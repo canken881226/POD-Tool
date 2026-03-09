@@ -887,11 +887,27 @@
               var url='https://api.github.com/repos/'+cfg.owner+'/'+cfg.repo+'/contents/pod-data/cp_db.json';
               var r=await fetch(url,{headers:{'Authorization':'token '+cfg.token,'Accept':'application/vnd.github.v3+json'}});
               if(r.ok){
+                // GitHub has data - pull and overwrite local
                 var d=await r.json();
                 var db=JSON.parse(atob(d.content.replace(/\n/g,'')));
                 if(db&&db.length>0){
                   localStorage.setItem('cp_db',JSON.stringify(db));
                   console.log('[Startup] cp_db synced from GitHub: '+db.length+' entries');
+                }
+              } else if(r.status===404) {
+                // File doesn't exist yet - push local data to create it
+                var localDb=JSON.parse(localStorage.getItem('cp_db')||'[]');
+                if(localDb.length>0){
+                  var content=btoa(unescape(encodeURIComponent(JSON.stringify(localDb,null,2))));
+                  await fetch(url,{method:'PUT',headers:{'Authorization':'token '+cfg.token,'Content-Type':'application/json'},
+                    body:JSON.stringify({message:'Init cp_db.json',content:content})});
+                  console.log('[Startup] cp_db.json created on GitHub with '+localDb.length+' local entries');
+                } else {
+                  // No local data either - create empty file so directory exists
+                  var emptyContent=btoa('[]');
+                  await fetch(url,{method:'PUT',headers:{'Authorization':'token '+cfg.token,'Content-Type':'application/json'},
+                    body:JSON.stringify({message:'Init cp_db.json',content:emptyContent})});
+                  console.log('[Startup] cp_db.json initialized (empty) on GitHub');
                 }
               }
             }
@@ -1658,76 +1674,87 @@
       async function gen() {
         if(isHome && !homeSubcat) { alert('请先选择品类'); return; }
         setLoading(true);
-        // Translate custom input if needed
         const customEn = await translateCustom(mjCustom);
-        const cpBans = getCpBanList();
-        const banStr = cpBans.banned.slice(0,15).join(', ');
-        const banStyleStr = cpBans.styleKws.slice(0,8).join(', ');
         const ag=data.ageGroup||'toddler';const gd=data.gender||'unisex';
         const ageCfg={
-          newborn:{sty:180,size:'extra large centered design, 40% whitespace'},
-          toddler:{sty:160,size:'large centered design, 30% whitespace'},
-          kids:{sty:150,size:'bold medium design, 25% whitespace'},
-          youth:{sty:140,size:'dynamic design, 20% whitespace'}
+          newborn:{sty:180,size:'extra large centered design, 40% whitespace',ar:'--ar 1:1'},
+          toddler:{sty:160,size:'large centered design, 30% whitespace',ar:'--ar 1:1'},
+          kids:{sty:150,size:'bold medium design, 25% whitespace',ar:'--ar 1:1'},
+          youth:{sty:140,size:'dynamic design, 20% whitespace',ar:'--ar 1:1'}
         };
         const spec=isHome?getHomeCatSpec(homeSubcat):null;
-        const agCfg=isHome?{sty:200,size:'home decor composition'}:(ageCfg[ag]||ageCfg.toddler);
-        const gMod=isHome?'':gd==='boy'?', boys theme':gd==='girl'?', girls cute theme':'';
+        const agCfg=isHome?{sty:200,ar:spec?spec.arFlag:'--ar 1:1'}:(ageCfg[ag]||ageCfg.toddler);
+        const gMod=isHome?'':(gd==='boy'?'boys':(gd==='girl'?'girls':'kids'));
         const homeCatEnName=homeCatEN[homeSubcat]||homeSubcat;
-        const tTag=isHome?((homeCatEnName)+' '+(theme.en||theme.name||'')).trim():(ag==='newborn'?'NEWBORN':ag==='toddler'?'TODDLER':ag==='kids'?'KIDS':'YOUTH');
+        const productCtx=isHome
+          ?(homeCatEnName+' '+(theme.en||theme.name||'')).trim()
+          :(ag==='newborn'?'newborn':ag==='toddler'?'toddler':ag==='kids'?'kids':'youth')+' '+gMod+' apparel';
         const allP={};
-        combos.forEach(function(combo){
-          // Final ban check before MJ generation - hard block
+
+        // Generate for each combo using AI for creative, varied prompts
+        for(let ci=0;ci<combos.length;ci++){
+          const combo=combos[ci];
+          // Final ban check - hard block
           const _bans=getCpBanList().banned.map(function(b){return b.toLowerCase();});
           function _isBanned(el){return _bans.some(function(b){return b.length>1&&el.toLowerCase().indexOf(b)>=0;});}
           const core=(combo.core_elements||[]).filter(function(el){return !_isBanned(el);});
           const trend=(combo.trend_elements||[]).filter(function(el){return !_isBanned(el);});
           const conn=(combo.connect_elements||[]).filter(function(el){return !_isBanned(el);});
-          const all=[...core,...trend,...conn];
           const colorStr=(combo.colors||[]).slice(0,3).join(', ')||'soft pastel colors';
-          const ps=[];
-          if(isHome){
-            const arFlag=spec.arFlag;
-            const seamlessMod=spec.seamless
-              ?'seamless repeating pattern, surface design, tileable'
-              :'single isolated subject, centered composition, clean white background, product design';
-            for(let i=0;i<10;i++){
-              const styleMod=STYLE_MODS[i%STYLE_MODS.length];
-              const els=[];
-              // Rotate elements so each prompt features different main subject
-              if(all.length>0) els.push(all[i%all.length]);
-              if(all.length>1) els.push(all[(i+1)%all.length]);
-              if(conn.length>0 && els.indexOf(conn[0])<0) els.push(conn[0]);
-              const customPart=customEn?', '+customEn:'';
-              ps.push('/imagine prompt: '+els.join(', ')+', '+styleMod+', '+seamlessMod+customPart+', '+colorStr+', FOR '+tTag+' print product'+' '+arFlag+' --s '+agCfg.sty);
+          const customNote=customEn?'\nExtra requirement: '+customEn:'';
+          const seamlessSpec=isHome?(spec&&spec.seamless?'seamless repeating pattern, tileable':'single centered composition on clean background'):'';
+
+          const aiPrompt=
+            'You are a Midjourney expert generating 10 creative, diverse image prompts for a POD (print-on-demand) product.\n'
+            +'Product type: '+productCtx+'\n'
+            +(isHome?'Product item: '+homeCatEnName+'\n':'')
+            +'Design theme: '+(combo.nameCN||combo.name||'')+'\n'
+            +'Core elements (must include): '+core.join(', ')+'\n'
+            +'Trend elements (use selectively): '+trend.join(', ')+'\n'
+            +'Connecting elements: '+conn.join(', ')+'\n'
+            +'Color palette: '+colorStr+'\n'
+            +(customNote?customNote+'\n':'')
+            +'\nGenerate 10 VARIED Midjourney prompts. Rules:\n'
+            +'- Each prompt MUST start with: /imagine prompt:\n'
+            +'- Each must be visually distinct: vary composition, mood, element focus, level of detail\n'
+            +'- Prompts 1-5: '+(isHome?(spec&&spec.seamless?'seamless repeating pattern, tileable, surface design':'single composition product design'):'seamless pattern, tileable, surface design --tile')+'\n'
+            +'- Prompts 6-10: '+(isHome?'same as above but different style angle':'single hero subject, centered, isolated on white, NO background pattern')+'\n'
+            +'- Vary art styles across prompts: watercolor, flat vector, kawaii, folk art, geometric, vintage, boho, minimalist, painterly, pop art\n'
+            +'- Use specific, visual language: describe light, texture, composition, mood - not just element names\n'
+            +'- Colors: reference the palette but describe them evocatively (e.g. "dusty rose" not just "pink")\n'
+            +'- End each prompt with: '+agCfg.ar+' --s '+agCfg.sty+'\n'
+            +'- NO banned/trademarked content whatsoever\n'
+            +'\nOutput ONLY the 10 prompts, one per line, nothing else.';
+
+          try {
+            const raw=await callClaudeAPI(aiPrompt,'Midjourney prompt expert. Output prompts only, one per line.');
+            const lines=raw.split('\n').map(function(l){return l.trim();}).filter(function(l){return l.startsWith('/imagine');});
+            if(lines.length>=5){
+              allP[combo.name]=lines.slice(0,10);
+            } else {
+              // Fallback: manual construction if AI fails
+              const all=[...core,...trend,...conn];
+              const ps=[];
+              for(let i=0;i<10;i++){
+                const el=all[i%all.length]||core[0]||'';
+                const style=STYLE_MODS[i%STYLE_MODS.length];
+                const isSml=isHome?(spec&&spec.seamless):(i<5);
+                const mod=isSml?'seamless repeating pattern, tileable':'single '+el+', centered composition, isolated on white';
+                ps.push('/imagine prompt: '+el+', '+style+', '+mod+', '+colorStr+' '+agCfg.ar+' --s '+agCfg.sty);
+              }
+              allP[combo.name]=ps;
             }
-          } else {
-            // Kids: 5 seamless + 5 single subject
-            for(let i=0;i<5;i++){
-              const styleMod=STYLE_MODS[i];
-              const els=[];
-              if(core.length>0) els.push(core[i%core.length]);
-              if(trend.length>0) els.push(trend[i%trend.length]);
-              if(conn.length>0 && els.indexOf(conn[0])<0) els.push(conn[0]);
-              const customPart=customEn?', '+customEn:'';
-              // NEVER put banned words in prompts - they would appear in the output
-              ps.push('/imagine prompt: '+els.join(', ')+', '+styleMod+', seamless repeating pattern, tileable, surface design'+customPart+', '+colorStr+', FOR '+tTag+gMod+' apparel print, '+agCfg.size+' --ar 1:1 --tile --s '+agCfg.sty);
-            }
-            for(let j=5;j<10;j++){
-              const styleMod=STYLE_MODS[j];
-              // Single subject: pick one strong element as hero
-              const hero=all[j%all.length]||core[0]||'';
-              const support=all.length>1?all[(j+1)%all.length]:'';
-              const customPart=customEn?', '+customEn:'';
-              const singleMod='single '+hero+(support?', '+support:'')+', centered composition, isolated on white, NO background pattern';
-              // NEVER put banned words in prompts
-              ps.push('/imagine prompt: '+singleMod+', '+styleMod+customPart+', '+colorStr+', FOR '+tTag+gMod+' apparel print, '+agCfg.size+' --ar 1:1 --s '+agCfg.sty);
-            }
+          } catch(e) {
+            console.warn('AI prompt gen failed for '+combo.name+':',e.message);
+            allP[combo.name]=['生成失败，请重试'];
           }
-          allP[combo.name]=ps;
-        });
+
+          // Delay between combos to avoid rate limits
+          if(ci<combos.length-1) await new Promise(function(r){setTimeout(r,3000);});
+        }
+
         setPrompts(allP);upd('mjPrompts',allP);upd('homeSubcat',homeSubcat);
-        setMjCustom(''); // clear custom input after generation
+        setMjCustom('');
         setLoading(false);
       }
 
@@ -2654,18 +2681,30 @@
         async function initData() {
           if(!ghOwner || !ghRepo) return;
           try {
-            // Always pull latest from GitHub on startup - ensures all users see same data
+            // Pull cp_images_index from GitHub
             var ghData = await loadJsonFromGitHub('cp_images_index.json');
             if(ghData && ghData.length > 0) {
               S.s(CP_IMG_KEY, ghData);
               setCpImages(ghData);
               console.log('[CP Sync] Loaded '+ghData.length+' entries from GitHub');
+            } else {
+              // Push local if GitHub empty/missing
+              var localImgs=S.g(CP_IMG_KEY)||[];
+              if(localImgs.length>0) {
+                saveJsonToGitHub(localImgs,'cp_images_index.json').then(function(){console.log('[CP Sync] Pushed local images index to GitHub');});
+              }
             }
-            // Always sync cp_db (banned words) from GitHub
+            // Pull cp_db from GitHub
             var ghDb = await loadJsonFromGitHub('cp_db.json');
             if(ghDb && ghDb.length > 0) {
               S.s('cp_db', ghDb);
-              console.log('[CP Sync] Banned words DB synced from GitHub: '+ghDb.length+' entries');
+              console.log('[CP Sync] cp_db synced: '+ghDb.length+' entries');
+            } else {
+              // Push local cp_db if GitHub empty/missing
+              var localDb=S.g('cp_db')||[];
+              if(localDb.length>0) {
+                saveJsonToGitHub(localDb,'cp_db.json').then(function(){console.log('[CP Sync] Pushed local cp_db to GitHub');});
+              }
             }
           } catch(e) { console.warn('[CP Sync] GitHub load failed:', e.message); }
         }
@@ -2692,9 +2731,25 @@
       const [editEntry,setEditEntry]   = useState(null);
       const [deleteId,setDeleteId]     = useState(null);
 
-      function saveGhConfig() {
+      async function saveGhConfig() {
         S.s(GH_CFG_KEY,{token:ghToken,repo:ghRepo,owner:ghOwner});
-        setGhSaved(true); alert('GitHub配置已保存');
+        setGhSaved(true);
+        // Test token and auto-push local data
+        try {
+          var testUrl='https://api.github.com/repos/'+ghOwner+'/'+ghRepo;
+          var testR=await fetch(testUrl,{headers:{'Authorization':'token '+ghToken}});
+          if(!testR.ok){alert('⚠️ GitHub配置已保存，但Token验证失败（'+testR.status+'）\n请确认Token有repo权限且仓库名正确');return;}
+          alert('✅ GitHub配置已保存，Token验证成功！\n正在同步本地数据到GitHub...');
+          // Push any existing local data to GitHub
+          var localDb=S.g('cp_db')||[];
+          var localIdx=S.g(CP_IMG_KEY)||[];
+          var r1=await saveJsonToGitHub(localDb,'cp_db.json');
+          var r2=await saveJsonToGitHub(localIdx,'cp_images_index.json');
+          if(r1&&r2) alert('✅ 本地数据已同步到GitHub！\n共 '+localDb.length+' 条侵权记录');
+          else alert('⚠️ 部分数据同步失败，请点「手动同步GitHub」重试');
+        } catch(e) {
+          alert('✅ 配置已保存\n（Token测试失败：'+e.message+'）');
+        }
       }
 
       function persistImages(arr) {
@@ -3158,8 +3213,14 @@
                   if(!ghToken||!ghOwner||!ghRepo){alert('请先配置GitHub Token');return;}
                   var ok=await saveJsonToGitHub(data,'cp_images_index.json');
                   var db=S.g('cp_db')||[];
-                  await saveJsonToGitHub(db,'cp_db.json');
-                  alert(ok?'✅ 已手动同步到GitHub！\n路径: '+ghOwner+'/'+ghRepo+'/pod-data/cp_images_index.json':'❌ 同步失败，请检查Token和仓库权限');
+                  var ok2=await saveJsonToGitHub(db,'cp_db.json');
+                  if(ok&&ok2){
+                    alert('✅ 同步成功！\ncp_images_index: '+data.length+'条\ncp_db: '+db.length+'条');
+                  } else {
+                    var tr=await fetch('https://api.github.com/repos/'+ghOwner+'/'+ghRepo,{headers:{'Authorization':'token '+ghToken}});
+                    var tip=tr.ok?'仓库可访问，但写入失败\n→ Token可能缺少Contents写入权限':'仓库访问失败('+tr.status+')\n→ 检查Owner/Repo名称是否正确';
+                    alert('❌ 同步失败\n'+tip+'\n\n解决方法：\nGitHub → Settings → Developer settings\n→ Personal access tokens → 确认勾选 repo 全部权限');
+                  }
                 }}>☁️ 手动同步GitHub</button>
                 <button className="btn" style={{fontSize:11,padding:'4px 10px',background:'#f59e0b',color:'white'}} onClick={function(){
                   var data={cp_images_index:S.g(CP_IMG_KEY)||[],cp_db:S.g('cp_db')||[]};
