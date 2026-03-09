@@ -884,7 +884,7 @@
           try {
             var cfg=JSON.parse(localStorage.getItem('gh_config')||'{}');
             if(cfg.owner&&cfg.repo&&cfg.token){
-              var url='https://api.github.com/repos/'+cfg.owner+'/'+cfg.repo+'/contents/cp_db.json';
+              var url='https://api.github.com/repos/'+cfg.owner+'/'+cfg.repo+'/contents/pod-data/cp_db.json';
               var r=await fetch(url,{headers:{'Authorization':'token '+cfg.token,'Accept':'application/vnd.github.v3+json'}});
               if(r.ok){
                 var d=await r.json();
