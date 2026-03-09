@@ -1,0 +1,899 @@
+[
+  {
+    "id": "olga",
+    "artist": "Olga Zikova",
+    "law_firm": "Keith律所",
+    "case_no": "26-cv-00592",
+    "date": "2026-01",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "capybara",
+      "water pig",
+      "卡皮巴拉",
+      "水豚",
+      "happybara"
+    ],
+    "style_keywords": [
+      "japanese anime style",
+      "kawaii cute",
+      "thick outline",
+      "chibi animal"
+    ],
+    "style_description": "日系动漫风·厚描边·圆润水豚角色",
+    "notes": "284家店铺被起诉"
+  },
+  {
+    "id": "yee",
+    "artist": "Yee San Loh",
+    "law_firm": "",
+    "case_no": "",
+    "date": "2024",
+    "risk_level": "high",
+    "banned_elements": [
+      "custom illustrated characters"
+    ],
+    "style_keywords": [
+      "cute cartoon",
+      "chibi style"
+    ],
+    "style_description": "卡通大眼角色插画",
+    "notes": ""
+  },
+  {
+    "id": "arnie",
+    "artist": "Arnie Fisk",
+    "law_firm": "",
+    "case_no": "",
+    "date": "2024",
+    "risk_level": "high",
+    "banned_elements": [
+      "illustrated animals series"
+    ],
+    "style_keywords": [
+      "animal illustration"
+    ],
+    "style_description": "系列化动物角色插画",
+    "notes": ""
+  },
+  {
+    "id": "lv",
+    "artist": "Louis Vuitton / LVMH",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "louis vuitton",
+      "lv",
+      "LV",
+      "monogram",
+      "棋盘格纹",
+      "damier",
+      "经典花纹",
+      "交织字母LV",
+      "toile monogram"
+    ],
+    "style_keywords": [
+      "brown checkered",
+      "gold LV pattern",
+      "interlocking letters",
+      "棋盘格",
+      "monogram canvas"
+    ],
+    "style_description": "LV品牌名称·Monogram花纹·Damier棋盘格·交织字母图案",
+    "notes": "全球最高频侵权品牌之一"
+  },
+  {
+    "id": "hermes",
+    "artist": "Hermès",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "hermes",
+      "hermès",
+      "爱马仕",
+      "birkin",
+      "kelly",
+      "H扣",
+      "马蹄铁",
+      "橙色礼盒",
+      "hermes orange"
+    ],
+    "style_keywords": [
+      "horse carriage",
+      "马车图案",
+      "silk scarf pattern",
+      "H logo",
+      "orange box"
+    ],
+    "style_description": "爱马仕品牌名·H扣·马车图案·标志性橙色·丝巾印花风格",
+    "notes": ""
+  },
+  {
+    "id": "gucci",
+    "artist": "Gucci",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "gucci",
+      "双G",
+      "GG logo",
+      "绿红绿条纹",
+      "green red green",
+      "GG pattern",
+      "GG canvas"
+    ],
+    "style_keywords": [
+      "interlocking GG",
+      "green red stripe",
+      "bamboo handle style",
+      "gucci flora"
+    ],
+    "style_description": "Gucci品牌名·双G标志·绿红绿条纹·Flora花卉图案",
+    "notes": ""
+  },
+  {
+    "id": "chanel",
+    "artist": "Chanel",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "chanel",
+      "香奈儿",
+      "双C",
+      "CC logo",
+      "山茶花",
+      "camelia",
+      "chanel no.5"
+    ],
+    "style_keywords": [
+      "interlocking CC",
+      "camellia flower pattern",
+      "quilted pattern",
+      "pearl chain"
+    ],
+    "style_description": "Chanel品牌名·双C标志·山茶花图案·菱格纹",
+    "notes": ""
+  },
+  {
+    "id": "burberry",
+    "artist": "Burberry",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "burberry",
+      "博柏利",
+      "burberry check",
+      "驼色格纹",
+      "beige plaid",
+      "nova check"
+    ],
+    "style_keywords": [
+      "camel black red plaid",
+      "tartan check",
+      "burberry stripe",
+      "驼色黑红格"
+    ],
+    "style_description": "Burberry品牌名·驼色黑红格纹·Nova Check图案",
+    "notes": ""
+  },
+  {
+    "id": "supreme",
+    "artist": "Supreme",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "supreme",
+      "box logo",
+      "红白box logo",
+      "supreme red box"
+    ],
+    "style_keywords": [
+      "red rectangle white text",
+      "box logo style"
+    ],
+    "style_description": "Supreme品牌名·红色方框白字Box Logo",
+    "notes": ""
+  },
+  {
+    "id": "nike",
+    "artist": "Nike",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "nike",
+      "swoosh",
+      "just do it",
+      "耐克",
+      "nike logo"
+    ],
+    "style_keywords": [
+      "checkmark logo",
+      "swoosh shape",
+      "just do it slogan"
+    ],
+    "style_description": "Nike品牌名·Swoosh对勾图标·Just Do It口号",
+    "notes": ""
+  },
+  {
+    "id": "adidas",
+    "artist": "Adidas",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "adidas",
+      "三条纹",
+      "three stripes",
+      "三叶草",
+      "trefoil",
+      "adidas logo"
+    ],
+    "style_keywords": [
+      "three parallel stripes",
+      "trefoil clover logo",
+      "adidas wordmark"
+    ],
+    "style_description": "Adidas品牌名·三条纹·三叶草图标",
+    "notes": ""
+  },
+  {
+    "id": "jordan",
+    "artist": "Nike / Air Jordan",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "jordan",
+      "air jordan",
+      "jumpman",
+      "飞人乔丹",
+      "jumpman logo"
+    ],
+    "style_keywords": [
+      "jumping basketball player silhouette",
+      "air jordan wings"
+    ],
+    "style_description": "Jordan品牌名·Jumpman飞人剪影·Air Jordan翅膀标志",
+    "notes": ""
+  },
+  {
+    "id": "disney_mickey",
+    "artist": "Disney / Mickey Mouse",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "mickey mouse",
+      "米老鼠",
+      "mickey",
+      "minnie",
+      "minnie mouse",
+      "米妮",
+      "mickey ears",
+      "迪士尼"
+    ],
+    "style_keywords": [
+      "round mouse ears",
+      "red shorts white gloves yellow shoes cartoon mouse",
+      "black round ears headband",
+      "三圆形轮廓",
+      "大耳朵卡通鼠"
+    ],
+    "style_description": "米老鼠/米妮：大圆耳朵+红色短裤+白手套+黄鞋·三圆形剪影·耳朵发箍",
+    "notes": "迪士尼最严格保护IP"
+  },
+  {
+    "id": "disney_winnie",
+    "artist": "Disney / Winnie the Pooh",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "winnie the pooh",
+      "小熊维尼",
+      "pooh bear",
+      "tigger",
+      "跳跳虎",
+      "piglet",
+      "小猪",
+      "eeyore",
+      "屹耳"
+    ],
+    "style_keywords": [
+      "yellow chubby bear red shirt no pants",
+      "圆肚子黄色小熊红色上衣无裤子",
+      "hunny pot",
+      "蜂蜜罐"
+    ],
+    "style_description": "维尼熊：黄色圆肚+红色短上衣+无裤子·跳跳虎橙黑条纹·小猪粉色",
+    "notes": ""
+  },
+  {
+    "id": "disney_frozen",
+    "artist": "Disney / Frozen",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "frozen",
+      "冰雪奇缘",
+      "elsa",
+      "艾莎",
+      "anna",
+      "安娜",
+      "olaf",
+      "雪宝",
+      "sven"
+    ],
+    "style_keywords": [
+      "ice queen blonde braid",
+      "snowflake crystal pattern",
+      "冰雪花纹蓝色礼服",
+      "platinum braid"
+    ],
+    "style_description": "冰雪奇缘角色名称·艾莎冰蓝礼服+白金辫子·雪花水晶图案",
+    "notes": ""
+  },
+  {
+    "id": "disney_lion",
+    "artist": "Disney / The Lion King",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "lion king",
+      "狮子王",
+      "simba",
+      "辛巴",
+      "mufasa",
+      "木法沙",
+      "timon",
+      "彭彭",
+      "pumba"
+    ],
+    "style_keywords": [
+      "young lion cub cartoon",
+      "pride rock silhouette",
+      "hakuna matata"
+    ],
+    "style_description": "狮子王角色名称·卡通幼狮形象·骄傲岩石剪影",
+    "notes": ""
+  },
+  {
+    "id": "disney_mermaid",
+    "artist": "Disney / The Little Mermaid",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "little mermaid",
+      "小美人鱼",
+      "ariel",
+      "爱丽儿",
+      "ursula",
+      "乌苏拉"
+    ],
+    "style_keywords": [
+      "red hair mermaid purple shell bra",
+      "under the sea cartoon",
+      "红发美人鱼紫色贝壳"
+    ],
+    "style_description": "小美人鱼角色名称·红发+紫色贝壳比基尼美人鱼形象",
+    "notes": ""
+  },
+  {
+    "id": "disney_toystory",
+    "artist": "Disney Pixar / Toy Story",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "toy story",
+      "玩具总动员",
+      "woody",
+      "胡迪",
+      "buzz lightyear",
+      "巴斯光年",
+      "jessie",
+      "翠丝"
+    ],
+    "style_keywords": [
+      "cowboy toy cartoon",
+      "space ranger green white suit",
+      "pull string cowboy doll"
+    ],
+    "style_description": "玩具总动员角色名称·牛仔造型·宇宙骑警绿白太空服",
+    "notes": ""
+  },
+  {
+    "id": "disney_cars",
+    "artist": "Disney Pixar / Cars",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "cars",
+      "赛车总动员",
+      "lightning mcqueen",
+      "麦坤",
+      "mater",
+      "板牙"
+    ],
+    "style_keywords": [
+      "cartoon racing car with eyes",
+      "anthropomorphic car character",
+      "卡通赛车眼睛"
+    ],
+    "style_description": "赛车总动员角色名称·有眼睛的卡通赛车形象",
+    "notes": ""
+  },
+  {
+    "id": "disney_nemo",
+    "artist": "Disney Pixar / Finding Nemo",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "finding nemo",
+      "海底总动员",
+      "nemo",
+      "尼莫",
+      "dory",
+      "多莉"
+    ],
+    "style_keywords": [
+      "orange white clownfish cartoon",
+      "blue tang fish cartoon",
+      "小丑鱼卡通"
+    ],
+    "style_description": "海底总动员角色名称·橙白小丑鱼·蓝色拟刺尾鱼卡通形象",
+    "notes": ""
+  },
+  {
+    "id": "disney_incredibles",
+    "artist": "Disney Pixar / The Incredibles",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "incredibles",
+      "超人总动员",
+      "mr incredible",
+      "弹力女超人",
+      "violet",
+      "dash"
+    ],
+    "style_keywords": [
+      "superhero family cartoon",
+      "red black superhero suit",
+      "卡通超级英雄家庭"
+    ],
+    "style_description": "超人总动员角色名称·红黑色超级英雄家庭卡通形象",
+    "notes": ""
+  },
+  {
+    "id": "disney_starwars",
+    "artist": "Disney / Star Wars",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "star wars",
+      "星球大战",
+      "darth vader",
+      "达斯维达",
+      "yoda",
+      "尤达",
+      "lightsaber",
+      "光剑",
+      "r2d2",
+      "stormtrooper",
+      "冲锋队员",
+      "baby yoda",
+      "grogu",
+      "mandalorian"
+    ],
+    "style_keywords": [
+      "dark lord helmet black",
+      "green alien jedi master",
+      "laser sword",
+      "光剑形状",
+      "帝国标志"
+    ],
+    "style_description": "星球大战所有角色名称·达斯维达头盔·尤达绿色小老头·光剑·帝国标志",
+    "notes": ""
+  },
+  {
+    "id": "marvel",
+    "artist": "Marvel Entertainment / Disney",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "marvel",
+      "漫威",
+      "avengers",
+      "复仇者联盟",
+      "spider-man",
+      "蜘蛛侠",
+      "iron man",
+      "钢铁侠",
+      "captain america",
+      "美国队长",
+      "thor",
+      "雷神",
+      "hulk",
+      "绿巨人",
+      "black panther",
+      "黑豹",
+      "doctor strange",
+      "奇异博士",
+      "ant-man",
+      "蚁人",
+      "captain marvel",
+      "惊奇队长",
+      "guardians of the galaxy",
+      "银河护卫队",
+      "black widow",
+      "黑寡妇",
+      "hawkeye",
+      "鹰眼",
+      "deadpool",
+      "死侍",
+      "wolverine",
+      "金刚狼",
+      "x-men",
+      "X战警",
+      "thanos",
+      "灭霸"
+    ],
+    "style_keywords": [
+      "red blue spider web suit",
+      "iron armor suit cartoon",
+      "vibranium shield",
+      "蜘蛛网红蓝服",
+      "钢铁侠盔甲",
+      "美国队长盾牌圆形红白蓝"
+    ],
+    "style_description": "漫威所有角色名称·蜘蛛侠红蓝蜘蛛网服装·钢铁侠盔甲·美队圆形盾牌·灭霸紫色手套",
+    "notes": "漫威全系列，版权极严"
+  },
+  {
+    "id": "harry_potter",
+    "artist": "Warner Bros / Harry Potter",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "harry potter",
+      "哈利波特",
+      "hogwarts",
+      "霍格沃茨",
+      "hermione",
+      "赫敏",
+      "voldemort",
+      "伏地魔",
+      "dumbledore",
+      "dumbledore",
+      "gryffindor",
+      "griffindor",
+      "slytherin",
+      "hufflepuff",
+      "ravenclaw",
+      "quidditch",
+      "魔法扫帚",
+      "deathly hallows",
+      "死亡圣器"
+    ],
+    "style_keywords": [
+      "lightning bolt scar wizard",
+      "round glasses scar forehead",
+      "hogwarts castle",
+      "deathly hallows triangle",
+      "闪电疤痕男巫圆框眼镜",
+      "死亡圣器符号"
+    ],
+    "style_description": "哈利波特所有角色·霍格沃茨·四学院标志·死亡圣器符号·闪电疤痕巫师形象",
+    "notes": ""
+  },
+  {
+    "id": "looney_tunes",
+    "artist": "Warner Bros / Looney Tunes",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "bugs bunny",
+      "兔巴哥",
+      "daffy duck",
+      "达菲鸭",
+      "tweety",
+      "崔蒂",
+      "sylvester",
+      "汤姆猫",
+      "tom and jerry",
+      "猫和老鼠",
+      "jerry",
+      "杰瑞",
+      "road runner",
+      "looney tunes"
+    ],
+    "style_keywords": [
+      "grey rabbit big ears cartoon",
+      "yellow canary cartoon",
+      "black white cat cartoon"
+    ],
+    "style_description": "兔巴哥·达菲鸭·崔蒂·猫和老鼠等华纳经典卡通角色名称及形象",
+    "notes": ""
+  },
+  {
+    "id": "dc_comics",
+    "artist": "DC Comics / Warner Bros",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "batman",
+      "蝙蝠侠",
+      "superman",
+      "超人",
+      "wonder woman",
+      "神奇女侠",
+      "joker",
+      "小丑",
+      "aquaman",
+      "海王",
+      "flash",
+      "闪电侠",
+      "green lantern",
+      "绿灯侠",
+      "dc comics"
+    ],
+    "style_keywords": [
+      "bat symbol black",
+      "superman S logo",
+      "bat ears cowl",
+      "蝙蝠符号",
+      "超人S徽标"
+    ],
+    "style_description": "DC全系列角色·蝙蝠侠蝙蝠符号·超人S标志·神奇女侠星条图案",
+    "notes": ""
+  },
+  {
+    "id": "hello_kitty",
+    "artist": "Sanrio / Hello Kitty",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "hello kitty",
+      "凯蒂猫",
+      "sanrio",
+      "kitty白猫",
+      "my melody",
+      "美乐蒂",
+      "cinnamoroll",
+      "玉桂狗",
+      "pompompurin",
+      "布丁狗"
+    ],
+    "style_keywords": [
+      "white cat no mouth bow",
+      "无嘴白猫蝴蝶结",
+      "round white cat red bow"
+    ],
+    "style_description": "Hello Kitty：无嘴白猫+红色蝴蝶结·Sanrio所有角色名称及形象",
+    "notes": ""
+  },
+  {
+    "id": "snoopy",
+    "artist": "Peanuts / Snoopy",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "snoopy",
+      "史努比",
+      "charlie brown",
+      "查理布朗",
+      "woodstock",
+      "糊涂塌客",
+      "peanuts",
+      "花生漫画"
+    ],
+    "style_keywords": [
+      "white black beagle dog cartoon",
+      "red doghouse",
+      "flying ace beagle",
+      "白色黑耳朵猎犬卡通"
+    ],
+    "style_description": "史努比：白色+黑色耳朵斑点猎犬卡通形象·红色狗屋·花生漫画所有角色",
+    "notes": ""
+  },
+  {
+    "id": "pokemon",
+    "artist": "Nintendo / The Pokémon Company",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "pokemon",
+      "精灵宝可梦",
+      "pikachu",
+      "皮卡丘",
+      "charizard",
+      "喷火龙",
+      "eevee",
+      "伊布",
+      "gengar",
+      "耿鬼",
+      "snorlax",
+      "卡比兽",
+      "mewtwo",
+      "超梦",
+      "bulbasaur",
+      "妙蛙种子",
+      "squirtle",
+      "杰尼龟",
+      "pokeball",
+      "精灵球"
+    ],
+    "style_keywords": [
+      "yellow electric mouse cartoon",
+      "red cheeks thunder tail",
+      "round red white ball",
+      "黄色圆润电气鼠红腮红闪电尾巴",
+      "红白精灵球"
+    ],
+    "style_description": "皮卡丘：黄色圆润+红腮红+闪电尾巴·精灵球红白圆球·所有宝可梦角色名称",
+    "notes": "任天堂版权极严"
+  },
+  {
+    "id": "minions",
+    "artist": "Universal / Illumination",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "minion",
+      "小黄人",
+      "despicable me",
+      "神偷奶爸",
+      "gru",
+      "格鲁",
+      "kevin stuart bob"
+    ],
+    "style_keywords": [
+      "yellow capsule creature goggles overalls",
+      "黄色胶囊生物护目镜工装裤"
+    ],
+    "style_description": "小黄人：黄色椭圆体+护目镜+蓝色工装裤卡通形象·神偷奶爸角色",
+    "notes": ""
+  },
+  {
+    "id": "anime_db",
+    "artist": "Toei / Dragon Ball",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "urgent",
+    "banned_elements": [
+      "dragon ball",
+      "龙珠",
+      "goku",
+      "悟空",
+      "vegeta",
+      "贝吉塔",
+      "frieza",
+      "弗利萨",
+      "naruto",
+      "火影忍者",
+      "sasuke",
+      "佐助",
+      "one piece",
+      "海贼王",
+      "luffy",
+      "路飞",
+      "demon slayer",
+      "鬼灭之刃",
+      "tanjiro",
+      "炭治郎"
+    ],
+    "style_keywords": [
+      "spiky black hair power aura",
+      "super saiyan golden hair",
+      "ninja headband spiral",
+      "草帽海盗旗",
+      "锯齿状黑发战斗气场"
+    ],
+    "style_description": "龙珠·火影忍者·海贼王·鬼灭之刃等日本动漫所有角色名称及标志性外观",
+    "notes": ""
+  },
+  {
+    "id": "nba_nfl",
+    "artist": "NBA / NFL / Sports Leagues",
+    "law_firm": "",
+    "case_no": "",
+    "date": "",
+    "risk_level": "high",
+    "banned_elements": [
+      "nba",
+      "nfl",
+      "nhl",
+      "mlb",
+      "lakers",
+      "laker",
+      "bulls",
+      "warriors",
+      "yankees",
+      "patriots",
+      "所有NBA球队名",
+      "所有NFL球队名"
+    ],
+    "style_keywords": [
+      "professional sports team logo",
+      "league official logo"
+    ],
+    "style_description": "所有职业体育联盟名称·球队名称·球队Logo·球员姓名及号码",
+    "notes": "体育IP版权保护极强"
+  },
+  {
+    "id": "1773048831661",
+    "artist": "Olga Zikova",
+    "law_firm": "",
+    "case_no": "26-cv-00592、26-cv-00593",
+    "date": "2026-1-20",
+    "risk_level": "urgent",
+    "style_description": "可爱幽默的水豚插画风格，灵感来源于日本动漫，以友善的动物和日常生活片段为主题",
+    "notes": "PDF导入：284店被诉！Keith律所代理Olga Zikova水豚Capybara卡皮巴拉插画版权，速查店铺的图片是否“撞车”.pdf",
+    "banned_elements": [
+      "Olga Zikova",
+      "水豚插画",
+      "Capybara",
+      "卡皮巴拉",
+      "可爱水豚造型",
+      "圆润动物形象"
+    ],
+    "style_keywords": [
+      "水豚",
+      "卡皮巴拉",
+      "可爱动物",
+      "日系插画",
+      "幽默风格",
+      "卡通动物"
+    ]
+  }
+]
