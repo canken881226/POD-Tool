@@ -1845,7 +1845,7 @@
       if(!key) throw new Error('请先设置 Ideogram API Key');
       const workerUrl = getPodWorkerUrl();
       if(!workerUrl) throw new Error('请先设置 Worker URL');
-      const styleType = isText ? 'DESIGN' : 'ILLUSTRATION';
+      const styleType = isText ? 'DESIGN' : 'GENERAL';
       const resp = await fetch(workerUrl, {
         method: 'POST',
         headers: {
