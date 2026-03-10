@@ -1740,8 +1740,15 @@
 
           try {
             const raw=await callClaudeAPI(aiPrompt,'Midjourney prompt expert. Output prompts only, one per line.');
-            const lines=raw.split('\n').map(function(l){return l.trim();}).filter(function(l){return l.startsWith('/imagine');});
-            if(lines.length>=5){
+            const _bansRaw = getCpBanList().banned.map(function(b){return b.toLowerCase();});
+            const lines=raw.split('\n').map(function(l){return l.trim();})
+              .filter(function(l){
+                if(!l.startsWith('/imagine')) return false;
+                // 直接丢弃包含侵权词的整条咒语
+                const lLow = l.toLowerCase();
+                return !_bansRaw.some(function(b){return b.length>1&&lLow.indexOf(b)>=0;});
+              });
+            if(lines.length>=3){
               allP[combo.name]=lines.slice(0,10);
             } else {
               // Fallback: manual construction if AI fails
@@ -1752,7 +1759,10 @@
                 const style=STYLE_MODS[i%STYLE_MODS.length];
                 const isSml=isHome?(spec&&spec.seamless):(i<5);
                 const mod=isSml?'seamless repeating pattern, tileable':'single '+el+', centered composition, isolated on white';
-                ps.push('/imagine prompt: '+el+', '+style+', '+mod+', '+colorStr+' '+agCfg.ar+' --s '+agCfg.sty);
+                const candidate='/imagine prompt: '+el+', '+style+', '+mod+', '+colorStr+' '+agCfg.ar+' --s '+agCfg.sty;
+                const cLow=candidate.toLowerCase();
+                const hasBan=getCpBanList().banned.some(function(b){return b.length>1&&cLow.indexOf(b.toLowerCase())>=0;});
+                if(!hasBan) ps.push(candidate);
               }
               allP[combo.name]=ps;
             }
@@ -1819,7 +1829,7 @@
               <div style={{fontSize:11,padding:'6px 10px',background:'#f8fafc',borderRadius:6,color:'#64748b'}}>
                 {isHome&&specInfo?(specInfo.seamless?'🔲 无缝图':'🖼️ 非无缝图')+' · '+specInfo.ar+' · 共'+list.length+'条':'共'+list.length+'条咒语'}
               </div>
-              {(function(){const bans=getCpBanList().banned;const hits=bans.filter(function(b){return list.some(function(p){return p.toLowerCase().indexOf(b.toLowerCase())>=0;});});return hits.length>0?<div style={{padding:'6px 10px',background:'#fef2f2',borderRadius:6,border:'1px solid #fecaca'}}><span style={{fontSize:11,color:'#dc2626',fontWeight:700}}>⚠️ 咒语版权预警：</span><span style={{fontSize:11,color:'#dc2626'}}>{hits.join('、')}</span></div>:null;})()}
+              {null /* 侵权词已在生成阶段直接过滤，不展示警告 */}
               {list.map(function(p,i){
                 return <div key={i} className="code-block">
                   <div style={{color:'#94a3b8',fontSize:10,marginBottom:4}}>#{i+1} {isHome?(specInfo&&specInfo.seamless?'🔲 无缝图':'🖼️ 非无缝图'):(i<5?'🔲 无缝图':'🖼️ 单独图')}</div>
@@ -1840,12 +1850,13 @@
     const getIdeogramKey = function() { return localStorage.getItem('ideogram_api_key')||''; };
     const getPodWorkerUrl = function() { return localStorage.getItem('pod_worker_url')||''; };
 
-    async function ideogramGenerate(prompt, isText) {
+    async function ideogramGenerate(prompt, isText, aspectRatio) {
       const key = getIdeogramKey();
       if(!key) throw new Error('请先设置 Ideogram API Key');
       const workerUrl = getPodWorkerUrl();
       if(!workerUrl) throw new Error('请先设置 Worker URL');
       const styleType = isText ? 'DESIGN' : 'GENERAL';
+      const ar = aspectRatio || '1x1';
       const resp = await fetch(workerUrl, {
         method: 'POST',
         headers: {
@@ -1857,10 +1868,10 @@
           image_request: {
             prompt: prompt,
             model: 'V_3',
-            aspect_ratio: '1x1',
+            aspect_ratio: ar,
             style_type: styleType,
             magic_prompt_option: 'OFF',
-            num_images: 4
+            num_images: 2
           }
         })
       });
@@ -1873,18 +1884,26 @@
       return (data.data||[]).map(function(d){return d.url;});
     }
 
+    // 通过Worker下载图片为base64（解决跨域）
+    async function fetchImgViaWorker(imgUrl) {
+      const workerUrl = getPodWorkerUrl();
+      if(!workerUrl) throw new Error('无Worker URL');
+      const resp = await fetch(workerUrl, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','x-action':'fetch-image'},
+        body: JSON.stringify({url: imgUrl})
+      });
+      if(!resp.ok) throw new Error('Worker图片下载失败 '+resp.status);
+      const d = await resp.json();
+      if(d.error) throw new Error(d.error.message||'图片下载失败');
+      return d.b64; // base64 string
+    }
+
     async function scoreImageWithClaude(imgUrl, promptContext) {
       const apiKey = getApiKey();
-      if(!apiKey) return {score:50, reason:'无Claude Key，跳过评分'};
+      if(!apiKey) return {score:50, reason:'无Claude Key', verdict:'备选'};
       try {
-        // Fetch image as base64
-        const imgResp = await fetch(imgUrl);
-        const blob = await imgResp.blob();
-        const b64 = await new Promise(function(res){
-          const r = new FileReader();
-          r.onload = function(){res(r.result.split(',')[1]);};
-          r.readAsDataURL(blob);
-        });
+        const b64 = await fetchImgViaWorker(imgUrl);
         const scorePrompt =
           '你是POD印刷品质量评审专家。请评估这张图案的印刷适配性。\n\n'
           +'评分标准（满分100）：\n'
@@ -1936,62 +1955,127 @@
         return textMarkers.some(function(m){return p.indexOf(m)>=0;});
       }
 
+      // 清理MJ咒语为Ideogram可用的纯文本提示词
+      function cleanPrompt(p) {
+        return p.replace('/imagine prompt:','')
+          .replace(/--ar\s+\S+/g,'').replace(/--s\s+\d+/g,'')
+          .replace(/--v\s+\S+/g,'').replace(/--tile/g,'')
+          .replace(/--no\s+[^-]+/g,'').trim();
+      }
+
+      // Claude选出最优咒语（从候选列表里选1条）
+      async function pickBestPrompt(candidates, context) {
+        if(candidates.length===1) return candidates[0];
+        try {
+          const pickPrompt =
+            '你是POD图案设计专家。从以下Midjourney咒语中选出最适合Ideogram生成POD印刷图案的1条。\n'
+            +'选择标准：主体明确、构图清晰、适合印刷、无版权风险。\n'
+            +'图案主题：'+context+'\n\n'
+            +'候选咒语：\n'
+            +candidates.map(function(p,i){return (i+1)+'. '+p;}).join('\n')
+            +'\n\n只输出数字（1到'+candidates.length+'），不含其他内容。';
+          const raw = await callClaudeAPI(pickPrompt, 'POD expert. Output number only.');
+          const num = parseInt(raw.trim());
+          if(num>=1&&num<=candidates.length) return candidates[num-1];
+        } catch(e) {}
+        return candidates[0];
+      }
+
       async function runAll() {
         if(!getIdeogramKey()){alert('请先设置 Ideogram API Key');return;}
+        if(!getPodWorkerUrl()){alert('请先设置 Worker URL');return;}
         if(!combos.length){alert('没有找到图案方案，请返回上一步');return;}
         setLoading(true);
+        const isHome = cat==='家居';
         const results = {...genState};
 
         for(let ci=0; ci<combos.length; ci++){
           const combo = combos[ci];
           const name = combo.name;
-          const comboPrompts = prompts[name]||[];
-          // Pick best prompt - prefer single-subject (prompts 6-10, index 5-9)
-          const singlePrompts = comboPrompts.filter(function(p,i){return i>=5;});
-          const usePrompt = (singlePrompts[0]||comboPrompts[0]||'')
-            .replace('/imagine prompt:','').trim()
-            .replace(/--ar\s+\S+/g,'').replace(/--s\s+\d+/g,'').replace(/--v\s+\S+/g,'').replace(/--tile/g,'').trim();
+          const comboPrompts = (prompts[name]||[]).map(cleanPrompt).filter(function(p){return p.length>10;});
+          const context = combo.nameCN||name;
 
-          if(!usePrompt){
-            results[name]={status:'error',urls:[],scores:[],picks:{},error:'无可用提示词'};
+          if(!comboPrompts.length){
+            results[name]={status:'error',urls:[],scores:[],picks:{},groups:[],error:'无可用提示词，请返回上一步重新生成'};
             setGenState({...results});
             continue;
           }
 
-          setCurrentCombo(name);
-          results[name]={status:'generating',urls:[],scores:[],picks:{}};
+          setCurrentCombo(context);
+          results[name]={status:'generating',urls:[],scores:[],picks:{},groups:[]};
           setGenState({...results});
 
           try {
-            // Step1: Generate 4 images
-            const isText = isTextHeavy(usePrompt);
-            const urls = await ideogramGenerate(usePrompt, isText);
-            results[name]={status:'scoring',urls:urls,scores:[],picks:{}};
+            var allUrls=[], allScores=[], groups=[];
+
+            if(isHome) {
+              // 家居：全部咒语里Claude选2条，各生2张，共4张
+              const cand1 = comboPrompts.slice(0, Math.ceil(comboPrompts.length/2));
+              const cand2 = comboPrompts.slice(Math.ceil(comboPrompts.length/2));
+              const p1 = await pickBestPrompt(cand1.length?cand1:comboPrompts, context+'(主图)');
+              const p2 = await pickBestPrompt(cand2.length&&cand2[0]!==p1?cand2:comboPrompts.filter(function(p){return p!==p1;}), context+'(变体)');
+              results[name]={...results[name],status:'generating'};setGenState({...results});
+
+              const urls1 = await ideogramGenerate(p1, isTextHeavy(p1), '1x1');
+              allUrls = allUrls.concat(urls1.slice(0,2));
+              groups.push({label:'方案A',start:0,end:2});
+
+              const urls2 = await ideogramGenerate(p2, isTextHeavy(p2), '1x1');
+              allUrls = allUrls.concat(urls2.slice(0,2));
+              groups.push({label:'方案B',start:2,end:4});
+
+            } else {
+              // 服装：无缝图(0-4)选1条，单主体(5-9)选1条，各生2张
+              const seamlessPrompts = comboPrompts.filter(function(p,i){return i<5;});
+              const singlePrompts = comboPrompts.filter(function(p,i){return i>=5;});
+
+              const seamlessBest = seamlessPrompts.length
+                ? await pickBestPrompt(seamlessPrompts, context+'(无缝图)')
+                : null;
+              const singleBest = singlePrompts.length
+                ? await pickBestPrompt(singlePrompts, context+'(单主体)')
+                : await pickBestPrompt(comboPrompts, context);
+
+              if(seamlessBest) {
+                const urls1 = await ideogramGenerate(seamlessBest, isTextHeavy(seamlessBest), '1x1');
+                allUrls = allUrls.concat(urls1.slice(0,2));
+                groups.push({label:'🔲 无缝图',start:0,end:2});
+              }
+              const urls2 = await ideogramGenerate(singleBest, isTextHeavy(singleBest), '1x1');
+              const start = allUrls.length;
+              allUrls = allUrls.concat(urls2.slice(0,2));
+              groups.push({label:'🖼️ 单主体',start:start,end:start+2});
+            }
+
+            results[name]={...results[name],status:'scoring',urls:allUrls,groups:groups};
             setGenState({...results});
 
-            // Step2: Score each image with Claude
-            const scores = [];
-            for(let ui=0; ui<urls.length; ui++){
-              const sc = await scoreImageWithClaude(urls[ui], combo.nameCN||name);
-              scores.push(sc);
-              results[name]={...results[name],scores:[...scores]};
+            // 评分
+            for(let ui=0;ui<allUrls.length;ui++){
+              const sc = await scoreImageWithClaude(allUrls[ui], context);
+              allScores.push(sc);
+              results[name]={...results[name],scores:[...allScores]};
               setGenState({...results});
             }
 
-            // Step3: Pick best 2
-            const ranked = scores.map(function(s,i){return {idx:i,score:s.score||0};})
-              .sort(function(a,b){return b.score-a.score;});
-            const picks = {best:ranked[0]?ranked[0].idx:0, alt:ranked[1]?ranked[1].idx:1};
-            results[name]={status:'done',urls:urls,scores:scores,picks:picks};
+            // 每个group里选最高分
+            const picks = {};
+            groups.forEach(function(g){
+              const groupScores = allScores.slice(g.start,g.end).map(function(s,i){return {idx:g.start+i,score:s.score||0};});
+              groupScores.sort(function(a,b){return b.score-a.score;});
+              picks[g.label] = groupScores[0]?groupScores[0].idx:g.start;
+            });
+
+            results[name]={status:'done',urls:allUrls,scores:allScores,picks:picks,groups:groups};
             setGenState({...results});
             upd('ideogramResults', results);
 
           } catch(e) {
-            results[name]={status:'error',urls:[],scores:[],picks:{},error:e.message};
+            results[name]={status:'error',urls:[],scores:[],picks:{},groups:[],error:e.message};
             setGenState({...results});
           }
 
-          if(ci < combos.length-1) await new Promise(function(r){setTimeout(r,1500);});
+          if(ci < combos.length-1) await new Promise(function(r){setTimeout(r,2000);});
         }
 
         setLoading(false);
@@ -2005,8 +2089,11 @@
 
       async function downloadImage(url, filename) {
         try {
-          const resp = await fetch(url);
-          const blob = await resp.blob();
+          const b64 = await fetchImgViaWorker(url);
+          const byteChars = atob(b64);
+          const byteArr = new Uint8Array(byteChars.length);
+          for(let i=0;i<byteChars.length;i++) byteArr[i]=byteChars.charCodeAt(i);
+          const blob = new Blob([byteArr], {type:'image/png'});
           const a = document.createElement('a');
           a.href = URL.createObjectURL(blob);
           a.download = filename;
@@ -2123,57 +2210,57 @@
 
             {(r.status==='scoring'||r.status==='done') && r.urls.length>0 && (
               <div style={{padding:14}}>
-                {/* All 4 images grid */}
+                {/* 全部图片缩略图 */}
                 <div style={{fontSize:11,color:'#64748b',marginBottom:10,fontWeight:600}}>全部生成结果（{r.urls.length}张）</div>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14}}>
                   {r.urls.map(function(url,i){
                     const sc = r.scores[i];
-                    const isBest = r.status==='done' && r.picks.best===i;
-                    const isAlt = r.status==='done' && r.picks.alt===i;
+                    const groups = r.groups||[];
+                    const isPick = r.status==='done' && r.picks && Object.values(r.picks).indexOf(i)>=0;
+                    const groupOfThis = groups.find(function(g){return i>=g.start&&i<g.end;});
+                    const isGroupPick = r.status==='done' && groupOfThis && r.picks[groupOfThis.label]===i;
                     return <div key={i} style={{position:'relative',borderRadius:8,overflow:'hidden',
-                      border:'2px solid '+(isBest?'#10b981':isAlt?colors.ac:'#e2e8f0')}}>
+                      border:'2px solid '+(isGroupPick?'#10b981':isPick?colors.ac:'#e2e8f0')}}>
                       <img src={url} style={{width:'100%',aspectRatio:'1',objectFit:'cover',display:'block'}} />
                       {sc && <div style={{position:'absolute',bottom:0,left:0,right:0,
-                        background:'rgba(0,0,0,0.7)',padding:'4px 6px',fontSize:10,color:'white'}}>
+                        background:'rgba(0,0,0,0.75)',padding:'3px 5px',fontSize:9,color:'white'}}>
                         {sc.score}分 · {sc.reason||''}
                       </div>}
-                      {isBest && <div style={{position:'absolute',top:4,right:4,
-                        background:'#10b981',color:'white',fontSize:10,fontWeight:700,
-                        padding:'2px 6px',borderRadius:4}}>✦ 正选</div>}
-                      {isAlt && <div style={{position:'absolute',top:4,right:4,
-                        background:colors.ac,color:'white',fontSize:10,fontWeight:700,
-                        padding:'2px 6px',borderRadius:4}}>备选</div>}
+                      {isGroupPick && <div style={{position:'absolute',top:3,right:3,
+                        background:'#10b981',color:'white',fontSize:9,fontWeight:700,
+                        padding:'2px 5px',borderRadius:3}}>✦ 推荐</div>}
                     </div>;
                   })}
                 </div>
 
-                {/* Best 2 picks */}
-                {r.status==='done' && (
-                  <div>
-                    <div style={{fontSize:11,color:'#64748b',marginBottom:8,fontWeight:600}}>📌 Claude推荐下载</div>
-                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
-                      {[{label:'✦ 正选',idx:r.picks.best,color:'#10b981'},{label:'备选',idx:r.picks.alt,color:colors.ac}].map(function(pick){
-                        const url = r.urls[pick.idx];
-                        const sc = r.scores[pick.idx];
-                        if(!url) return null;
-                        return <div key={pick.label} style={{border:'2px solid '+pick.color,borderRadius:10,overflow:'hidden'}}>
-                          <img src={url} style={{width:'100%',aspectRatio:'1',objectFit:'cover',display:'block'}} />
-                          <div style={{padding:'10px 12px',background:'white'}}>
-                            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
-                              <span style={{fontWeight:700,fontSize:13,color:pick.color}}>{pick.label}</span>
-                              <span style={{fontSize:12,color:'#374151',fontWeight:700}}>{sc&&sc.score?sc.score+'分':''}</span>
-                            </div>
-                            {sc&&sc.reason&&<div style={{fontSize:11,color:'#64748b',marginBottom:8}}>{sc.reason}</div>}
-                            {sc&&sc.colors&&<div style={{fontSize:11,color:'#94a3b8',marginBottom:8}}>预估颜色：{sc.colors}</div>}
-                            <button onClick={function(){downloadImage(url,(combo.nameCN||name)+'_'+pick.label.replace('✦ ','')+'_'+Date.now()+'.png');}}
-                              style={{width:'100%',padding:'8px',background:pick.color,color:'white',
-                                border:'none',borderRadius:8,fontWeight:700,fontSize:12,cursor:'pointer'}}>
+                {/* 按group分组展示推荐 */}
+                {r.status==='done' && (r.groups||[]).length>0 && (
+                  <div style={{display:'flex',flexDirection:'column',gap:12}}>
+                    <div style={{fontSize:11,color:'#64748b',fontWeight:600}}>📌 Claude推荐下载</div>
+                    {(r.groups||[]).map(function(g){
+                      const pickIdx = r.picks[g.label];
+                      const url = r.urls[pickIdx];
+                      const sc = r.scores[pickIdx];
+                      if(!url) return null;
+                      return <div key={g.label} style={{border:'2px solid #10b981',borderRadius:10,overflow:'hidden'}}>
+                        <div style={{padding:'8px 12px',background:'#f0fdf4',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                          <span style={{fontWeight:700,fontSize:13,color:'#10b981'}}>{g.label}</span>
+                          <span style={{fontSize:12,color:'#374151',fontWeight:700}}>{sc&&sc.score?sc.score+'分':''}</span>
+                        </div>
+                        <div style={{display:'flex',gap:0}}>
+                          <img src={url} style={{width:120,height:120,objectFit:'cover',flexShrink:0}} />
+                          <div style={{padding:'10px 12px',flex:1,display:'flex',flexDirection:'column',justifyContent:'space-between'}}>
+                            {sc&&sc.reason&&<div style={{fontSize:11,color:'#64748b'}}>{sc.reason}</div>}
+                            {sc&&sc.colors&&<div style={{fontSize:11,color:'#94a3b8'}}>预估颜色：{sc.colors}</div>}
+                            <button onClick={function(){downloadImage(url,(combo.nameCN||name)+'_'+g.label.replace(/[🔲🖼️✦\s]/g,'')+'_'+Date.now()+'.png');}}
+                              style={{width:'100%',padding:'8px',background:'#10b981',color:'white',
+                                border:'none',borderRadius:8,fontWeight:700,fontSize:12,cursor:'pointer',marginTop:8}}>
                               ⬇ 下载高清图
                             </button>
                           </div>
-                        </div>;
-                      })}
-                    </div>
+                        </div>
+                      </div>;
+                    })}
                   </div>
                 )}
               </div>
@@ -2466,6 +2553,7 @@
       const [loadListing,setLoadListing] = useState(false);
       const [loadAplus,setLoadAplus] = useState(false);
       const [loadVideo,setLoadVideo] = useState(false);
+      const [listingCustom,setListingCustom] = useState(init.listingCustom||'');
 
       function persist(patch){S.s(SK,{...S.g(SK)||{},...patch});}
 
@@ -2568,6 +2656,7 @@
         const banWordsL=cpBansL.banned.slice(0,20).join(', ');
         const banStylesL=cpBansL.styleKws.slice(0,8).join(', ');
         const banNote=banWordsL?'STRICTLY FORBIDDEN - do NOT use anywhere: '+banWordsL+(banStylesL?'. Forbidden styles: '+banStylesL+'.'  :'.')+' ':'';
+        const customCtx=listingCustom.trim()?'\nIMPORTANT EXTRA CONTEXT (user-provided, prioritize this): '+listingCustom.trim():'';
         const imgInfos=images.map(function(img,idx){
           const cp=cpResults[idx];
           const parsed=(cp&&cp.parsed)||{};
@@ -2604,7 +2693,7 @@
           var _isKidsP = cat==='童装';
           var pp =
             'You are a senior Amazon copywriter. Write ONE parent ASIN title for a '+cat+' product.\n'
-            +'Sub-category: '+selCat+'. '+parentContext+'\n'
+            +'Sub-category: '+selCat+'. '+parentContext+customCtx+'\n'
             +'This parent title covers ALL design variants - do NOT include any specific pattern, character, or design name.\n\n'
             +'Template: [Core Keyword] [Key Spec] – for [Main Use Scene], [Core Benefit]\n'
             +(_isKidsP
@@ -2928,6 +3017,16 @@
           <div className="listing-panel">
             <PH num="2" icon="📝" title="文案生成" />
             {hasHighRisk&&<div style={{padding:'8px',background:'#fff7ed',borderRadius:6,fontSize:11,color:'#92400e',marginBottom:8}}>⚠️ 有高风险图案，建议先更换</div>}
+            {/* 自定义内容输入 */}
+            <div style={{background:'#f8fafc',borderRadius:8,padding:'10px 12px',marginBottom:10,border:'1px solid #e2e8f0'}}>
+              <div style={{fontWeight:700,fontSize:12,color:'#374151',marginBottom:6}}>✏️ 自定义补充信息（选填）</div>
+              <textarea value={listingCustom}
+                onChange={function(e){setListingCustom(e.target.value);persist({listingCustom:e.target.value});}}
+                placeholder="例如：图案主题是德克萨斯州徽章、蓝领工人文化；目标客群是墨西哥裔男性；关键词重点包含 Cinco de Mayo..."
+                style={{width:'100%',minHeight:56,padding:'7px 10px',borderRadius:6,border:'1px solid #d1d5db',
+                  fontSize:12,outline:'none',resize:'vertical',boxSizing:'border-box',color:'#374151'}} />
+              <div style={{fontSize:10,color:'#94a3b8',marginTop:3}}>💡 AI识图不准时，在这里手动补充图案主题、节日、受众等信息，优先融入文案</div>
+            </div>
             <div style={{display:'flex',gap:8,marginBottom:10,flexWrap:'wrap'}}>
               <button className="btn" onClick={runListing} disabled={loadListing||!images.length} style={{background:colors.ac,color:'white',flex:1,opacity:(loadListing||!images.length)?0.5:1}}>
                 {loadListing?'🔄 逐图生成中...':'📝 生成Listing（每图一条）'}
