@@ -1850,13 +1850,17 @@
     const getIdeogramKey = function() { return localStorage.getItem('ideogram_api_key')||''; };
     const getPodWorkerUrl = function() { return localStorage.getItem('pod_worker_url')||''; };
 
-    async function ideogramGenerate(prompt, isText, aspectRatio) {
+    async function ideogramGenerate(prompt, isSeamless, aspectRatio) {
       const key = getIdeogramKey();
       if(!key) throw new Error('请先设置 Ideogram API Key');
       const workerUrl = getPodWorkerUrl();
       if(!workerUrl) throw new Error('请先设置 Worker URL');
-      const styleType = isText ? 'DESIGN' : 'GENERAL';
       const ar = aspectRatio || '1x1';
+      // 服装POD统一用DESIGN风格：白底、扁平、印刷适配
+      // 无缝图加 seamless tile 提示到prompt里，Ideogram V3不支持--tile参数
+      const fullPrompt = isSeamless
+        ? prompt + ', seamless repeating pattern, tileable surface design, clean white background, flat vector illustration, print-ready'
+        : prompt + ', isolated on pure white background, flat vector illustration, print-ready, no background, centered composition';
       const resp = await fetch(workerUrl, {
         method: 'POST',
         headers: {
@@ -1866,11 +1870,12 @@
         },
         body: JSON.stringify({
           image_request: {
-            prompt: prompt,
+            prompt: fullPrompt,
             model: 'V_3',
             aspect_ratio: ar,
-            style_type: styleType,
+            style_type: 'DESIGN',
             magic_prompt_option: 'OFF',
+            rendering_speed: 'SLOW',
             num_images: 2
           }
         })
@@ -1904,19 +1909,36 @@
       if(!apiKey) return {score:50, reason:'无Claude Key', verdict:'备选'};
       try {
         const b64 = await fetchImgViaWorker(imgUrl);
-        const scorePrompt =
-          '你是POD印刷品质量评审专家。请评估这张图案的印刷适配性。\n\n'
-          +'评分标准（满分100）：\n'
-          +'- 颜色简洁（≤4色）：25分\n'
-          +'- 背景干净（纯白/透明）：20分\n'
-          +'- 边缘清晰无渐变：25分\n'
-          +'- 构图完整居中：15分\n'
-          +'- 街头服装视觉冲击力：15分\n\n'
-          +'图案背景：'+promptContext+'\n\n'
-          +'严格输出JSON格式，不含其他内容：\n'
-          +'{"score":85,"reason":"简短理由（15字内）","colors":"颜色数估计","verdict":"推荐/备选/不推荐"}';
-        const raw = await callClaudeWithImage(scorePrompt, 'data:image/jpeg;base64,'+b64, 'POD图案评审专家。JSON only.');
-        const match = raw.match(/\{[\s\S]*\}/);
+        // 直接调Claude API，不用callClaudeWithImage（避免格式问题）
+        const resp = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': apiKey,
+            'anthropic-version': '2023-06-01',
+            'anthropic-dangerous-direct-browser-access': 'true'
+          },
+          body: JSON.stringify({
+            model: 'claude-haiku-4-5-20251001',
+            max_tokens: 200,
+            system: 'POD图案评审专家。只输出JSON，不含其他内容。',
+            messages: [{
+              role: 'user',
+              content: [
+                {type:'image', source:{type:'base64', media_type:'image/png', data:b64}},
+                {type:'text', text:
+                  '评估这张图案的POD印刷适配性。\n'
+                  +'评分标准（满分100）：颜色简洁≤4色25分、背景纯白20分、边缘清晰25分、构图居中15分、视觉冲击力15分。\n'
+                  +'图案主题：'+promptContext+'\n'
+                  +'输出JSON：{"score":85,"reason":"简短理由15字内","colors":"颜色数","verdict":"推荐/备选/不推荐"}'
+                }
+              ]
+            }]
+          })
+        });
+        const d = await resp.json();
+        const text = (d.content&&d.content[0]&&d.content[0].text)||'';
+        const match = text.match(/\{[\s\S]*?\}/);
         if(match) return JSON.parse(match[0]);
         return {score:50, reason:'解析失败', verdict:'备选'};
       } catch(e) {
@@ -2016,11 +2038,11 @@
               const p2 = await pickBestPrompt(cand2.length&&cand2[0]!==p1?cand2:comboPrompts.filter(function(p){return p!==p1;}), context+'(变体)');
               results[name]={...results[name],status:'generating'};setGenState({...results});
 
-              const urls1 = await ideogramGenerate(p1, isTextHeavy(p1), '1x1');
+              const urls1 = await ideogramGenerate(p1, false, '1x1');
               allUrls = allUrls.concat(urls1.slice(0,2));
               groups.push({label:'方案A',start:0,end:2});
 
-              const urls2 = await ideogramGenerate(p2, isTextHeavy(p2), '1x1');
+              const urls2 = await ideogramGenerate(p2, false, '1x1');
               allUrls = allUrls.concat(urls2.slice(0,2));
               groups.push({label:'方案B',start:2,end:4});
 
@@ -2037,11 +2059,11 @@
                 : await pickBestPrompt(comboPrompts, context);
 
               if(seamlessBest) {
-                const urls1 = await ideogramGenerate(seamlessBest, isTextHeavy(seamlessBest), '1x1');
+                const urls1 = await ideogramGenerate(seamlessBest, true, '1x1');
                 allUrls = allUrls.concat(urls1.slice(0,2));
                 groups.push({label:'🔲 无缝图',start:0,end:2});
               }
-              const urls2 = await ideogramGenerate(singleBest, isTextHeavy(singleBest), '1x1');
+              const urls2 = await ideogramGenerate(singleBest, false, '1x1');
               const start = allUrls.length;
               allUrls = allUrls.concat(urls2.slice(0,2));
               groups.push({label:'🖼️ 单主体',start:start,end:start+2});
