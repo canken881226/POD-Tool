@@ -1372,10 +1372,10 @@
       const [step,setStep] = useState(0);
       const [data,setData] = useState(function(){return S.g(SK)||{};});
       function upd(k,v){setData(function(prev){const next={...prev,[k]:v};S.s(SK,next);return next;});}
-      const stepDefs=['人群&场景','选择主题','元素融合','MJ咒语','确认任务'];
+      const stepDefs=['人群&场景','选择主题','元素融合','生成提示词','AI生图筛选','确认任务'];
       function handleConfirm(task){S.s(SK,{});setData({});setStep(0);onConfirm(task);}
       const research = S.g('research_'+cat)||{};
-      const Comps=[WFStep0,WFStep1,WFStep2,WFStep3,WFStep4];
+      const Comps=[WFStep0,WFStep1,WFStep2,WFStep3,WFStep3b,WFStep4];
       const Comp=Comps[step];
       return (
         <div style={{display:'flex',flexDirection:'column',gap:16}}>
@@ -1399,7 +1399,7 @@
           </div>
           <div className="card">
             <Comp data={data} upd={upd} cat={cat} colors={colors} priorities={priorities} research={research}
-              onNext={function(){setStep(function(s){return Math.min(s+1,4);});}}
+              onNext={function(){setStep(function(s){return Math.min(s+1,5);});}}
               onBack={function(){setStep(function(s){return Math.max(s-1,0);});}}
               onConfirm={handleConfirm} />
           </div>
@@ -1832,6 +1832,324 @@
         })}
         {Object.keys(prompts).length>0&&<button className="btn" onClick={onNext} style={{background:colors.ac,color:'white',width:'100%'}}>下一步 →</button>}
         <button className="btn" onClick={onBack} style={{background:'#f1f5f9',color:'#475569',width:'100%'}}>← 上一步</button>
+      </div>;
+    }
+
+
+    // ── Ideogram API helpers ─────────────────────────────────────────
+    const getIdeogramKey = function() { return localStorage.getItem('ideogram_api_key')||''; };
+
+    async function ideogramGenerate(prompt, isText) {
+      const key = getIdeogramKey();
+      if(!key) throw new Error('请先设置 Ideogram API Key');
+      const styleType = isText ? 'DESIGN' : 'ILLUSTRATION';
+      const resp = await fetch('https://api.ideogram.ai/generate', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json','Api-Key':key},
+        body: JSON.stringify({
+          image_request: {
+            prompt: prompt,
+            model: 'V_3',
+            aspect_ratio: 'ASPECT_1_1',
+            style_type: styleType,
+            magic_prompt_option: 'OFF',
+            num_images: 4
+          }
+        })
+      });
+      if(!resp.ok) {
+        const e = await resp.json().catch(function(){return {};});
+        throw new Error((e.error||e.message||'HTTP '+resp.status));
+      }
+      const data = await resp.json();
+      return (data.data||[]).map(function(d){return d.url;});
+    }
+
+    async function scoreImageWithClaude(imgUrl, promptContext) {
+      const apiKey = getApiKey();
+      if(!apiKey) return {score:50, reason:'无Claude Key，跳过评分'};
+      try {
+        // Fetch image as base64
+        const imgResp = await fetch(imgUrl);
+        const blob = await imgResp.blob();
+        const b64 = await new Promise(function(res){
+          const r = new FileReader();
+          r.onload = function(){res(r.result.split(',')[1]);};
+          r.readAsDataURL(blob);
+        });
+        const scorePrompt =
+          '你是POD印刷品质量评审专家。请评估这张图案的印刷适配性。\n\n'
+          +'评分标准（满分100）：\n'
+          +'- 颜色简洁（≤4色）：25分\n'
+          +'- 背景干净（纯白/透明）：20分\n'
+          +'- 边缘清晰无渐变：25分\n'
+          +'- 构图完整居中：15分\n'
+          +'- 街头服装视觉冲击力：15分\n\n'
+          +'图案背景：'+promptContext+'\n\n'
+          +'严格输出JSON格式，不含其他内容：\n'
+          +'{"score":85,"reason":"简短理由（15字内）","colors":"颜色数估计","verdict":"推荐/备选/不推荐"}';
+        const raw = await callClaudeWithImage(scorePrompt, 'data:image/jpeg;base64,'+b64, 'POD图案评审专家。JSON only.');
+        const match = raw.match(/\{[\s\S]*\}/);
+        if(match) return JSON.parse(match[0]);
+        return {score:50, reason:'解析失败', verdict:'备选'};
+      } catch(e) {
+        return {score:50, reason:'评分出错:'+e.message.slice(0,20), verdict:'备选'};
+      }
+    }
+
+    // ── WFStep3b: Ideogram生图 + Claude评分筛选 ──────────────────────
+    function WFStep3b({data,upd,cat,colors,onNext,onBack}) {
+      const [ideogramKey, setIdeogramKey] = React.useState(getIdeogramKey());
+      const [keyEditing, setKeyEditing] = React.useState(!getIdeogramKey());
+      const [genState, setGenState] = React.useState(data.ideogramResults||{});
+      // {comboName: {status:'idle|generating|scoring|done|error', urls:[], scores:[], picks:{best,alt}}}
+      const [loading, setLoading] = React.useState(false);
+      const [currentCombo, setCurrentCombo] = React.useState('');
+      const combos = data.selectedCombos||[];
+      const prompts = data.mjPrompts||{};
+
+      function saveKey() {
+        if(!ideogramKey.trim()){alert('请输入 Ideogram API Key');return;}
+        localStorage.setItem('ideogram_api_key', ideogramKey.trim());
+        setKeyEditing(false);
+      }
+
+      // Detect if prompt is text-heavy (for DESIGN style) or illustration (ILLUSTRATION style)
+      function isTextHeavy(prompt) {
+        const textMarkers = ['typography','text','lettering','badge','slogan','made','born','proud','style'];
+        const p = prompt.toLowerCase();
+        return textMarkers.some(function(m){return p.indexOf(m)>=0;});
+      }
+
+      async function runAll() {
+        if(!getIdeogramKey()){alert('请先设置 Ideogram API Key');return;}
+        if(!combos.length){alert('没有找到图案方案，请返回上一步');return;}
+        setLoading(true);
+        const results = {...genState};
+
+        for(let ci=0; ci<combos.length; ci++){
+          const combo = combos[ci];
+          const name = combo.name;
+          const comboPrompts = prompts[name]||[];
+          // Pick best prompt - prefer single-subject (prompts 6-10, index 5-9)
+          const singlePrompts = comboPrompts.filter(function(p,i){return i>=5;});
+          const usePrompt = (singlePrompts[0]||comboPrompts[0]||'')
+            .replace('/imagine prompt:','').trim()
+            .replace(/--ar\s+\S+/g,'').replace(/--s\s+\d+/g,'').replace(/--v\s+\S+/g,'').replace(/--tile/g,'').trim();
+
+          if(!usePrompt){
+            results[name]={status:'error',urls:[],scores:[],picks:{},error:'无可用提示词'};
+            setGenState({...results});
+            continue;
+          }
+
+          setCurrentCombo(name);
+          results[name]={status:'generating',urls:[],scores:[],picks:{}};
+          setGenState({...results});
+
+          try {
+            // Step1: Generate 4 images
+            const isText = isTextHeavy(usePrompt);
+            const urls = await ideogramGenerate(usePrompt, isText);
+            results[name]={status:'scoring',urls:urls,scores:[],picks:{}};
+            setGenState({...results});
+
+            // Step2: Score each image with Claude
+            const scores = [];
+            for(let ui=0; ui<urls.length; ui++){
+              const sc = await scoreImageWithClaude(urls[ui], combo.nameCN||name);
+              scores.push(sc);
+              results[name]={...results[name],scores:[...scores]};
+              setGenState({...results});
+            }
+
+            // Step3: Pick best 2
+            const ranked = scores.map(function(s,i){return {idx:i,score:s.score||0};})
+              .sort(function(a,b){return b.score-a.score;});
+            const picks = {best:ranked[0]?ranked[0].idx:0, alt:ranked[1]?ranked[1].idx:1};
+            results[name]={status:'done',urls:urls,scores:scores,picks:picks};
+            setGenState({...results});
+            upd('ideogramResults', results);
+
+          } catch(e) {
+            results[name]={status:'error',urls:[],scores:[],picks:{},error:e.message};
+            setGenState({...results});
+          }
+
+          if(ci < combos.length-1) await new Promise(function(r){setTimeout(r,1500);});
+        }
+
+        setLoading(false);
+        setCurrentCombo('');
+        upd('ideogramResults', results);
+      }
+
+      const allDone = combos.length>0 && combos.every(function(c){
+        const r=genState[c.name]; return r&&(r.status==='done'||r.status==='error');
+      });
+
+      async function downloadImage(url, filename) {
+        try {
+          const resp = await fetch(url);
+          const blob = await resp.blob();
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = filename;
+          a.click();
+        } catch(e) { alert('下载失败，请右键图片另存为'); }
+      }
+
+      return <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>Step 5 — AI生图 & 自动筛选</div>
+
+        {/* Ideogram Key Setting */}
+        <div style={{background:'#f8fafc',borderRadius:10,padding:14,border:'2px solid '+(getIdeogramKey()?'#10b981':'#fde047')}}>
+          <div style={{fontWeight:700,fontSize:13,marginBottom:8,color:'#374151'}}>
+            🎨 Ideogram API Key
+            {getIdeogramKey()&&!keyEditing&&<span style={{color:'#10b981',marginLeft:8}}>✓ 已设置</span>}
+          </div>
+          {keyEditing ? (
+            <div style={{display:'flex',gap:8}}>
+              <input type="password" value={ideogramKey}
+                onChange={function(e){setIdeogramKey(e.target.value);}}
+                onKeyDown={function(e){if(e.key==='Enter')saveKey();}}
+                placeholder="ideogram api key..."
+                style={{flex:1,padding:'8px 12px',borderRadius:8,border:'1px solid #d1d5db',fontSize:13}} />
+              <button onClick={saveKey}
+                style={{padding:'8px 16px',background:colors.ac,color:'white',border:'none',borderRadius:8,fontWeight:700,cursor:'pointer'}}>
+                保存
+              </button>
+            </div>
+          ) : (
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <span style={{fontSize:12,color:'#64748b'}}>自动调用 Ideogram V3 生图，每方案4张，Claude自动评分选出最佳2张</span>
+              <button onClick={function(){setKeyEditing(true);}}
+                style={{fontSize:11,color:'#94a3b8',background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>
+                修改
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Generate Button */}
+        {!allDone && (
+          <button onClick={runAll} disabled={loading||!getIdeogramKey()}
+            style={{background:loading?'#94a3b8':colors.ac,color:'white',border:'none',borderRadius:10,
+              padding:'14px',fontSize:15,fontWeight:800,cursor:loading?'not-allowed':'pointer'}}>
+            {loading
+              ? (currentCombo ? '⏳ 正在处理：'+currentCombo+' ...' : '⏳ 处理中...')
+              : '🚀 一键生图 + 自动筛选（'+combos.length+'个方案）'}
+          </button>
+        )}
+
+        {/* Results */}
+        {combos.map(function(combo){
+          const name = combo.name;
+          const r = genState[name];
+          if(!r) return (
+            <div key={name} style={{border:'1px solid #e2e8f0',borderRadius:10,padding:14,color:'#94a3b8',fontSize:13}}>
+              <span style={{fontWeight:700,color:'#374151'}}>{combo.nameCN||name}</span> · 等待生成...
+            </div>
+          );
+
+          const statusMap = {generating:'⏳ 生图中...',scoring:'🔍 Claude评分中...',done:'✅ 完成',error:'❌ 出错'};
+          const statusColor = {generating:'#f59e0b',scoring:'#3b82f6',done:'#10b981',error:'#ef4444'};
+
+          return <div key={name} style={{border:'2px solid '+(r.status==='done'?colors.ac+'50':'#e2e8f0'),borderRadius:12,overflow:'hidden'}}>
+            {/* Header */}
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+              padding:'12px 16px',background:r.status==='done'?colors.ac+'15':'#f8fafc'}}>
+              <div style={{fontWeight:700,fontSize:15,color:colors.ac}}>{combo.nameCN||name}</div>
+              <span style={{fontSize:12,fontWeight:700,color:statusColor[r.status]||'#94a3b8'}}>
+                {statusMap[r.status]||'等待中'}
+              </span>
+            </div>
+
+            {r.status==='error' && (
+              <div style={{padding:14,background:'#fef2f2',color:'#dc2626',fontSize:12}}>
+                ❌ {r.error||'生成失败'}
+              </div>
+            )}
+
+            {(r.status==='generating') && (
+              <div style={{padding:20,textAlign:'center',color:'#94a3b8',fontSize:13}}>
+                ⏳ 正在调用 Ideogram V3 生成4张图片...
+              </div>
+            )}
+
+            {(r.status==='scoring'||r.status==='done') && r.urls.length>0 && (
+              <div style={{padding:14}}>
+                {/* All 4 images grid */}
+                <div style={{fontSize:11,color:'#64748b',marginBottom:10,fontWeight:600}}>全部生成结果（{r.urls.length}张）</div>
+                <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14}}>
+                  {r.urls.map(function(url,i){
+                    const sc = r.scores[i];
+                    const isBest = r.status==='done' && r.picks.best===i;
+                    const isAlt = r.status==='done' && r.picks.alt===i;
+                    return <div key={i} style={{position:'relative',borderRadius:8,overflow:'hidden',
+                      border:'2px solid '+(isBest?'#10b981':isAlt?colors.ac:'#e2e8f0')}}>
+                      <img src={url} style={{width:'100%',aspectRatio:'1',objectFit:'cover',display:'block'}} />
+                      {sc && <div style={{position:'absolute',bottom:0,left:0,right:0,
+                        background:'rgba(0,0,0,0.7)',padding:'4px 6px',fontSize:10,color:'white'}}>
+                        {sc.score}分 · {sc.reason||''}
+                      </div>}
+                      {isBest && <div style={{position:'absolute',top:4,right:4,
+                        background:'#10b981',color:'white',fontSize:10,fontWeight:700,
+                        padding:'2px 6px',borderRadius:4}}>✦ 正选</div>}
+                      {isAlt && <div style={{position:'absolute',top:4,right:4,
+                        background:colors.ac,color:'white',fontSize:10,fontWeight:700,
+                        padding:'2px 6px',borderRadius:4}}>备选</div>}
+                    </div>;
+                  })}
+                </div>
+
+                {/* Best 2 picks */}
+                {r.status==='done' && (
+                  <div>
+                    <div style={{fontSize:11,color:'#64748b',marginBottom:8,fontWeight:600}}>📌 Claude推荐下载</div>
+                    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
+                      {[{label:'✦ 正选',idx:r.picks.best,color:'#10b981'},{label:'备选',idx:r.picks.alt,color:colors.ac}].map(function(pick){
+                        const url = r.urls[pick.idx];
+                        const sc = r.scores[pick.idx];
+                        if(!url) return null;
+                        return <div key={pick.label} style={{border:'2px solid '+pick.color,borderRadius:10,overflow:'hidden'}}>
+                          <img src={url} style={{width:'100%',aspectRatio:'1',objectFit:'cover',display:'block'}} />
+                          <div style={{padding:'10px 12px',background:'white'}}>
+                            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                              <span style={{fontWeight:700,fontSize:13,color:pick.color}}>{pick.label}</span>
+                              <span style={{fontSize:12,color:'#374151',fontWeight:700}}>{sc&&sc.score?sc.score+'分':''}</span>
+                            </div>
+                            {sc&&sc.reason&&<div style={{fontSize:11,color:'#64748b',marginBottom:8}}>{sc.reason}</div>}
+                            {sc&&sc.colors&&<div style={{fontSize:11,color:'#94a3b8',marginBottom:8}}>预估颜色：{sc.colors}</div>}
+                            <button onClick={function(){downloadImage(url,(combo.nameCN||name)+'_'+pick.label.replace('✦ ','')+'_'+Date.now()+'.png');}}
+                              style={{width:'100%',padding:'8px',background:pick.color,color:'white',
+                                border:'none',borderRadius:8,fontWeight:700,fontSize:12,cursor:'pointer'}}>
+                              ⬇ 下载高清图
+                            </button>
+                          </div>
+                        </div>;
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>;
+        })}
+
+        {/* Navigation */}
+        {allDone && (
+          <button onClick={onNext}
+            style={{background:colors.ac,color:'white',border:'none',borderRadius:10,
+              padding:'14px',fontSize:15,fontWeight:800,cursor:'pointer',width:'100%'}}>
+            下一步 → 确认任务
+          </button>
+        )}
+        <button onClick={onBack}
+          style={{background:'#f1f5f9',color:'#475569',border:'none',borderRadius:10,
+            padding:'12px',fontSize:13,cursor:'pointer',width:'100%'}}>
+          ← 上一步（重新生成提示词）
+        </button>
       </div>;
     }
 
