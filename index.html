@@ -1838,14 +1838,21 @@
 
     // ── Ideogram API helpers ─────────────────────────────────────────
     const getIdeogramKey = function() { return localStorage.getItem('ideogram_api_key')||''; };
+    const getPodWorkerUrl = function() { return localStorage.getItem('pod_worker_url')||''; };
 
     async function ideogramGenerate(prompt, isText) {
       const key = getIdeogramKey();
       if(!key) throw new Error('请先设置 Ideogram API Key');
+      const workerUrl = getPodWorkerUrl();
+      if(!workerUrl) throw new Error('请先设置 Worker URL');
       const styleType = isText ? 'DESIGN' : 'ILLUSTRATION';
-      const resp = await fetch('https://api.ideogram.ai/generate', {
+      const resp = await fetch(workerUrl, {
         method: 'POST',
-        headers: {'Content-Type':'application/json','Api-Key':key},
+        headers: {
+          'Content-Type': 'application/json',
+          'x-action': 'ideogram-generate',
+          'x-ideogram-key': key
+        },
         body: JSON.stringify({
           image_request: {
             prompt: prompt,
@@ -1859,9 +1866,10 @@
       });
       if(!resp.ok) {
         const e = await resp.json().catch(function(){return {};});
-        throw new Error((e.error||e.message||'HTTP '+resp.status));
+        throw new Error((e.error&&e.error.message)||e.message||'HTTP '+resp.status);
       }
       const data = await resp.json();
+      if(data.error) throw new Error(data.error.message||JSON.stringify(data.error));
       return (data.data||[]).map(function(d){return d.url;});
     }
 
@@ -1901,6 +1909,8 @@
     function WFStep3b({data,upd,cat,colors,onNext,onBack}) {
       const [ideogramKey, setIdeogramKey] = React.useState(getIdeogramKey());
       const [keyEditing, setKeyEditing] = React.useState(!getIdeogramKey());
+      const [workerUrl, setWorkerUrl] = React.useState(getPodWorkerUrl());
+      const [workerEditing, setWorkerEditing] = React.useState(!getPodWorkerUrl());
       const [genState, setGenState] = React.useState(data.ideogramResults||{});
       // {comboName: {status:'idle|generating|scoring|done|error', urls:[], scores:[], picks:{best,alt}}}
       const [loading, setLoading] = React.useState(false);
@@ -1912,6 +1922,11 @@
         if(!ideogramKey.trim()){alert('请输入 Ideogram API Key');return;}
         localStorage.setItem('ideogram_api_key', ideogramKey.trim());
         setKeyEditing(false);
+      }
+      function saveWorker() {
+        if(!workerUrl.trim()){alert('请输入 Worker URL');return;}
+        localStorage.setItem('pod_worker_url', workerUrl.trim());
+        setWorkerEditing(false);
       }
 
       // Detect if prompt is text-heavy (for DESIGN style) or illustration (ILLUSTRATION style)
@@ -2031,9 +2046,38 @@
           )}
         </div>
 
+        {/* Worker URL Setting */}
+        <div style={{background:'#f8fafc',borderRadius:10,padding:14,border:'2px solid '+(getPodWorkerUrl()?'#10b981':'#fde047')}}>
+          <div style={{fontWeight:700,fontSize:13,marginBottom:8,color:'#374151'}}>
+            🔗 Cloudflare Worker URL
+            {getPodWorkerUrl()&&!workerEditing&&<span style={{color:'#10b981',marginLeft:8}}>✓ 已设置</span>}
+          </div>
+          {workerEditing ? (
+            <div style={{display:'flex',gap:8}}>
+              <input type="text" value={workerUrl}
+                onChange={function(e){setWorkerUrl(e.target.value);}}
+                onKeyDown={function(e){if(e.key==='Enter')saveWorker();}}
+                placeholder="https://pod-api-proxy.canken881226.workers.dev"
+                style={{flex:1,padding:'8px 12px',borderRadius:8,border:'1px solid #d1d5db',fontSize:12}} />
+              <button onClick={saveWorker}
+                style={{padding:'8px 16px',background:colors.ac,color:'white',border:'none',borderRadius:8,fontWeight:700,cursor:'pointer'}}>
+                保存
+              </button>
+            </div>
+          ) : (
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <span style={{fontSize:12,color:'#64748b'}}>{getPodWorkerUrl()}</span>
+              <button onClick={function(){setWorkerEditing(true);}}
+                style={{fontSize:11,color:'#94a3b8',background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>
+                修改
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Generate Button */}
         {!allDone && (
-          <button onClick={runAll} disabled={loading||!getIdeogramKey()}
+          <button onClick={runAll} disabled={loading||!getIdeogramKey()||!getPodWorkerUrl()}
             style={{background:loading?'#94a3b8':colors.ac,color:'white',border:'none',borderRadius:10,
               padding:'14px',fontSize:15,fontWeight:800,cursor:loading?'not-allowed':'pointer'}}>
             {loading
