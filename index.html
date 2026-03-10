@@ -887,27 +887,15 @@
               var url='https://api.github.com/repos/'+cfg.owner+'/'+cfg.repo+'/contents/pod-data/cp_db.json';
               var r=await fetch(url,{headers:{'Authorization':'token '+cfg.token,'Accept':'application/vnd.github.v3+json'}});
               if(r.ok){
-                // GitHub has data - pull and overwrite local
+                // GitHub has data - only pull if GitHub has MORE entries than local
                 var d=await r.json();
                 var db=JSON.parse(atob(d.content.replace(/\n/g,'')));
-                if(db&&db.length>0){
+                var localDb=JSON.parse(localStorage.getItem('cp_db')||'[]');
+                if(db&&db.length>0&&db.length>=localDb.length){
                   localStorage.setItem('cp_db',JSON.stringify(db));
                   console.log('[Startup] cp_db synced from GitHub: '+db.length+' entries');
-                }
-              } else if(r.status===404) {
-                // File doesn't exist yet - push local data to create it
-                var localDb=JSON.parse(localStorage.getItem('cp_db')||'[]');
-                if(localDb.length>0){
-                  var content=btoa(unescape(encodeURIComponent(JSON.stringify(localDb,null,2))));
-                  await fetch(url,{method:'PUT',headers:{'Authorization':'token '+cfg.token,'Content-Type':'application/json'},
-                    body:JSON.stringify({message:'Init cp_db.json',content:content})});
-                  console.log('[Startup] cp_db.json created on GitHub with '+localDb.length+' local entries');
-                } else {
-                  // No local data either - create empty file so directory exists
-                  var emptyContent=btoa('[]');
-                  await fetch(url,{method:'PUT',headers:{'Authorization':'token '+cfg.token,'Content-Type':'application/json'},
-                    body:JSON.stringify({message:'Init cp_db.json',content:emptyContent})});
-                  console.log('[Startup] cp_db.json initialized (empty) on GitHub');
+                } else if(localDb.length>db.length) {
+                  console.log('[Startup] Local cp_db ('+localDb.length+') > GitHub ('+db.length+'), keeping local');
                 }
               }
             }
@@ -2707,28 +2695,22 @@
           try {
             // Pull cp_images_index from GitHub
             var ghData = await loadJsonFromGitHub('cp_images_index.json');
-            if(ghData && ghData.length > 0) {
+            var localImgs=S.g(CP_IMG_KEY)||[];
+            if(ghData&&ghData.length>0&&ghData.length>=localImgs.length){
               S.s(CP_IMG_KEY, ghData);
               setCpImages(ghData);
               console.log('[CP Sync] Loaded '+ghData.length+' entries from GitHub');
-            } else {
-              // Push local if GitHub empty/missing
-              var localImgs=S.g(CP_IMG_KEY)||[];
-              if(localImgs.length>0) {
-                saveJsonToGitHub(localImgs,'cp_images_index.json').then(function(){console.log('[CP Sync] Pushed local images index to GitHub');});
-              }
+            } else if(localImgs.length>0) {
+              console.log('[CP Sync] Local images ('+localImgs.length+') >= GitHub ('+(ghData?ghData.length:0)+'), keeping local');
             }
-            // Pull cp_db from GitHub
+            // Pull cp_db - only if GitHub has more
             var ghDb = await loadJsonFromGitHub('cp_db.json');
-            if(ghDb && ghDb.length > 0) {
+            var localDb2=S.g('cp_db')||[];
+            if(ghDb&&ghDb.length>0&&ghDb.length>=localDb2.length){
               S.s('cp_db', ghDb);
               console.log('[CP Sync] cp_db synced: '+ghDb.length+' entries');
-            } else {
-              // Push local cp_db if GitHub empty/missing
-              var localDb=S.g('cp_db')||[];
-              if(localDb.length>0) {
-                saveJsonToGitHub(localDb,'cp_db.json').then(function(){console.log('[CP Sync] Pushed local cp_db to GitHub');});
-              }
+            } else if(localDb2.length>0) {
+              console.log('[CP Sync] Local cp_db ('+localDb2.length+') >= GitHub ('+(ghDb?ghDb.length:0)+'), keeping local');
             }
           } catch(e) { console.warn('[CP Sync] GitHub load failed:', e.message); }
         }
@@ -2758,21 +2740,17 @@
       async function saveGhConfig() {
         S.s(GH_CFG_KEY,{token:ghToken,repo:ghRepo,owner:ghOwner});
         setGhSaved(true);
-        // Test token and auto-push local data
+        // Only verify token - NEVER auto-push local data (would overwrite GitHub)
         try {
           var testUrl='https://api.github.com/repos/'+ghOwner+'/'+ghRepo;
           var testR=await fetch(testUrl,{headers:{'Authorization':'token '+ghToken}});
-          if(!testR.ok){alert('⚠️ GitHub配置已保存，但Token验证失败（'+testR.status+'）\n请确认Token有repo权限且仓库名正确');return;}
-          alert('✅ GitHub配置已保存，Token验证成功！\n正在同步本地数据到GitHub...');
-          // Push any existing local data to GitHub
-          var localDb=S.g('cp_db')||[];
-          var localIdx=S.g(CP_IMG_KEY)||[];
-          var r1=await saveJsonToGitHub(localDb,'cp_db.json');
-          var r2=await saveJsonToGitHub(localIdx,'cp_images_index.json');
-          if(r1&&r2) alert('✅ 本地数据已同步到GitHub！\n共 '+localDb.length+' 条侵权记录');
-          else alert('⚠️ 部分数据同步失败，请点「手动同步GitHub」重试');
+          if(!testR.ok){
+            alert('⚠️ GitHub配置已保存，但Token验证失败（'+testR.status+'）\n请确认Token有repo权限且仓库名正确');
+            return;
+          }
+          alert('✅ GitHub配置已保存，Token验证成功！\n刷新页面后将自动从GitHub同步最新数据。');
         } catch(e) {
-          alert('✅ 配置已保存\n（Token测试失败：'+e.message+'）');
+          alert('✅ 配置已保存（Token网络验证跳过）');
         }
       }
 
