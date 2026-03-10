@@ -1,1 +1,37 @@
-[]
+[
+  {
+    "id": "1773134111395",
+    "plaintiff": "Olga Zikova",
+    "works": [
+      "Capybara with a leaf",
+      "Halloween Capybara",
+      "Bee Cappy!",
+      "Snow Capybara",
+      "Happybara",
+      "Capybara with a pizza"
+    ],
+    "style_description": "可爱幽默的卡通插画风格，以友善的水豚动物为主题，灵感来源于日本动漫、旅行见闻与自然美景",
+    "style_keywords": [
+      "水豚",
+      "卡通",
+      "可爱",
+      "动物",
+      "日式风格",
+      "萌系"
+    ],
+    "banned_elements": [
+      "Olga Zikova",
+      "水豚插画",
+      "Capybara",
+      "卡皮巴拉",
+      "萌系水豚",
+      "可爱动物"
+    ],
+    "risk_level": "urgent",
+    "case_no": "26-cv-00592、26-cv-00593",
+    "filed_date": "2026-1-20",
+    "notes": "PDF导入：284店被诉！Keith律所代理Olga Zikova水豚Capybara卡皮巴拉插画版权，速查店铺的图片是否“撞车”.pdf",
+    "images": [],
+    "createdAt": "2026-03-10T09:15:11.395Z"
+  }
+]
