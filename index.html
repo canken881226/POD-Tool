@@ -1485,11 +1485,28 @@
     }
 
     function WFStep1({data,upd,colors,priorities,onNext,onBack}) {
+      const [customTheme, setCustomTheme] = React.useState(data.theme&&data.theme.isCustom?data.theme.name:'');
+      const isCustomSel = data.theme&&data.theme.isCustom;
+
+      function selectCustomTheme() {
+        const t = customTheme.trim();
+        if(!t){alert('请输入自定义主题');return;}
+        // 构造一个自定义theme对象，跟系统主题格式兼容
+        upd('theme',{
+          name: t,
+          en: t,
+          emoji: '✏️',
+          isCustom: true,
+          key: 'custom_'+t
+        });
+        setTimeout(onNext, 180);
+      }
+
       return <div style={{display:'flex',flexDirection:'column',gap:12}}>
         <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>Step 2 — 选择主题</div>
         <div style={{fontSize:13,color:'#64748b'}}>系统已按节日紧急度、季节窗口、常青轮换自动排序</div>
         {priorities.slice(0,9).map(function(p,i){
-          const isSel=data.theme&&(data.theme.key===p.theme.key||data.theme.id===p.theme.id);
+          const isSel=data.theme&&!data.theme.isCustom&&(data.theme.key===p.theme.key||data.theme.id===p.theme.id);
           const bc=p.urgency>=9?'#ef4444':p.urgency>=7?'#f97316':p.urgency>=5?'#3b82f6':'#10b981';
           const bg=p.urgency>=9?'#fef2f2':p.urgency>=7?'#fff7ed':p.urgency>=5?'#eff6ff':'#f0fdf4';
           return <div key={i} onClick={function(){upd('theme',p.theme);setTimeout(onNext,180);}}
@@ -1502,6 +1519,35 @@
             <UrgBadge urgency={p.urgency} />
           </div>;
         })}
+
+        {/* 自定义主题输入 */}
+        <div style={{marginTop:4,padding:14,borderRadius:10,
+          border:'2px solid '+(isCustomSel?colors.ac:'#e2e8f0'),
+          background:isCustomSel?colors.ac+'08':'#f8fafc'}}>
+          <div style={{fontWeight:700,fontSize:13,color:'#374151',marginBottom:8}}>
+            ✏️ 自定义主题
+            {isCustomSel&&<span style={{marginLeft:8,color:colors.ac,fontSize:12}}>✓ 已选择：{data.theme.name}</span>}
+          </div>
+          <div style={{display:'flex',gap:8}}>
+            <input
+              type="text"
+              value={customTheme}
+              onChange={function(e){setCustomTheme(e.target.value);}}
+              onKeyDown={function(e){if(e.key==='Enter')selectCustomTheme();}}
+              placeholder="输入主题，例如：Familia Forever、拉丁鹰徽、蓝领工人、Cinco de Mayo..."
+              style={{flex:1,padding:'9px 12px',borderRadius:8,border:'1px solid #d1d5db',
+                fontSize:13,outline:'none',boxSizing:'border-box'}} />
+            <button onClick={selectCustomTheme}
+              style={{padding:'9px 20px',background:colors.ac,color:'white',border:'none',
+                borderRadius:8,fontWeight:700,fontSize:13,cursor:'pointer',whiteSpace:'nowrap'}}>
+              选择并继续 →
+            </button>
+          </div>
+          <div style={{fontSize:11,color:'#94a3b8',marginTop:6}}>
+            💡 支持中英文，AI会基于此主题自动生成元素组合方案
+          </div>
+        </div>
+
         <button className="btn" onClick={onBack} style={{background:'#f1f5f9',color:'#475569',width:'100%'}}>← 上一步</button>
       </div>;
     }
@@ -1522,10 +1568,13 @@
         const ageInfo=cat==='家居'
           ?'适用空间：'+(data.rooms||[]).join('、')+'，氛围：'+(data.homeAtm||[]).join('、')
           :'年龄：'+(data.ageGroup||'toddler')+'，性别：'+(data.gender||'通用')+'，场景：'+(data.scenes||[]).join('、');
+        const isCustomTheme = !!(data.theme&&data.theme.isCustom);
         const parts=[
           '你是'+cat+' POD爆款图案设计专家。',
           '目标：'+themeKey+'主题，'+cat+'品类，'+ageInfo,
-          '【主题热卖元素】'+JSON.stringify(themeElems.hot)+'，避免：'+JSON.stringify(themeElems.avoid),
+          isCustomTheme
+            ? '【自定义主题说明】这是用户自定义主题"'+themeKey+'"，请深入理解该主题的文化内涵、目标受众、视觉特征，自由发挥生成最适合的元素组合。'
+            : '【主题热卖元素】'+JSON.stringify(themeElems.hot)+'，避免：'+JSON.stringify(themeElems.avoid),
           '【市调流行元素】'+JSON.stringify(r1.trending_elements||[]),
           '【市调流行风格】'+JSON.stringify(r1.trending_styles||[]),
           '【市调流行配色】'+JSON.stringify(r1.trending_colors||[]),
