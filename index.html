@@ -1371,14 +1371,15 @@
     // ════════════════════════════════════════════════════════════════
     function PageWorkflow({cat,colors,priorities,onConfirm}) {
       const SK='workflow_'+cat;
-      const [step,setStep] = useState(0);
+      const [step,setStep] = useState(function(){return S.g(SK+'_step')||0;});
       const [data,setData] = useState(function(){return S.g(SK)||{};});
       function upd(k,v){setData(function(prev){const next={...prev,[k]:v};S.s(SK,next);return next;});}
+      function goStep(n){setStep(n);S.s(SK+'_step',n);}
       const stepDefs=['人群&场景','选择主题','元素融合','生成提示词','AI生图筛选','确认任务'];
-      function handleConfirm(task){S.s(SK,{});setData({});setStep(0);onConfirm(task);}
+      function handleConfirm(task){S.s(SK,{});S.s(SK+'_step',0);setData({});goStep(0);onConfirm(task);}
       function resetAll(){
         if(!window.confirm('清除当前所有进度，重新开始？')) return;
-        S.s(SK,{});setData({});setStep(0);
+        S.s(SK,{});S.s(SK+'_step',0);setData({});goStep(0);
       }
       const hasHistory = Object.keys(S.g(SK)||{}).length > 0;
       const research = S.g('research_'+cat)||{};
@@ -1406,7 +1407,7 @@
                 const dotBorder=active?'2px solid '+colors.ac:'none';
                 return <div key={i} style={{display:'flex',alignItems:'center'}}>
                   <div style={{display:'flex',flexDirection:'column',alignItems:'center',cursor:i<=step?'pointer':'default'}}
-                    onClick={function(){if(i<=step)setStep(i);}}>
+                    onClick={function(){if(i<=step)goStep(i);}}>
                     <div className="step-dot" style={{background:dotBg,color:dotC,border:dotBorder}}>{done?'✓':i+1}</div>
                     <div style={{fontSize:10,marginTop:4,color:active?colors.ac:'#94a3b8',fontWeight:active?700:400,whiteSpace:'nowrap'}}>{label}</div>
                   </div>
@@ -1932,9 +1933,9 @@
     const getPodWorkerUrl = function() { return localStorage.getItem('pod_worker_url')||''; };
 
     async function ideogramGenerate(prompt, isSeamless, aspectRatio, modelVer) {
-      const key = getIdeogramKey();
+      const key = localStorage.getItem('ideogram_api_key')||'';
       if(!key) throw new Error('请先设置 Ideogram API Key');
-      const workerUrl = getPodWorkerUrl();
+      const workerUrl = localStorage.getItem('pod_worker_url')||'';
       if(!workerUrl) throw new Error('请先设置 Worker URL');
       const ar = aspectRatio || '1x1';
       // 服装POD统一用DESIGN风格：白底、扁平、印刷适配
@@ -1972,7 +1973,7 @@
 
     // 通过Worker下载图片为base64（解决跨域）
     async function fetchImgViaWorker(imgUrl) {
-      const workerUrl = getPodWorkerUrl();
+      const workerUrl = localStorage.getItem('pod_worker_url')||'';
       if(!workerUrl) throw new Error('无Worker URL');
       const resp = await fetch(workerUrl, {
         method: 'POST',
@@ -2165,8 +2166,9 @@
             results[name]={...results[name],status:'scoring',urls:allUrls,groups:groups};
             setGenState({...results});
 
-            // 评分
+            // 评分（逐张评分，间隔800ms避免429）
             for(let ui=0;ui<allUrls.length;ui++){
+              if(ui>0) await new Promise(function(r){setTimeout(r,800);});
               const sc = await scoreImageWithClaude(allUrls[ui], context);
               allScores.push(sc);
               results[name]={...results[name],scores:[...allScores]};
@@ -2190,7 +2192,7 @@
             setGenState({...results});
           }
 
-          if(ci < combos.length-1) await new Promise(function(r){setTimeout(r,2000);});
+          if(ci < combos.length-1) await new Promise(function(r){setTimeout(r,3000);});
         }
 
         setLoading(false);
