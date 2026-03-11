@@ -918,7 +918,8 @@
         {id:'database',label:'🗄️ 数据库'},
         {id:'cpimages',label:'🖼️ 侵权图库'},
         {id:'competitor',label:'🔍 竞品研究'},
-        {id:'feedback',label:'💡 反馈学习'}
+        {id:'feedback',label:'💡 反馈学习'},
+        {id:'imagegen',label:'🎨 生图工坊'}
       ];
 
       return (
@@ -960,6 +961,7 @@
             {page==='cpimages' && <PageCpImages colors={colors} />}
             {page==='competitor'&& <PageCompetitor cat={cat} colors={colors} />}
             {page==='feedback'  && <PageFeedback colors={colors} tasks={tasks} />}
+            {page==='imagegen'  && <PageImageGen colors={colors} />}
           </div>
         </div>
       );
@@ -1374,12 +1376,28 @@
       function upd(k,v){setData(function(prev){const next={...prev,[k]:v};S.s(SK,next);return next;});}
       const stepDefs=['人群&场景','选择主题','元素融合','生成提示词','AI生图筛选','确认任务'];
       function handleConfirm(task){S.s(SK,{});setData({});setStep(0);onConfirm(task);}
+      function resetAll(){
+        if(!window.confirm('清除当前所有进度，重新开始？')) return;
+        S.s(SK,{});setData({});setStep(0);
+      }
+      const hasHistory = Object.keys(S.g(SK)||{}).length > 0;
       const research = S.g('research_'+cat)||{};
       const Comps=[WFStep0,WFStep1,WFStep2,WFStep3,WFStep3b,WFStep4];
       const Comp=Comps[step];
       return (
         <div style={{display:'flex',flexDirection:'column',gap:16}}>
-          <div className="card" style={{padding:'16px 20px'}}>
+          <div className="card" style={{padding:'12px 20px'}}>
+            {/* 顶部：进度提示 + 新方案按钮 */}
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+              {hasHistory && step===0
+                ? <div style={{fontSize:12,color:'#f59e0b',fontWeight:600}}>⚠️ 检测到上次未完成的方案</div>
+                : <div style={{fontSize:12,color:'#94a3b8'}}>开发流程</div>}
+              <button onClick={resetAll}
+                style={{padding:'5px 14px',background:'#fee2e2',color:'#dc2626',border:'none',
+                  borderRadius:6,fontSize:12,fontWeight:700,cursor:'pointer'}}>
+                🗑 清除重来
+              </button>
+            </div>
             <div style={{display:'flex',alignItems:'center',justifyContent:'center',overflowX:'auto',gap:0}}>
               {stepDefs.map(function(label,i){
                 const done=i<step;const active=i===step;
@@ -1447,6 +1465,20 @@
         <div><div style={{fontWeight:600,fontSize:13,marginBottom:8}}>目标价位</div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
             {[['low','💰 低价走量'],['mid','💰💰 中价利润'],['high','💰💰💰 高价溢价']].map(function(o){return <ROW key={o[0]} name="priceRange" val={o[0]} label={o[1]} />;})}</div></div>
+        {/* 如果有残留的selectedCombos，提示清除 */}
+        {(data.selectedCombos||[]).length>0&&<div style={{padding:'10px 14px',background:'#fff7ed',borderRadius:8,
+          border:'1px solid #fed7aa',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+          <span style={{fontSize:12,color:'#92400e'}}>
+            ⚠️ 检测到 {(data.selectedCombos||[]).length} 个历史方案残留
+          </span>
+          <button onClick={function(){
+            upd('selectedCombos',[]);upd('elementCombos',[]);
+            upd('mjPrompts',{});upd('ideogramResults',{});
+          }} style={{padding:'4px 12px',background:'#f97316',color:'white',border:'none',
+            borderRadius:6,fontSize:11,fontWeight:700,cursor:'pointer'}}>
+            一键清除
+          </button>
+        </div>}
         <button className="btn" onClick={function(){if(!canNext){alert('请完成必填项');return;}onNext();}}
           style={{background:colors.ac,color:'white',width:'100%',padding:'12px',fontSize:15}}>确认并继续 →</button>
       </div>;
@@ -2658,6 +2690,235 @@
     // ════════════════════════════════════════════════════════════════
     // APLUS CANVAS COMPONENT
     // ════════════════════════════════════════════════════════════════
+
+    // ══════════════════════════════════════════════════════
+    // PAGE: 生图工坊（独立自定义生图）
+    // ══════════════════════════════════════════════════════
+    function PageImageGen({colors}) {
+      const MODELS = [
+        {value:'V_3', label:'V3 最新·最强', desc:'细节最好，适合复杂图案'},
+        {value:'V_2', label:'V2 文字排版强', desc:'文字+徽章类首选'},
+        {value:'V_2_TURBO', label:'V2 Turbo 快·省', desc:'快速出图，费用减半'},
+      ];
+      const ASPECTS = ['1x1','3x4','4x3','9x16','16x9','2x3','3x2'];
+      const [model, setModel] = React.useState(localStorage.getItem('ideogram_model')||'V_3');
+      const [prompt, setPrompt] = React.useState('');
+      const [aspect, setAspect] = React.useState('1x1');
+      const [isSeamless, setIsSeamless] = React.useState(false);
+      const [numImages, setNumImages] = React.useState(2);
+      const [results, setResults] = React.useState([]);
+      const [loading, setLoading] = React.useState(false);
+      const [history, setHistory] = React.useState(JSON.parse(localStorage.getItem('imagegen_history')||'[]'));
+
+      function saveHistory(urls, p, m, ar) {
+        const entry = {urls, prompt:p, model:m, aspect:ar, time:Date.now()};
+        const updated = [entry, ...history].slice(0,20); // 最多保留20条
+        setHistory(updated);
+        localStorage.setItem('imagegen_history', JSON.stringify(updated));
+      }
+
+      async function generate() {
+        const key = getIdeogramKey();
+        const workerUrl = getPodWorkerUrl();
+        if(!key) { alert('请先在开发流程 Step5 设置 Ideogram API Key'); return; }
+        if(!workerUrl) { alert('请先在开发流程 Step5 设置 Worker URL'); return; }
+        if(!prompt.trim()) { alert('请输入提示词'); return; }
+        setLoading(true);
+        setResults([]);
+        try {
+          const fullPrompt = isSeamless
+            ? prompt.trim() + ', seamless repeating pattern, tileable surface design, clean white background, flat vector illustration, print-ready'
+            : prompt.trim() + ', isolated on pure white background, flat vector illustration, print-ready, centered composition';
+          const resp = await fetch(workerUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-action': 'ideogram-generate',
+              'x-ideogram-key': key
+            },
+            body: JSON.stringify({
+              image_request: {
+                prompt: fullPrompt,
+                model: model,
+                aspect_ratio: aspect,
+                style_type: 'DESIGN',
+                magic_prompt_option: 'OFF',
+                rendering_speed: model==='V_2_TURBO'?'FAST':'SLOW',
+                num_images: numImages
+              }
+            })
+          });
+          const d = await resp.json();
+          if(d.error) throw new Error(d.error.message||JSON.stringify(d.error));
+          const urls = (d.data||[]).map(function(x){return x.url;});
+          setResults(urls);
+          saveHistory(urls, prompt.trim(), model, aspect);
+        } catch(e) {
+          alert('生图失败：'+e.message);
+        }
+        setLoading(false);
+      }
+
+      async function downloadImg(url, name) {
+        try {
+          const workerUrl = getPodWorkerUrl();
+          const resp = await fetch(workerUrl, {
+            method:'POST',
+            headers:{'Content-Type':'application/json','x-action':'fetch-image'},
+            body:JSON.stringify({url})
+          });
+          const d = await resp.json();
+          const b64 = d.b64;
+          const byteChars = atob(b64);
+          const byteArr = new Uint8Array(byteChars.length);
+          for(let i=0;i<byteChars.length;i++) byteArr[i]=byteChars.charCodeAt(i);
+          const blob = new Blob([byteArr],{type:'image/png'});
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(blob);
+          a.download = name||('imagegen_'+Date.now()+'.png');
+          a.click();
+        } catch(e) { alert('下载失败，请右键图片另存为'); }
+      }
+
+      return <div style={{display:'flex',flexDirection:'column',gap:16,maxWidth:800,margin:'0 auto'}}>
+        <div style={{fontWeight:800,fontSize:20,color:colors.ac}}>🎨 生图工坊</div>
+        <div style={{fontSize:13,color:'#64748b'}}>直接输入提示词生图，无需走开发流程。使用与开发流程相同的 Ideogram API。</div>
+
+        {/* 设置状态提示 */}
+        {(!getIdeogramKey()||!getPodWorkerUrl())&&<div style={{padding:'10px 14px',background:'#fef9c3',borderRadius:8,border:'1px solid #fde047',fontSize:12,color:'#92400e'}}>
+          ⚠️ 请先在「开发流程 → Step5」设置 Ideogram API Key 和 Worker URL，设置一次全局生效。
+        </div>}
+
+        {/* 主输入区 */}
+        <div className="card" style={{display:'flex',flexDirection:'column',gap:12}}>
+          {/* 提示词 */}
+          <div>
+            <div style={{fontWeight:700,fontSize:13,color:'#374151',marginBottom:6}}>提示词</div>
+            <textarea value={prompt} onChange={function(e){setPrompt(e.target.value);}}
+              onKeyDown={function(e){if((e.ctrlKey||e.metaKey)&&e.key==='Enter')generate();}}
+              placeholder="输入英文提示词，例如：Mexican eagle badge, bold black red gold, flat vector illustration, white background, print-ready&#10;&#10;按 Ctrl+Enter 快速生图" 
+              style={{width:'100%',minHeight:90,padding:'10px 12px',borderRadius:8,border:'2px solid #e2e8f0',
+                fontSize:13,outline:'none',resize:'vertical',boxSizing:'border-box',lineHeight:1.6}} />
+          </div>
+
+          {/* 模型选择 */}
+          <div>
+            <div style={{fontWeight:700,fontSize:13,color:'#374151',marginBottom:8}}>模型</div>
+            <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+              {MODELS.map(function(m){
+                const active=model===m.value;
+                return <div key={m.value} onClick={function(){setModel(m.value);localStorage.setItem('ideogram_model',m.value);}}
+                  style={{flex:1,minWidth:130,padding:'10px 12px',borderRadius:8,cursor:'pointer',
+                    border:'2px solid '+(active?colors.ac:'#e2e8f0'),background:active?colors.ac+'12':'white'}}>
+                  <div style={{fontWeight:700,fontSize:12,color:active?colors.ac:'#374151'}}>{m.label}</div>
+                  <div style={{fontSize:10,color:'#94a3b8',marginTop:2}}>{m.desc}</div>
+                </div>;
+              })}
+            </div>
+          </div>
+
+          {/* 参数行 */}
+          <div style={{display:'flex',gap:16,flexWrap:'wrap',alignItems:'flex-start'}}>
+            <div style={{flex:1,minWidth:200}}>
+              <div style={{fontWeight:700,fontSize:13,color:'#374151',marginBottom:6}}>图片比例</div>
+              <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                {ASPECTS.map(function(ar){
+                  return <button key={ar} onClick={function(){setAspect(ar);}}
+                    style={{padding:'5px 12px',borderRadius:6,fontSize:11,fontWeight:700,cursor:'pointer',border:'2px solid '+(aspect===ar?colors.ac:'#e2e8f0'),
+                      background:aspect===ar?colors.ac:'white',color:aspect===ar?'white':'#475569'}}>
+                    {ar}
+                  </button>;
+                })}
+              </div>
+            </div>
+            <div>
+              <div style={{fontWeight:700,fontSize:13,color:'#374151',marginBottom:6}}>张数</div>
+              <div style={{display:'flex',gap:6}}>
+                {[1,2,4].map(function(n){
+                  return <button key={n} onClick={function(){setNumImages(n);}}
+                    style={{padding:'5px 16px',borderRadius:6,fontSize:13,fontWeight:700,cursor:'pointer',
+                      border:'2px solid '+(numImages===n?colors.ac:'#e2e8f0'),
+                      background:numImages===n?colors.ac:'white',color:numImages===n?'white':'#475569'}}>
+                    {n}张
+                  </button>;
+                })}
+              </div>
+            </div>
+            <div>
+              <div style={{fontWeight:700,fontSize:13,color:'#374151',marginBottom:6}}>模式</div>
+              <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer',padding:'6px 12px',
+                borderRadius:6,border:'2px solid '+(isSeamless?colors.ac:'#e2e8f0'),
+                background:isSeamless?colors.ac+'12':'white'}}>
+                <input type="checkbox" checked={isSeamless} onChange={function(e){setIsSeamless(e.target.checked);}}
+                  style={{width:15,height:15}} />
+                <span style={{fontSize:12,fontWeight:700,color:isSeamless?colors.ac:'#374151'}}>🔲 无缝图</span>
+              </label>
+            </div>
+          </div>
+
+          {/* 生图按钮 */}
+          <button onClick={generate} disabled={loading||!prompt.trim()}
+            style={{width:'100%',padding:'14px',background:loading?'#94a3b8':colors.ac,
+              color:'white',border:'none',borderRadius:10,fontWeight:800,fontSize:15,
+              cursor:loading?'not-allowed':'pointer',letterSpacing:1}}>
+            {loading?'⏳ 生图中，请稍候...':'🚀 立即生图  （Ctrl+Enter）'}
+          </button>
+        </div>
+
+        {/* 当前结果 */}
+        {results.length>0&&<div className="card">
+          <div style={{fontWeight:700,fontSize:14,color:'#374151',marginBottom:12}}>✅ 生成结果（点击下载）</div>
+          <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:12}}>
+            {results.map(function(url,i){
+              return <div key={i} style={{position:'relative',borderRadius:10,overflow:'hidden',
+                border:'2px solid #e2e8f0',cursor:'pointer',transition:'transform 0.15s'}}
+                onClick={function(){downloadImg(url,'gen_'+model+'_'+i+'_'+Date.now()+'.png');}}>
+                <img src={url} style={{width:'100%',aspectRatio:'1',objectFit:'cover',display:'block'}} />
+                <div style={{position:'absolute',bottom:0,left:0,right:0,
+                  background:'rgba(0,0,0,0.65)',padding:'6px',fontSize:11,color:'white',textAlign:'center',fontWeight:600}}>
+                  ⬇ 点击下载
+                </div>
+              </div>;
+            })}
+          </div>
+        </div>}
+
+        {/* 历史记录 */}
+        {history.length>0&&<div className="card">
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
+            <div style={{fontWeight:700,fontSize:14,color:'#374151'}}>🕐 历史记录（最近{history.length}条）</div>
+            <button onClick={function(){setHistory([]);localStorage.removeItem('imagegen_history');}}
+              style={{padding:'4px 12px',background:'#fee2e2',color:'#dc2626',border:'none',borderRadius:6,fontSize:11,fontWeight:700,cursor:'pointer'}}>
+              清除历史
+            </button>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:10}}>
+            {history.map(function(h,hi){
+              return <div key={hi} style={{borderRadius:8,border:'1px solid #e2e8f0',overflow:'hidden'}}>
+                <div style={{padding:'8px 12px',background:'#f8fafc',display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:6}}>
+                  <div style={{fontSize:11,color:'#64748b',flex:1,minWidth:0,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{h.prompt}</div>
+                  <div style={{display:'flex',gap:6,flexShrink:0}}>
+                    <span style={{fontSize:10,padding:'2px 7px',background:'#eff6ff',borderRadius:4,color:'#3b82f6',fontWeight:700}}>{h.model}</span>
+                    <span style={{fontSize:10,padding:'2px 7px',background:'#f0fdf4',borderRadius:4,color:'#16a34a',fontWeight:700}}>{h.aspect}</span>
+                    <button onClick={function(){setPrompt(h.prompt);setAspect(h.aspect);setModel(h.model);window.scrollTo(0,0);}}
+                      style={{fontSize:10,padding:'2px 8px',background:colors.ac,color:'white',border:'none',borderRadius:4,cursor:'pointer',fontWeight:700}}>
+                      复用
+                    </button>
+                  </div>
+                </div>
+                <div style={{display:'flex',gap:6,padding:8,flexWrap:'wrap'}}>
+                  {(h.urls||[]).map(function(url,ui){
+                    return <img key={ui} src={url} style={{width:72,height:72,objectFit:'cover',borderRadius:6,cursor:'pointer',border:'1px solid #e2e8f0'}}
+                      onClick={function(){downloadImg(url,'history_'+hi+'_'+ui+'.png');}}
+                      title="点击下载" />;
+                  })}
+                </div>
+              </div>;
+            })}
+          </div>
+        </div>}
+      </div>;
+    }
 
     function PageListing({cat,colors}) {
       const SK='listing_'+cat;
