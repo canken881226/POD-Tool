@@ -507,9 +507,18 @@
       const imgLib=(S.g('cp_images_index')||[]).map(function(e){return {...e,banned_elements:e.banned_elements||[],style_keywords:e.style_keywords||[]};});
       const db=[...(S.g('cp_db')||DEFAULT_CP_DB),...imgLib];
       const t = (text||'').toLowerCase();
+      // 全词匹配：词语必须是独立单词，不能是其他词的一部分
+      function wordMatch(haystack, needle) {
+        if(!needle||needle.length<2) return false;
+        // 短词（≤3字符）要求严格全词匹配
+        // 长词（≥4字符）也要求全词匹配，避免vegeta匹配vegetation
+        const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const re = new RegExp('(?<![a-z0-9])' + escaped + '(?![a-z0-9])', 'i');
+        return re.test(haystack);
+      }
       return db.reduce(function(acc,e) {
-        const elHits=(e.banned_elements||[]).filter(function(el){return t.indexOf(el.toLowerCase())>=0;});
-        const stHits=(e.style_keywords||[]).filter(function(sk){return t.indexOf(sk.toLowerCase())>=0;});
+        const elHits=(e.banned_elements||[]).filter(function(el){return wordMatch(t, el.toLowerCase());});
+        const stHits=(e.style_keywords||[]).filter(function(sk){return wordMatch(t, sk.toLowerCase());});
         if(elHits.length>0||stHits.length>=2) acc.push({entry:e,elHits:elHits,stHits:stHits,level:elHits.length>0?'high':'medium'});
         return acc;
       },[]);
@@ -1823,12 +1832,16 @@
           try {
             const raw=await callClaudeAPI(aiPrompt,'Midjourney prompt expert. Output prompts only, one per line.');
             const _bansRaw = getCpBanList().banned.map(function(b){return b.toLowerCase();});
+            function _wordMatch(hay, needle) {
+              if(!needle||needle.length<2) return false;
+              const esc = needle.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+              return new RegExp('(?<![a-z0-9])'+esc+'(?![a-z0-9])','i').test(hay);
+            }
             const lines=raw.split('\n').map(function(l){return l.trim();})
               .filter(function(l){
                 if(!l.startsWith('/imagine')) return false;
-                // 直接丢弃包含侵权词的整条咒语
                 const lLow = l.toLowerCase();
-                return !_bansRaw.some(function(b){return b.length>1&&lLow.indexOf(b)>=0;});
+                return !_bansRaw.some(function(b){return b.length>1&&_wordMatch(lLow,b);});
               });
             if(lines.length>=3){
               allP[combo.name]=lines.slice(0,10);
@@ -1843,7 +1856,11 @@
                 const mod=isSml?'seamless repeating pattern, tileable':'single '+el+', centered composition, isolated on white';
                 const candidate='/imagine prompt: '+el+', '+style+', '+mod+', '+colorStr+' '+agCfg.ar+' --s '+agCfg.sty;
                 const cLow=candidate.toLowerCase();
-                const hasBan=getCpBanList().banned.some(function(b){return b.length>1&&cLow.indexOf(b.toLowerCase())>=0;});
+                const hasBan=getCpBanList().banned.some(function(b){
+                  if(!b||b.length<2) return false;
+                  const esc=b.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+                  return new RegExp('(?<![a-z0-9])'+esc+'(?![a-z0-9])','i').test(cLow);
+                });
                 if(!hasBan) ps.push(candidate);
               }
               allP[combo.name]=ps;
