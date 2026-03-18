@@ -170,10 +170,16 @@
       const resp = await fetch('https://api.anthropic.com/v1/messages', {
         method:'POST',
         headers:{'Content-Type':'application/json','x-api-key':apiKey,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-        body: JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,system:systemPrompt||'',messages:[{role:'user',content:prompt}]})
+        body: JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:4000,system:(systemPrompt||'').slice(0,4000),messages:[{role:'user',content:(prompt||'').slice(0,80000)}]})
       });
       const data = await resp.json();
-      if (data.error) throw new Error(data.error.message);
+      if(!resp.ok||data.error){
+        const msg=(data.error&&data.error.message)||('HTTP '+resp.status);
+        if(resp.status===400) throw new Error('请求错误(400)：'+msg+' —— 注意：这不是余额问题');
+        if(resp.status===429) throw new Error('请求太频繁，稍等几秒再试(429)');
+        if(resp.status===401) throw new Error('API Key无效(401)');
+        throw new Error(msg);
+      }
       return data.content.map(function(i){return i.type==='text'?i.text:'';}).join('\\n');
     };
 
@@ -2047,10 +2053,7 @@
 
     // ── WFStep3b: Ideogram生图 + Claude评分筛选 ──────────────────────
     function WFStep3b({data,upd,cat,colors,onNext,onBack}) {
-      const [ideogramKey, setIdeogramKey] = React.useState(getIdeogramKey());
-      const [keyEditing, setKeyEditing] = React.useState(!getIdeogramKey());
-      const [workerUrl, setWorkerUrl] = React.useState(getPodWorkerUrl());
-      const [workerEditing, setWorkerEditing] = React.useState(!getPodWorkerUrl());
+      // Key/Worker 统一在生图工坊设置，这里只读取
       const [genState, setGenState] = React.useState(data.ideogramResults||{});
       // {comboName: {status:'idle|generating|scoring|done|error', urls:[], scores:[], picks:{best,alt}}}
       const [loading, setLoading] = React.useState(false);
@@ -2070,16 +2073,7 @@
         {value:'V_2_TURBO', label:'V2 Turbo（快·省钱）', desc:'快速出图，费用减半'},
       ];
 
-      function saveKey() {
-        if(!ideogramKey.trim()){alert('请输入 Ideogram API Key');return;}
-        localStorage.setItem('ideogram_api_key', ideogramKey.trim());
-        setKeyEditing(false);
-      }
-      function saveWorker() {
-        if(!workerUrl.trim()){alert('请输入 Worker URL');return;}
-        localStorage.setItem('pod_worker_url', workerUrl.trim());
-        setWorkerEditing(false);
-      }
+
 
       // Detect if prompt is text-heavy (for DESIGN style) or illustration (ILLUSTRATION style)
       function isTextHeavy(prompt) {
@@ -2238,63 +2232,20 @@
       return <div style={{display:'flex',flexDirection:'column',gap:14}}>
         <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>Step 5 — AI生图 & 自动筛选</div>
 
-        {/* Ideogram Key Setting */}
-        <div style={{background:'#f8fafc',borderRadius:10,padding:14,border:'2px solid '+(getIdeogramKey()?'#10b981':'#fde047')}}>
-          <div style={{fontWeight:700,fontSize:13,marginBottom:8,color:'#374151'}}>
-            🎨 Ideogram API Key
-            {getIdeogramKey()&&!keyEditing&&<span style={{color:'#10b981',marginLeft:8}}>✓ 已设置</span>}
+        {/* Key设置 - 跳转到生图工坊设置 */}
+        {(!getIdeogramKey()||!getPodWorkerUrl()) ? (
+          <div style={{padding:'12px 16px',background:'#fef9c3',borderRadius:10,border:'2px solid #fde047'}}>
+            <div style={{fontSize:13,color:'#92400e',fontWeight:700,marginBottom:4}}>⚠️ 请先完成API设置</div>
+            <div style={{fontSize:12,color:'#92400e',marginBottom:10}}>Ideogram Key 和 Worker URL 需要在「生图工坊」页面设置，设置一次全局生效。</div>
+            <IdeogramKeyInput colors={colors} />
+            <div style={{marginTop:8}}><WorkerUrlInput colors={colors} /></div>
           </div>
-          {keyEditing ? (
-            <div style={{display:'flex',gap:8}}>
-              <input type="password" value={ideogramKey}
-                onChange={function(e){setIdeogramKey(e.target.value);}}
-                onKeyDown={function(e){if(e.key==='Enter')saveKey();}}
-                placeholder="ideogram api key..."
-                style={{flex:1,padding:'8px 12px',borderRadius:8,border:'1px solid #d1d5db',fontSize:13}} />
-              <button onClick={saveKey}
-                style={{padding:'8px 16px',background:colors.ac,color:'white',border:'none',borderRadius:8,fontWeight:700,cursor:'pointer'}}>
-                保存
-              </button>
-            </div>
-          ) : (
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-              <span style={{fontSize:12,color:'#64748b'}}>自动调用 Ideogram V3 生图，每方案4张，Claude自动评分选出最佳2张</span>
-              <button onClick={function(){setKeyEditing(true);}}
-                style={{fontSize:11,color:'#94a3b8',background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>
-                修改
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Worker URL Setting */}
-        <div style={{background:'#f8fafc',borderRadius:10,padding:14,border:'2px solid '+(getPodWorkerUrl()?'#10b981':'#fde047')}}>
-          <div style={{fontWeight:700,fontSize:13,marginBottom:8,color:'#374151'}}>
-            🔗 Cloudflare Worker URL
-            {getPodWorkerUrl()&&!workerEditing&&<span style={{color:'#10b981',marginLeft:8}}>✓ 已设置</span>}
+        ) : (
+          <div style={{padding:'10px 14px',background:'#f0fdf4',borderRadius:10,border:'1px solid #bbf7d0',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <span style={{fontSize:12,color:'#15803d',fontWeight:600}}>✅ API已设置 · Ideogram V3 · 每方案生成4张 · Claude自动评分</span>
+            <span style={{fontSize:11,color:'#94a3b8'}}>在生图工坊修改</span>
           </div>
-          {workerEditing ? (
-            <div style={{display:'flex',gap:8}}>
-              <input type="text" value={workerUrl}
-                onChange={function(e){setWorkerUrl(e.target.value);}}
-                onKeyDown={function(e){if(e.key==='Enter')saveWorker();}}
-                placeholder="https://pod-api-proxy.canken881226.workers.dev"
-                style={{flex:1,padding:'8px 12px',borderRadius:8,border:'1px solid #d1d5db',fontSize:12}} />
-              <button onClick={saveWorker}
-                style={{padding:'8px 16px',background:colors.ac,color:'white',border:'none',borderRadius:8,fontWeight:700,cursor:'pointer'}}>
-                保存
-              </button>
-            </div>
-          ) : (
-            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-              <span style={{fontSize:12,color:'#64748b'}}>{getPodWorkerUrl()}</span>
-              <button onClick={function(){setWorkerEditing(true);}}
-                style={{fontSize:11,color:'#94a3b8',background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>
-                修改
-              </button>
-            </div>
-          )}
-        </div>
+        )}
 
         {/* 模型选择 */}
         <div style={{background:'#f8fafc',borderRadius:10,padding:14,border:'1px solid #e2e8f0'}}>
@@ -2759,6 +2710,66 @@
     // APLUS CANVAS COMPONENT
     // ════════════════════════════════════════════════════════════════
 
+    // ── 可复用：Ideogram Key 输入组件 ────────────────────────
+    function IdeogramKeyInput({colors}) {
+      const [key, setKey] = React.useState(getIdeogramKey());
+      const [editing, setEditing] = React.useState(!getIdeogramKey());
+      function save(){
+        if(!key.trim()){alert('请输入Ideogram API Key');return;}
+        localStorage.setItem('ideogram_api_key',key.trim());
+        setEditing(false);
+      }
+      if(!editing&&getIdeogramKey()) return (
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+          padding:'8px 12px',background:'#f0fdf4',borderRadius:8,border:'1px solid #bbf7d0'}}>
+          <span style={{fontSize:12,color:'#15803d',fontWeight:600}}>🎨 Ideogram Key ✓ 已设置</span>
+          <button onClick={function(){setEditing(true);}} style={{fontSize:11,color:'#94a3b8',background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>修改</button>
+        </div>
+      );
+      return (
+        <div style={{padding:'10px 12px',background:'#fef9c3',borderRadius:8,border:'1px solid #fde047'}}>
+          <div style={{fontSize:12,fontWeight:700,color:'#92400e',marginBottom:6}}>🎨 Ideogram API Key</div>
+          <div style={{display:'flex',gap:8}}>
+            <input type="password" value={key} onChange={function(e){setKey(e.target.value);}}
+              onKeyDown={function(e){if(e.key==='Enter')save();}}
+              placeholder="ideogram api key..."
+              style={{flex:1,padding:'7px 10px',borderRadius:6,border:'1px solid #fde047',fontSize:12}} />
+            <button onClick={save} style={{padding:'7px 16px',background:'#eab308',color:'white',border:'none',borderRadius:6,fontWeight:700,fontSize:12,cursor:'pointer'}}>保存</button>
+          </div>
+        </div>
+      );
+    }
+
+    // ── 可复用：Worker URL 输入组件 ───────────────────────────
+    function WorkerUrlInput({colors}) {
+      const [url, setUrl] = React.useState(getPodWorkerUrl());
+      const [editing, setEditing] = React.useState(!getPodWorkerUrl());
+      function save(){
+        if(!url.trim()){alert('请输入Worker URL');return;}
+        localStorage.setItem('pod_worker_url',url.trim());
+        setEditing(false);
+      }
+      if(!editing&&getPodWorkerUrl()) return (
+        <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',
+          padding:'8px 12px',background:'#f0fdf4',borderRadius:8,border:'1px solid #bbf7d0'}}>
+          <span style={{fontSize:12,color:'#15803d',fontWeight:600}}>🔗 Worker URL ✓ 已设置</span>
+          <button onClick={function(){setEditing(true);}} style={{fontSize:11,color:'#94a3b8',background:'none',border:'none',cursor:'pointer',textDecoration:'underline'}}>修改</button>
+        </div>
+      );
+      return (
+        <div style={{padding:'10px 12px',background:'#fef9c3',borderRadius:8,border:'1px solid #fde047'}}>
+          <div style={{fontSize:12,fontWeight:700,color:'#92400e',marginBottom:6}}>🔗 Cloudflare Worker URL</div>
+          <div style={{display:'flex',gap:8}}>
+            <input type="text" value={url} onChange={function(e){setUrl(e.target.value);}}
+              onKeyDown={function(e){if(e.key==='Enter')save();}}
+              placeholder="https://pod-api-proxy.canken881226.workers.dev"
+              style={{flex:1,padding:'7px 10px',borderRadius:6,border:'1px solid #fde047',fontSize:12}} />
+            <button onClick={save} style={{padding:'7px 16px',background:'#eab308',color:'white',border:'none',borderRadius:6,fontWeight:700,fontSize:12,cursor:'pointer'}}>保存</button>
+          </div>
+        </div>
+      );
+    }
+
     // ══════════════════════════════════════════════════════
     // PAGE: 生图工坊（独立自定义生图）
     // ══════════════════════════════════════════════════════
@@ -2852,10 +2863,12 @@
         <div style={{fontWeight:800,fontSize:20,color:colors.ac}}>🎨 生图工坊</div>
         <div style={{fontSize:13,color:'#64748b'}}>直接输入提示词生图，无需走开发流程。使用与开发流程相同的 Ideogram API。</div>
 
-        {/* 设置状态提示 */}
-        {(!getIdeogramKey()||!getPodWorkerUrl())&&<div style={{padding:'10px 14px',background:'#fef9c3',borderRadius:8,border:'1px solid #fde047',fontSize:12,color:'#92400e'}}>
-          ⚠️ 请先在「开发流程 → Step5」设置 Ideogram API Key 和 Worker URL，设置一次全局生效。
-        </div>}
+        {/* API Key + Worker URL 设置 */}
+        <div className="card" style={{display:'flex',flexDirection:'column',gap:10}}>
+          <div style={{fontWeight:700,fontSize:13,color:'#374151',marginBottom:2}}>🔑 API 设置（设置一次全局生效）</div>
+          <IdeogramKeyInput colors={colors} />
+          <WorkerUrlInput colors={colors} />
+        </div>
 
         {/* 主输入区 */}
         <div className="card" style={{display:'flex',flexDirection:'column',gap:12}}>
