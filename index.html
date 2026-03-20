@@ -162,6 +162,50 @@
       });
       return priorities.sort(function(a,b){return b.urgency-a.urgency;});
     };
+
+    // ══ 全年情绪日历(妈妈文化×童装)══════════════════════
+    const MONTHLY_CALENDAR = {
+      1:  {month:'一月', theme:'New Year / Reset Mom', emotions:['新开始','成长','规划','希望'], styles:['星空','极简'], holiday:'New Year', season:'冬季', lines:['Identity','Emotional'], refs:['Mama Est. '+new Date().getFullYear(),'New Year as a Mom','Growing with you']},
+      2:  {month:'二月', theme:'Valentine / Love', emotions:['爱','亲密','陪伴','温柔'], styles:['Rainbow','Neon'], holiday:"Valentine's Day", season:'冬末', lines:['Daily Bonding','Emotional'], refs:['Mama is my Valentine','Love grows here','Mama & Mini']},
+      3:  {month:'三月', theme:'Spring / Soft Mom', emotions:['温柔','治愈','新生','清新'], styles:['Rainbow'], holiday:'Spring', season:'春季', lines:['Emotional','Milestone'], refs:['Soft Mama','Growing together','Blooming Mom Life']},
+      4:  {month:'四月', theme:"Pre Mother's Day 预热", emotions:['感谢','被看见','珍惜','期待'], styles:['Rainbow','星空'], holiday:"Mother's Day预热", season:'春季', lines:['Milestone','Emotional'], refs:["First Mother's Day",'Promoted to Mom','Best Mom Ever']},
+      5:  {month:'五月', theme:"Mother's Day 爆发", emotions:['爱','认可','仪式感','骄傲'], styles:['Rainbow','泼墨','全风格'], holiday:"Mother's Day", season:'春末', lines:['全线'], refs:['Mama & Mini套装','Boy Mom','Girl Mom','Emotional礼物款']},
+      6:  {month:'六月', theme:'Family / Summer Begin', emotions:['家庭','轻松','出游','欢乐'], styles:['泼墨','Rainbow'], holiday:"Father's Day", season:'夏季', lines:['Daily Bonding','Identity'], refs:['Chaos Family','Summer Mom Life','Mama & Mini']},
+      7:  {month:'七月', theme:'Summer / Playful', emotions:['玩乐','轻松','活力','自由'], styles:['泼墨'], holiday:'4th of July', season:'夏季', lines:['Daily Bonding'], refs:['Mama Summer Mode','Snack Dealer','Tiny Chaos']},
+      8:  {month:'八月', theme:'Back to School', emotions:['骄傲','不舍','成长','期待'], styles:['Rainbow','极简'], holiday:'Back to School', season:'夏末', lines:['Milestone','Emotional'], refs:['First Day of School Mom','Proud Mama','Letting go']},
+      9:  {month:'九月', theme:'Routine / Real Mom', emotions:['真实','累但坚持','接地气','共鸣'], styles:['Neon','极简'], holiday:'秋季', season:'秋季', lines:['Emotional'], refs:['Tired as a Mother','Running on Coffee','Real Mom Life']},
+      10: {month:'十月', theme:'Halloween / Spooky', emotions:['趣味','角色扮演','俏皮','创意'], styles:['Neon','泼墨'], holiday:'Halloween', season:'秋季', lines:['Identity','Daily Bonding'], refs:['Spooky Mama','Boo Crew','Mama & Mini Halloween']},
+      11: {month:'十一月', theme:'Christmas 预热', emotions:['温暖','家庭','仪式感','期待'], styles:['Rainbow','星空'], holiday:'Christmas预热/Thanksgiving', season:'冬季', lines:['Daily Bonding','Milestone'], refs:['Mama Claus','Merry Mama','Family Matching']},
+      12: {month:'十二月', theme:'Christmas 爆发', emotions:['爱','团聚','年终情绪','感恩'], styles:['星空','全风格'], holiday:'Christmas', season:'冬季', lines:['全线'], refs:['Family Matching套装','Emotional礼物款','年终纪念款']}
+    };
+
+    // ══ 产品线定义 ══════════════════════════════════════
+    const PRODUCT_LINES = {
+      'Milestone': {
+        label:'🏆 Milestone 成长纪念',
+        desc:'记录妈妈和孩子的重要时刻',
+        examples:['First Time Mom','Promoted to Mom','First Day of School',"Baby's First Year",'Mama Est.']
+      },
+      'Daily Bonding': {
+        label:'💛 Daily Bonding 亲子互动',
+        desc:'日常亲子相处的温馨和趣味',
+        examples:['Mama & Mini','Snack Dealer','Tiny Human Wrangler','Chaos Coordinator','Mom & Me']
+      },
+      'Identity': {
+        label:'💪 Identity 身份标签',
+        desc:'妈妈的身份认同与自我表达',
+        examples:['Boy Mom','Girl Mom','Dog Mom','Coffee Mom','Tired but Thriving']
+      }
+    };
+
+    // ══ 视觉风格定义 ════════════════════════════════════
+    const VISUAL_STYLES = {
+      '泼墨': {en:'Paint Splash', desc:'活力/大胆/街头感', seasons:['夏季','全年'], emotions:['活力','玩乐','大胆','趣味']},
+      'Neon':  {en:'Neon', desc:'情绪/夜感/秋冬强', seasons:['秋季','冬季'], emotions:['真实','累但坚持','情绪爆发','趣味']},
+      '星空':  {en:'Galaxy', desc:'深情/治愈/高客单', seasons:['全年'], emotions:['爱','深情','成长','团聚']},
+      'Rainbow':{en:'Rainbow', desc:'柔和/礼物/春夏', seasons:['春季','夏季','全年'], emotions:['温柔','爱','骄傲','温暖']}
+    };
+
     const getApiKey = function() { return localStorage.getItem('pod_api_key')||''; };
     const setApiKeyStore = function(k) { localStorage.setItem('pod_api_key', k); };
     const callClaudeAPI = async function(prompt, systemPrompt) {
@@ -257,7 +301,7 @@
       let data = await runTurn(messages);
       let allText = [];
 
-      // 循环处理tool_use（web_search需要客户端传回tool_result）
+      // 循环处理tool_use(web_search需要客户端传回tool_result)
       for (let round = 0; round < 8; round++) {
         // 收集text
         for (const b of (data.content || [])) {
@@ -268,7 +312,7 @@
         const toolUses = (data.content || []).filter(b => b.type === "tool_use");
         if (!toolUses.length || data.stop_reason === "end_turn") break;
 
-        // 构造tool_result回传（web_search结果由API服务器填充，客户端传空确认即可）
+        // 构造tool_result回传(web_search结果由API服务器填充，客户端传空确认即可)
         messages.push(
           { role: "assistant", content: data.content },
           { role: "user", content: toolUses.map(tu => ({
@@ -516,8 +560,8 @@
       // 全词匹配：词语必须是独立单词，不能是其他词的一部分
       function wordMatch(haystack, needle) {
         if(!needle||needle.length<2) return false;
-        // 短词（≤3字符）要求严格全词匹配
-        // 长词（≥4字符）也要求全词匹配，避免vegeta匹配vegetation
+        // 短词(≤3字符)要求严格全词匹配
+        // 长词(≥4字符)也要求全词匹配，避免vegeta匹配vegetation
         const escaped = needle.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
         const re = new RegExp('(?<![a-z0-9])' + escaped + '(?![a-z0-9])', 'i');
         return re.test(haystack);
@@ -635,7 +679,7 @@
           var fileTimeoutPromise = new Promise(function(_, reject) {
             fileTimeoutId = setTimeout(function() {
               fileTimedOut = true;
-              reject(new Error('处理超时（超过120秒），请重试'));
+              reject(new Error('处理超时(超过120秒)，请重试'));
             }, 120000);
           });
 
@@ -831,7 +875,7 @@
               // Last resort: save this entry alone (clear all old)
               saved = S.s('cp_images_index', [newEntry]);
             }
-            pending.storageNote = ghImgUrls.length > 0 ? ('图片已上传GitHub '+ghImgUrls.length+'张') : '纯文字记录（无GitHub配置）';
+            pending.storageNote = ghImgUrls.length > 0 ? ('图片已上传GitHub '+ghImgUrls.length+'张') : '纯文字记录(无GitHub配置)';
 
             // Also sync banned words to cp_db for immediate use
             const cpDb = S.g('cp_db') || DEFAULT_CP_DB;
@@ -934,7 +978,8 @@
         {id:'cpimages',label:'🖼️ 侵权图库'},
         {id:'competitor',label:'🔍 竞品研究'},
         {id:'feedback',label:'💡 反馈学习'},
-        {id:'imagegen',label:'🎨 生图工坊'}
+        {id:'imagegen',label:'🎨 生图工坊'},
+        {id:'trendlib',label:'📚 趋势库'}
       ];
 
       return (
@@ -977,6 +1022,7 @@
             {page==='competitor'&& <PageCompetitor cat={cat} colors={colors} />}
             {page==='feedback'  && <PageFeedback colors={colors} tasks={tasks} />}
             {page==='imagegen'  && <PageImageGen colors={colors} />}
+            {page==='trendlib'  && <PageTrendLib colors={colors} cat={cat} />}
           </div>
         </div>
       );
@@ -1001,7 +1047,7 @@
       return (
         <div style={{display:'flex',flexDirection:'column',gap:16}}>
 
-          {/* ── 任务区（置顶显示） ── */}
+          {/* ── 任务区(置顶显示) ── */}
           {(active.length>0||done.length>0) && <div className="card" style={{border:'2px solid '+colors.ac+'40'}}>
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
               <div style={{fontWeight:700,fontSize:15}}>📋 开发任务</div>
@@ -1028,7 +1074,7 @@
               </div>;
             })}
             {done.length>0 && <div style={{marginTop:active.length>0?12:0}}>
-              <div style={{fontSize:12,color:'#94a3b8',fontWeight:600,marginBottom:6,paddingTop:active.length>0?10:0,borderTop:active.length>0?'1px solid #f1f5f9':'none'}}>✅ 已完成（最近5条）</div>
+              <div style={{fontSize:12,color:'#94a3b8',fontWeight:600,marginBottom:6,paddingTop:active.length>0?10:0,borderTop:active.length>0?'1px solid #f1f5f9':'none'}}>✅ 已完成(最近5条)</div>
               {done.slice(-5).reverse().map(function(t){
                 return <div key={t.id} className="task-row" style={{opacity:0.55,marginBottom:4}}>
                   <input type="checkbox" checked={true} onChange={function(){onToggle(t.id);}} style={{width:18,height:18,cursor:'pointer',flexShrink:0}} />
@@ -1114,7 +1160,7 @@
         S.s(SK,d); setLastTime(d.lastTime);
       }
 
-      // ── 调研prompt（按品类区分）─────────────────────────────────
+      // ── 调研prompt(按品类区分)─────────────────────────────────
       function buildPrompt(sid) {
         const cross = (CROSS_REF[cat]||[]).slice(0,3).join('/');
         const isHome = cat==='家居';
@@ -1206,7 +1252,7 @@
             +'\n热卖元素：'+JSON.stringify((r2.hot_elements||[]).slice(0,3))
             +'\n市场空白：'+(r2.market_gap||'未知')
             +'\n跨界灵感：'+JSON.stringify((r3.universal_elements||[]).slice(0,3))
-            +'\n请输出（300字内）：①市场判断 ②TOP3图案方向（主题+元素+风格+配色）③安全底盘元素 ④本周行动建议';
+            +'\n请输出(300字内)：①市场判断 ②TOP3图案方向(主题+元素+风格+配色)③安全底盘元素 ④本周行动建议';
           const sum=await callClaudeAPI(sp,'你是'+cat+' POD开发策略师，给出简洁实用建议');
           setSummary(sum);
           setResults(function(prev){persist({...status,1:'done',2:'done',3:'done'},prev,sum);return prev;});
@@ -1273,7 +1319,7 @@
                       🚀 一键全部调研
                     </button>
                   : <div style={{padding:'10px 24px',background:'rgba(255,255,255,0.2)',borderRadius:8,fontSize:13,fontWeight:600}}>
-                      🔄 调研进行中（约3-4分钟）...
+                      🔄 调研进行中(约3-4分钟)...
                     </div>
                 }
                 {doneCount>0&&!running&&<button onClick={function(){setStatus({});setResults({});setSummary('');setSumError('');S.s(SK,{});}}
@@ -1388,31 +1434,43 @@
       const SK='workflow_'+cat;
       const [step,setStep] = useState(function(){return S.g(SK+'_step')||0;});
       const [data,setData] = useState(function(){return S.g(SK)||{};});
+      const [showTrendImport,setShowTrendImport] = useState(function(){
+        return Object.keys(S.g(SK)||{}).length===0;
+      });
       function upd(k,v){setData(function(prev){const next={...prev,[k]:v};S.s(SK,next);return next;});}
       function goStep(n){setStep(n);S.s(SK+'_step',n);}
-      const stepDefs=['人群&场景','选择主题','元素融合','生成提示词','AI生图筛选','确认任务'];
+      const stepDefs=['产品线','开发方向','方向验证','元素融合','生成提示词','生图筛选','Listing文案'];
       function handleConfirm(task){S.s(SK,{});S.s(SK+'_step',0);setData({});goStep(0);onConfirm(task);}
       function resetAll(){
         if(!window.confirm('清除当前所有进度，重新开始？')) return;
-        S.s(SK,{});S.s(SK+'_step',0);setData({});goStep(0);
+        S.s(SK,{});S.s(SK+'_step',0);setData({});goStep(0);setShowTrendImport(true);
       }
       const hasHistory = Object.keys(S.g(SK)||{}).length > 0;
       const research = S.g('research_'+cat)||{};
-      const Comps=[WFStep0,WFStep1,WFStep2,WFStep3,WFStep3b,WFStep4];
+      const Comps=[WFStep0,WFStep1,WFStep2b,WFStep2,WFStep3,WFStep3b,WFStep4];
       const Comp=Comps[step];
       return (
         <div style={{display:'flex',flexDirection:'column',gap:16}}>
           <div className="card" style={{padding:'12px 20px'}}>
             {/* 顶部：进度提示 + 新方案按钮 */}
             <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
-              {hasHistory && step===0
-                ? <div style={{fontSize:12,color:'#f59e0b',fontWeight:600}}>⚠️ 检测到上次未完成的方案</div>
-                : <div style={{fontSize:12,color:'#94a3b8'}}>开发流程</div>}
-              <button onClick={resetAll}
-                style={{padding:'5px 14px',background:'#fee2e2',color:'#dc2626',border:'none',
-                  borderRadius:6,fontSize:12,fontWeight:700,cursor:'pointer'}}>
-                🗑 清除重来
-              </button>
+              {showTrendImport
+                ? <div style={{fontSize:12,color:colors.ac,fontWeight:600}}>📡 趋势导入</div>
+                : hasHistory && step===0
+                  ? <div style={{fontSize:12,color:'#f59e0b',fontWeight:600}}>⚠️ 检测到上次未完成的方案</div>
+                  : <div style={{fontSize:12,color:'#94a3b8'}}>开发流程 · {MONTHLY_CALENDAR[new Date().getMonth()+1]&&MONTHLY_CALENDAR[new Date().getMonth()+1].theme}</div>}
+              <div style={{display:'flex',gap:6}}>
+                {!showTrendImport&&<button onClick={function(){setShowTrendImport(true);}}
+                  style={{padding:'5px 12px',background:'#eff6ff',color:'#3b82f6',border:'none',
+                    borderRadius:6,fontSize:11,fontWeight:700,cursor:'pointer'}}>
+                  📡 趋势
+                </button>}
+                <button onClick={resetAll}
+                  style={{padding:'5px 14px',background:'#fee2e2',color:'#dc2626',border:'none',
+                    borderRadius:6,fontSize:12,fontWeight:700,cursor:'pointer'}}>
+                  🗑 清除重来
+                </button>
+              </div>
             </div>
             <div style={{display:'flex',alignItems:'center',justifyContent:'center',overflowX:'auto',gap:0}}>
               {stepDefs.map(function(label,i){
@@ -1422,7 +1480,19 @@
                 const dotBorder=active?'2px solid '+colors.ac:'none';
                 return <div key={i} style={{display:'flex',alignItems:'center'}}>
                   <div style={{display:'flex',flexDirection:'column',alignItems:'center',cursor:i<=step?'pointer':'default'}}
-                    onClick={function(){if(i<=step)goStep(i);}}>
+                    onClick={function(){
+                      if(i===step) return;
+                      // 检查前置数据是否完整，给出提示但允许跳转
+                      var warn='';
+                      if(i>=1&&!data.ageGroup&&cat==='童装') warn='⚠️ 未选择年龄段，部分功能可能不完整';
+                      if(i>=2&&!data.theme) warn='⚠️ 未选择主题，元素融合可能不准确';
+                      if(i>=3&&!(data.selectedCombos&&data.selectedCombos.length)) warn='⚠️ 未选择元素方案，提示词可能为空';
+                      if(i>=4&&!(data.mjPrompts&&Object.keys(data.mjPrompts).length)) warn='⚠️ 未生成MJ咒语，生图步骤需要先生成咒语';
+                      if(warn){
+                        if(!window.confirm(warn+'\n\n是否仍要跳转到该步骤？')) return;
+                      }
+                      goStep(i);
+                    }}>
                     <div className="step-dot" style={{background:dotBg,color:dotC,border:dotBorder}}>{done?'✓':i+1}</div>
                     <div style={{fontSize:10,marginTop:4,color:active?colors.ac:'#94a3b8',fontWeight:active?700:400,whiteSpace:'nowrap'}}>{label}</div>
                   </div>
@@ -1432,42 +1502,34 @@
             </div>
           </div>
           <div className="card">
-            <Comp data={data} upd={upd} cat={cat} colors={colors} priorities={priorities} research={research}
-              onNext={function(){setStep(function(s){return Math.min(s+1,5);});}}
-              onBack={function(){setStep(function(s){return Math.max(s-1,0);});}}
-              onConfirm={handleConfirm} />
+            {showTrendImport
+              ? <TrendImportStep colors={colors} cat={cat} onDone={function(trendData){
+                  if(trendData) upd('weekTrend',trendData);
+                  setShowTrendImport(false);
+                }} />
+              : <Comp data={data} upd={upd} cat={cat} colors={colors} priorities={priorities} research={research}
+                  onNext={function(){var ns=Math.min(step+1,6);goStep(ns);}}
+                  onBack={function(){var ns=Math.max(step-1,0);goStep(ns);}}
+                  onConfirm={handleConfirm} />
+            }
           </div>
         </div>
       );
     }
 
     function WFStep0({data,upd,cat,colors,onNext}) {
-      const isHome=cat==='家居';
-      function sel(k,v){upd(k,v);}
-      function tog(k,v){const cur=data[k]||[];upd(k,cur.indexOf(v)>=0?cur.filter(function(x){return x!==v;}):[...cur,v]);}
-      function isS(k,v){return data[k]===v;}
-      function isC(k,v){return (data[k]||[]).indexOf(v)>=0;}
-      const canNext=isHome?!!data.buyMotivation:(!!data.ageGroup&&!!data.buyerPerspective);
-      const ROW=function({name,val,label}){return <label className={'sel-opt'+(isS(name,val)?' on':'')} style={isS(name,val)?{'--ac':colors.ac}:{}}><input type="radio" name={name} checked={isS(name,val)} onChange={function(){sel(name,val);}} style={{width:15,height:15}} />{label}</label>;};
-      const CHK=function({k,val}){return <label className={'sel-opt'+(isC(k,val)?' on':'')} style={isC(k,val)?{'--ac':colors.ac}:{}}><input type="checkbox" checked={isC(k,val)} onChange={function(){tog(k,val);}} style={{width:14,height:14}} />{val}</label>;};
-      return <div style={{display:'flex',flexDirection:'column',gap:16}}>
-        <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>Step 1 — {isHome?'类目&场景':'人群&场景'}</div>
-        {!isHome&&<>
-          <div><div style={{fontWeight:600,fontSize:13,marginBottom:8}}>年龄段 <span style={{color:'#ef4444'}}>*</span></div>
-            <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:8}}>
-              {[['newborn','👶 Newborn 0-2岁'],['toddler','🧒 Toddler 2-5岁'],['littleKid','👦 Little Kid 6-10岁'],['bigKid','🧑 Big Kid 11-14岁']].map(function(o){return <ROW key={o[0]} name="ageGroup" val={o[0]} label={o[1]} />;})}</div></div>
-          <div><div style={{fontWeight:600,fontSize:13,marginBottom:8}}>性别倾向</div>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
-              {[['unisex','💛 通用'],['boy','💙 男童'],['girl','💗 女童']].map(function(o){return <ROW key={o[0]} name="gender" val={o[0]} label={o[1]} />;})}</div></div>
-          <div><div style={{fontWeight:600,fontSize:13,marginBottom:8}}>使用场景</div>
-            <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6}}>
-              {['日常穿','幼儿园','生日主题','节日','睡衣','外出','拍照','运动'].map(function(s){return <CHK key={s} k="scenes" val={s} />;})}</div></div>
-          <div><div style={{fontWeight:600,fontSize:13,marginBottom:8}}>购买视角 <span style={{color:'#ef4444'}}>*</span></div>
-            <div style={{display:'flex',flexDirection:'column',gap:6}}>
-              <ROW name="buyerPerspective" val="mom" label="妈妈审美优先（柔和安全精致）" />
-              <ROW name="buyerPerspective" val="kid" label="小孩喜欢（鲜艳有趣酷炫）" /></div></div>
-        </>}
-        {isHome&&<>
+      // 家居类目：保持原有旧流程
+      if(cat==='家居') {
+        const isHome=true;
+        function sel(k,v){upd(k,v);}
+        function tog(k,v){const cur=data[k]||[];upd(k,cur.indexOf(v)>=0?cur.filter(function(x){return x!==v;}):[...cur,v]);}
+        function isS(k,v){return data[k]===v;}
+        function isC(k,v){return (data[k]||[]).indexOf(v)>=0;}
+        const canNext=!!data.buyMotivation;
+        const ROW=function({name,val,label}){return <label className={'sel-opt'+(isS(name,val)?' on':'')} style={isS(name,val)?{'--ac':colors.ac}:{}}><input type="radio" name={name} checked={isS(name,val)} onChange={function(){sel(name,val);}} style={{width:15,height:15}} />{label}</label>;};
+        const CHK=function({k,val}){return <label className={'sel-opt'+(isC(k,val)?' on':'')} style={isC(k,val)?{'--ac':colors.ac}:{}}><input type="checkbox" checked={isC(k,val)} onChange={function(){tog(k,val);}} style={{width:14,height:14}} />{val}</label>;};
+        return <div style={{display:'flex',flexDirection:'column',gap:16}}>
+          <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>Step 1 — 类目&场景</div>
           <div><div style={{fontWeight:600,fontSize:13,marginBottom:8}}>适用空间</div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:6}}>
               {['客厅','卧室','玄关/走廊','厨房/餐厅','浴室','儿童房','办公室','户外'].map(function(r){return <CHK key={r} k="rooms" val={r} />;})}</div></div>
@@ -1477,94 +1539,756 @@
           <div><div style={{fontWeight:600,fontSize:13,marginBottom:8}}>购买动机 <span style={{color:'#ef4444'}}>*</span></div>
             <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
               {[['self','🏡 自用升级'],['gift','🎁 送礼'],['rental','🏠 租房友好']].map(function(o){return <ROW key={o[0]} name="buyMotivation" val={o[0]} label={o[1]} />;})}</div></div>
-        </>}
-        <div><div style={{fontWeight:600,fontSize:13,marginBottom:8}}>目标价位</div>
-          <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
-            {[['low','💰 低价走量'],['mid','💰💰 中价利润'],['high','💰💰💰 高价溢价']].map(function(o){return <ROW key={o[0]} name="priceRange" val={o[0]} label={o[1]} />;})}</div></div>
-        {/* 如果有残留的selectedCombos，提示清除 */}
+          <div><div style={{fontWeight:600,fontSize:13,marginBottom:8}}>目标价位</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8}}>
+              {[['low','💰 低价走量'],['mid','💰💰 中价利润'],['high','💰💰💰 高价溢价']].map(function(o){return <ROW key={o[0]} name="priceRange" val={o[0]} label={o[1]} />;})}</div></div>
+          {(data.selectedCombos||[]).length>0&&<div style={{padding:'10px 14px',background:'#fff7ed',borderRadius:8,
+            border:'1px solid #fed7aa',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <span style={{fontSize:12,color:'#92400e'}}>⚠️ 检测到 {(data.selectedCombos||[]).length} 个历史方案残留</span>
+            <button onClick={function(){upd('selectedCombos',[]);upd('elementCombos',[]);upd('mjPrompts',{});upd('ideogramResults',{});}}
+              style={{padding:'4px 12px',background:'#f97316',color:'white',border:'none',borderRadius:6,fontSize:11,fontWeight:700,cursor:'pointer'}}>一键清除</button>
+          </div>}
+          <button className="btn" onClick={function(){if(!canNext){alert('请完成必填项');return;}onNext();}}
+            style={{background:colors.ac,color:'white',width:'100%',padding:'12px',fontSize:15}}>确认并继续 →</button>
+        </div>;
+      }
+
+      // 童装类目：新产品线流程
+      const curYear = new Date().getFullYear();
+      const PRODUCT_LINE_DATA = {
+        'Milestone': {
+          label:'🏆 Milestone', labelCN:'成长纪念', color:'#f59e0b',
+          desc:'记录妈妈和孩子的重要时刻，强仪式感，天然礼物需求',
+          subs:[
+            {key:'mom_birth', label:'妈妈身份诞生', examples:['First Time Mom','Promoted to Mom','Mama Est. '+curYear]},
+            {key:'child_growth', label:'孩子成长节点', examples:['First Christmas','First Day of School','"First ___ with you"']},
+            {key:'family_change', label:'家庭结构变化', examples:['Baby #2 is Coming','Growing Our Family','From One to Two']},
+            {key:'year_memorial', label:'年份纪念', examples:['Mama Est. '+curYear,'Big Sister Est. '+curYear,'Family Est. '+curYear]},
+          ]
+        },
+        'Identity': {
+          label:'💪 Identity', labelCN:'身份认同', color:'#8b5cf6',
+          desc:'我是谁，标签感强，刚需常青款',
+          subs:[
+            {key:'mom_identity', label:'妈妈身份', examples:['Boy Mom','Girl Mom','Coffee Mom','Mama of 2']},
+            {key:'sibling_basic', label:'兄弟姐妹基础身份', examples:['Big Brother','Big Sister','Little Sister','Middle Child']},
+            {key:'sibling_upgrade', label:'升级身份', examples:['Promoted to Big Sister','Big Brother Again','Only Child Expiring '+curYear]},
+            {key:'sibling_set', label:'套装组合', examples:['Big Sister + Little Sister','Mama + Big Sister + Baby']},
+          ]
+        },
+        'Daily Bonding': {
+          label:'💛 Daily Bonding', labelCN:'亲子互动', color:'#10b981',
+          desc:'日常亲子陪伴，温暖幽默，Matching强趋势',
+          subs:[
+            {key:'mama_mini', label:'Mama & Mini系列', examples:['Mama / Mini对应款','Mommy & Me','Twinning with Mom']},
+            {key:'chaos_daily', label:'混乱日常', examples:['Chaos Coordinator','Tiny Chaos','Snack Dealer']},
+            {key:'real_mom', label:'真实妈妈', examples:['Tired as a Mother','Surviving Toddler Life']},
+            {key:'family_outing', label:'家庭出游', examples:['Summer Mom Life','Beach Family','Chaos Family']},
+          ]
+        }
+      };
+
+      // 常青主题库（按性别+年龄）
+      const EVERGREEN_THEMES = {
+        girl: {
+          '0-2': ['独角兽','彩虹','蝴蝶','猫咪','草莓','月亮星星','小兔子','花朵'],
+          '2-5': ['独角兽','芭蕾','美人鱼','仙女','彩虹','蝴蝶','甜甜圈','公主'],
+          '6-10': ['美人鱼','芭蕾','彩虹','猫咪','草莓','月亮星星','仙女','花朵'],
+          '11-14': ['月亮星星','彩虹','蝴蝶','猫咪','花朵','极简动物']
+        },
+        boy: {
+          '0-2': ['恐龙','小汽车','大象','狮子','熊','农场动物','火车'],
+          '2-5': ['恐龙','卡车','飞机','机器人','鲨鱼','火箭','足球'],
+          '6-10': ['恐龙','足球','篮球','鲨鱼','机器人','火箭','卡车','飞机'],
+          '11-14': ['足球','篮球','滑板','机器人','鲨鱼','极简动物']
+        },
+        unisex: {
+          '0-2': ['动物（狮子/熊/狗）','彩虹','星星月亮','农场动物','海洋动物','丛林动物'],
+          '2-5': ['恐龙','彩虹','动物','丛林动物','海洋动物','农场动物'],
+          '6-10': ['彩虹','动物','星星月亮','丛林动物','海洋动物'],
+          '11-14': ['极简动物','星星月亮','彩虹','丛林动物']
+        }
+      };
+
+      const [selLine, setSelLine] = React.useState(data.productLine||'');
+      const [selSubs, setSelSubs] = React.useState(data.productSubs||[]);
+      const [customInput, setCustomInput] = React.useState(data.productCustom||'');
+      const [gender, setGender] = React.useState(data.gender||'');
+      const [ageGroup, setAgeGroup] = React.useState(data.ageGroup||'');
+
+      function toggleSub(key){
+        setSelSubs(function(prev){return prev.includes(key)?prev.filter(function(k){return k!==key;}): [...prev,key];});
+      }
+
+      const evergreenList = (gender && ageGroup) ? (EVERGREEN_THEMES[gender]||{})[ageGroup]||[] : [];
+
+      function handleNext(){
+        if(!selLine){alert('请先选择产品线');return;}
+        if(!gender){alert('请选择性别');return;}
+        if(!ageGroup){alert('请选择年龄段');return;}
+        upd('productLine',selLine);
+        upd('productSubs',selSubs);
+        upd('productCustom',customInput);
+        upd('gender',gender);
+        upd('ageGroup',ageGroup);
+        const lineData=PRODUCT_LINE_DATA[selLine];
+        const subLabels=selSubs.map(function(k){const s=(lineData.subs||[]).find(function(x){return x.key===k;});return s?s.label:'';}).filter(Boolean);
+        upd('productLineInfo',{line:selLine,lineCN:lineData.labelCN,subs:subLabels,custom:customInput,gender:gender,ageGroup:ageGroup});
+        onNext();
+      }
+
+      const lineData = selLine ? PRODUCT_LINE_DATA[selLine] : null;
+      const genderLabel = {girl:'女童',boy:'男童',unisex:'通用'}[gender]||'';
+      const ageLabel = {'0-2':'0-2岁','2-5':'2-5岁','6-10':'6-10岁','11-14':'11-14岁'}[ageGroup]||'';
+
+      return <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>Step 1 — 选择产品线</div>
+
+        {/* 人群选择 */}
+        <div className="card" style={{padding:14,display:'flex',flexDirection:'column',gap:10}}>
+          <div style={{fontWeight:700,fontSize:13,color:'#374151'}}>👧 目标人群</div>
+          <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
+            <div style={{flex:1,minWidth:160}}>
+              <div style={{fontSize:11,color:'#64748b',fontWeight:600,marginBottom:6}}>性别</div>
+              <div style={{display:'flex',gap:6}}>
+                {[['girl','👧 女童'],['boy','👦 男童'],['unisex','💛 通用']].map(function(o){
+                  const active=gender===o[0];
+                  return <button key={o[0]} onClick={function(){setGender(o[0]);}}
+                    style={{flex:1,padding:'8px 4px',borderRadius:8,border:'2px solid '+(active?colors.ac:'#e2e8f0'),
+                      background:active?colors.ac:'white',color:active?'white':'#374151',
+                      fontWeight:700,fontSize:12,cursor:'pointer'}}>
+                    {o[1]}
+                  </button>;
+                })}
+              </div>
+            </div>
+            <div style={{flex:1,minWidth:200}}>
+              <div style={{fontSize:11,color:'#64748b',fontWeight:600,marginBottom:6}}>年龄段</div>
+              <div style={{display:'flex',gap:6}}>
+                {[['0-2','0-2岁'],['2-5','2-5岁'],['6-10','6-10岁'],['11-14','11-14岁']].map(function(o){
+                  const active=ageGroup===o[0];
+                  return <button key={o[0]} onClick={function(){setAgeGroup(o[0]);}}
+                    style={{flex:1,padding:'8px 4px',borderRadius:8,border:'2px solid '+(active?colors.ac:'#e2e8f0'),
+                      background:active?colors.ac:'white',color:active?'white':'#374151',
+                      fontWeight:700,fontSize:11,cursor:'pointer'}}>
+                    {o[1]}
+                  </button>;
+                })}
+              </div>
+            </div>
+          </div>
+          {/* 对应常青主题展示 */}
+          {evergreenList.length>0&&<div style={{marginTop:4}}>
+            <div style={{fontSize:11,color:'#10b981',fontWeight:700,marginBottom:6}}>
+              🌿 {genderLabel} {ageLabel} 热销常青主题参考
+            </div>
+            <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+              {evergreenList.map(function(t){
+                return <span key={t} style={{padding:'4px 10px',background:'#f0fdf4',color:'#15803d',
+                  borderRadius:20,fontSize:11,fontWeight:600,border:'1px solid #bbf7d0'}}>
+                  {t}
+                </span>;
+              })}
+            </div>
+          </div>}
+        </div>
+
+        {/* 三条产品线 */}
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {Object.entries(PRODUCT_LINE_DATA).map(function(entry){
+            const key=entry[0];const line=entry[1];
+            const isActive=selLine===key;
+            return <div key={key} style={{borderRadius:12,border:'2px solid '+(isActive?line.color:'#e2e8f0'),overflow:'hidden',transition:'all 0.2s'}}>
+              <div onClick={function(){setSelLine(key);setSelSubs([]);}}
+                style={{padding:'12px 16px',cursor:'pointer',background:isActive?line.color+'12':'#f8fafc',
+                  display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <div>
+                  <div style={{fontWeight:800,fontSize:14,color:isActive?line.color:'#374151'}}>{line.label} · {line.labelCN}</div>
+                  <div style={{fontSize:11,color:'#64748b',marginTop:1}}>{line.desc}</div>
+                </div>
+                <div style={{width:20,height:20,borderRadius:'50%',border:'2px solid '+(isActive?line.color:'#d1d5db'),
+                  background:isActive?line.color:'white',flexShrink:0,display:'flex',alignItems:'center',justifyContent:'center'}}>
+                  {isActive&&<div style={{width:8,height:8,borderRadius:'50%',background:'white'}}></div>}
+                </div>
+              </div>
+              {isActive&&<div style={{padding:'12px 16px',background:'white',display:'flex',flexDirection:'column',gap:8}}>
+                <div style={{fontSize:11,color:'#64748b',fontWeight:600}}>子分类（可多选，不选则AI全面推导）</div>
+                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:6}}>
+                  {line.subs.map(function(sub){
+                    const isSel=selSubs.includes(sub.key);
+                    return <div key={sub.key} onClick={function(){toggleSub(sub.key);}}
+                      style={{padding:'9px 11px',borderRadius:8,cursor:'pointer',
+                        border:'2px solid '+(isSel?line.color:'#e2e8f0'),
+                        background:isSel?line.color+'10':'white',transition:'all 0.15s'}}>
+                      <div style={{fontWeight:700,fontSize:12,color:isSel?line.color:'#374151',marginBottom:3}}>
+                        {isSel?'✓ ':''}{sub.label}
+                      </div>
+                      <div style={{fontSize:10,color:'#94a3b8'}}>{sub.examples.slice(0,2).join(' · ')}</div>
+                    </div>;
+                  })}
+                </div>
+                {selSubs.length>0&&<div style={{padding:'6px 10px',background:line.color+'08',borderRadius:6,border:'1px solid '+line.color+'30',fontSize:11,color:line.color,fontWeight:600}}>
+                  已选：{selSubs.map(function(k){const s=line.subs.find(function(x){return x.key===k;});return s?s.label:'';}).join(' · ')}
+                </div>}
+                <div>
+                  <div style={{fontSize:11,color:'#64748b',fontWeight:600,marginBottom:4}}>✏️ 自定义补充（选填）</div>
+                  <textarea value={customInput} onChange={function(e){setCustomInput(e.target.value);}}
+                    placeholder={'例如：想做Promoted to Big Sister系列，结合'+curYear+'年圣诞节，Rainbow风格...'}
+                    style={{width:'100%',minHeight:52,padding:'7px 10px',borderRadius:6,
+                      border:'1px solid #e2e8f0',fontSize:11,outline:'none',resize:'vertical',boxSizing:'border-box'}} />
+                </div>
+              </div>}
+            </div>;
+          })}
+        </div>
+
+        <button onClick={handleNext}
+          style={{width:'100%',padding:'13px',
+            background:(selLine&&gender&&ageGroup)?(PRODUCT_LINE_DATA[selLine]&&PRODUCT_LINE_DATA[selLine].color)||colors.ac:'#e2e8f0',
+            color:(selLine&&gender&&ageGroup)?'white':'#94a3b8',
+            border:'none',borderRadius:10,fontWeight:800,fontSize:14,
+            cursor:(selLine&&gender&&ageGroup)?'pointer':'not-allowed'}}>
+          {selLine&&gender&&ageGroup?'确认，开始推导开发方向 →':'请选择产品线和人群'}
+        </button>
+
         {(data.selectedCombos||[]).length>0&&<div style={{padding:'10px 14px',background:'#fff7ed',borderRadius:8,
           border:'1px solid #fed7aa',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-          <span style={{fontSize:12,color:'#92400e'}}>
-            ⚠️ 检测到 {(data.selectedCombos||[]).length} 个历史方案残留
-          </span>
-          <button onClick={function(){
-            upd('selectedCombos',[]);upd('elementCombos',[]);
-            upd('mjPrompts',{});upd('ideogramResults',{});
-          }} style={{padding:'4px 12px',background:'#f97316',color:'white',border:'none',
-            borderRadius:6,fontSize:11,fontWeight:700,cursor:'pointer'}}>
+          <span style={{fontSize:12,color:'#92400e'}}>⚠️ 检测到 {(data.selectedCombos||[]).length} 个历史方案残留</span>
+          <button onClick={function(){upd('selectedCombos',[]);upd('elementCombos',[]);upd('mjPrompts',{});upd('ideogramResults',{});}}
+            style={{padding:'4px 12px',background:'#f97316',color:'white',border:'none',borderRadius:6,fontSize:11,fontWeight:700,cursor:'pointer'}}>
             一键清除
           </button>
         </div>}
-        <button className="btn" onClick={function(){if(!canNext){alert('请完成必填项');return;}onNext();}}
-          style={{background:colors.ac,color:'white',width:'100%',padding:'12px',fontSize:15}}>确认并继续 →</button>
       </div>;
     }
 
-    function WFStep1({data,upd,colors,priorities,onNext,onBack}) {
-      const [customTheme, setCustomTheme] = React.useState(data.theme&&data.theme.isCustom?data.theme.name:'');
-      const isCustomSel = data.theme&&data.theme.isCustom;
 
-      function selectCustomTheme() {
-        const t = customTheme.trim();
-        if(!t){alert('请输入自定义主题');return;}
-        // 构造一个自定义theme对象，跟系统主题格式兼容
+    function WFStep1({data,upd,colors,priorities,onNext,onBack}) {
+      const [loading, setLoading] = React.useState(false);
+      const [suggestions, setSuggestions] = React.useState(data.aiSuggestions||[]);
+      const [customEmotion, setCustomEmotion] = React.useState(data.customEmotion||'');
+      const [customStyle, setCustomStyle] = React.useState(data.customStyle||'');
+      const [customThemeInput, setCustomThemeInput] = React.useState(data.customThemeInput||'');
+      const [customThemeName, setCustomThemeName] = React.useState('');
+      const weekTrend = data.weekTrend||null;
+      const now = new Date();
+      const monthData = MONTHLY_CALENDAR[now.getMonth()+1]||{};
+
+      async function generateSuggestions() {
+        setLoading(true);
+        try {
+          const curYear = new Date().getFullYear();
+          const trendCtx = weekTrend
+            ? '本周趋势情绪：'+(weekTrend.emotions||[]).join('、')+'；热门短句：'+(weekTrend.hot_phrases||[]).slice(0,2).join('、')
+            : '无本周趋势数据';
+          const lineInfo = data.productLineInfo||{};
+          const selLine = lineInfo.line||'';
+          const selSubs = (lineInfo.subs||[]).join('、');
+          const lineCustom = lineInfo.custom||'';
+          const lineCtx = selLine
+            ? '用户已选产品线：'+selLine+'('+(lineInfo.lineCN||'')+')'+(selSubs?'，子分类：'+selSubs:'')+(lineCustom?'，补充：'+lineCustom:'')
+            : '未指定(三条线各推一个方向)';
+          const subRef =
+            'Milestone子分类：妈妈身份诞生/孩子成长节点/家庭结构变化/年份纪念\n'+
+            'Identity子分类：妈妈身份(Boy Mom等)/孩子兄弟姐妹基础身份(Big Sister等)/升级身份(Promoted to...)/套装组合\n'+
+            'Daily Bonding子分类：Mama&Mini系列/混乱日常/真实妈妈/家庭出游\n';
+          const genderCN = {girl:'女童',boy:'男童',unisex:'通用'}[lineInfo.gender||data.gender||'']||'通用';
+          const ageKey = lineInfo.ageGroup||data.ageGroup||'2-5';
+          const EVERGREEN_MAP = {
+            girl:{'0-2':['独角兽','彩虹','蝴蝶','猫咪','草莓','月亮星星','小兔子','花朵'],'2-5':['独角兽','芭蕾','美人鱼','仙女','彩虹','蝴蝶','甜甜圈','公主'],'6-10':['美人鱼','芭蕾','彩虹','猫咪','草莓','月亮星星','仙女'],'11-14':['月亮星星','彩虹','蝴蝶','猫咪','花朵']},
+            boy:{'0-2':['恐龙','小汽车','大象','狮子','熊','农场动物','火车'],'2-5':['恐龙','卡车','飞机','机器人','鲨鱼','火箭','足球'],'6-10':['恐龙','足球','篮球','鲨鱼','机器人','火箭'],'11-14':['足球','篮球','滑板','机器人','鲨鱼']},
+            unisex:{'0-2':['动物','彩虹','星星月亮','农场动物','海洋动物','丛林动物'],'2-5':['恐龙','彩虹','动物','丛林动物','海洋动物'],'6-10':['彩虹','动物','星星月亮','丛林动物'],'11-14':['极简动物','星星月亮','彩虹']}
+          };
+          const genderKey2 = lineInfo.gender||data.gender||'unisex';
+          const evergreenList = ((EVERGREEN_MAP[genderKey2]||{})[ageKey]||[]).join('、');
+          const prompt =
+            '你是妈妈文化POD选品专家(主干：Mom Culture)。根据以下信息推导本周开发方向。\n\n'
+            +'【当前时间】'+(now.getMonth()+1)+'月 '+curYear+'年 / '+monthData.theme+'\n'
+            +'【目标人群】'+genderCN+' '+ageKey+'岁\n'
+            +'【本月情绪】'+(monthData.emotions||[]).join('、')+'\n'
+            +'【本月节点】'+(monthData.holiday||'常青')+'\n'
+            +'【本月推荐风格】'+(monthData.styles||[]).join('、')+'\n'
+            +'【产品线选择】'+lineCtx+'\n'
+            +'【本周趋势】'+trendCtx+'\n'
+            +'【该人群热销常青主题】'+evergreenList+'\n'
+            +(customEmotion?'【指定情绪】'+customEmotion+'\n':'')
+            +(customStyle?'【指定风格】'+customStyle+'\n':'')
+            +(customThemeInput?'【指定主题】'+customThemeInput+'\n':'')
+            +'\n【产品线子分类参考】\n'+subRef
+            +'【可选风格】泼墨、Neon、星空、Rainbow\n'
+            +'【年份】当前'+curYear+'年\n\n'
+            +'【开发比例要求】\n'
+            +'常青款60%(至少3个)：从热销常青主题选取，type:evergreen\n'
+            +'节日款30%(1-2个)：结合本月节点，type:holiday\n'
+            +'季节款10%(0-1个)：结合当前季节，type:season\n\n'
+            +'输出JSON数组(不含markdown)，共4-5个方向：\n'
+            +'[{"type":"evergreen/holiday/season","line":"Milestone/Identity/Daily Bonding之一","sub":"子分类名","emotion":"核心情绪","style":"视觉风格","theme":"具体主题","concept":"英文开发概念","concept_cn":"中文说明","urgency":8,"reason":"推荐理由一句话"}]\n'
+            +'如已指定产品线则重点推导该线。常青款urgency基础分6-7，节日近则8-10。'
+          const raw = await callClaudeAPI(prompt, 'POD选品专家，只输出JSON数组');
+          const cleaned = raw.replace(/```json|```/g,'').trim();
+          const si=cleaned.indexOf('['), ei=cleaned.lastIndexOf(']');
+          if(si>=0&&ei>=0){
+            const parsed = JSON.parse(cleaned.slice(si,ei+1));
+            setSuggestions(parsed);
+            upd('aiSuggestions',parsed);
+          }
+        } catch(e) { alert('生成失败：'+e.message); }
+        setLoading(false);
+      }
+
+      function selectSuggestion(s) {
         upd('theme',{
-          name: t,
-          en: t,
-          emoji: '✏️',
-          isCustom: true,
-          key: 'custom_'+t
+          name: s.concept,
+          nameCN: s.concept_cn,
+          en: s.concept,
+          emoji: s.line==='Milestone'?'🏆':s.line==='Daily Bonding'?'💛':'💪',
+          line: s.line,
+          sub: s.sub||'',
+          emotion: s.emotion,
+          style: s.style,
+          themeNode: s.theme,
+          isAISuggested: true
         });
+        upd('customEmotion', customEmotion);
+        upd('customStyle', customStyle);
         setTimeout(onNext, 180);
       }
 
-      return <div style={{display:'flex',flexDirection:'column',gap:12}}>
-        <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>Step 2 — 选择主题</div>
-        <div style={{fontSize:13,color:'#64748b'}}>系统已按节日紧急度、季节窗口、常青轮换自动排序</div>
-        {priorities.slice(0,9).map(function(p,i){
-          const isSel=data.theme&&!data.theme.isCustom&&(data.theme.key===p.theme.key||data.theme.id===p.theme.id);
-          const bc=p.urgency>=9?'#ef4444':p.urgency>=7?'#f97316':p.urgency>=5?'#3b82f6':'#10b981';
-          const bg=p.urgency>=9?'#fef2f2':p.urgency>=7?'#fff7ed':p.urgency>=5?'#eff6ff':'#f0fdf4';
-          return <div key={i} onClick={function(){upd('theme',p.theme);setTimeout(onNext,180);}}
-            style={{padding:'14px 16px',borderRadius:10,border:'2px solid '+(isSel?colors.ac:bc),background:bg,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'space-between',transition:'all 0.2s'}}>
-            <div style={{display:'flex',alignItems:'center',gap:12}}>
-              <span style={{fontSize:24}}>{p.theme.emoji}</span>
-              <div><div style={{fontWeight:600,fontSize:14}}>{p.theme.name||p.theme.en}</div>
-              <div style={{fontSize:11,color:'#64748b'}}>{p.reason}</div></div>
+      function selectCustomTheme() {
+        const t = customThemeName.trim();
+        if(!t){alert('请输入自定义主题');return;}
+        upd('theme',{
+          name:t, nameCN:t, en:t, emoji:'✏️', isCustom:true, key:'custom_'+t,
+          emotion: customEmotion, style: customStyle
+        });
+        setTimeout(onNext,180);
+      }
+
+      const isSel = function(s){ return data.theme&&data.theme.name===s.concept; };
+
+      return <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>Step 2 — 选择开发方向</div>
+
+        {/* 本月基调提示 */}
+        <div style={{background:colors.ac+'10',borderRadius:10,padding:'10px 14px',border:'1px solid '+colors.ac+'25',
+          display:'flex',gap:12,flexWrap:'wrap',alignItems:'center'}}>
+          <span style={{fontSize:12,color:colors.ac,fontWeight:700}}>{now.getMonth()+1}月 · {monthData.theme}</span>
+          <span style={{fontSize:11,color:'#64748b'}}>情绪：{(monthData.emotions||[]).slice(0,3).join(' / ')}</span>
+          <span style={{fontSize:11,color:'#64748b'}}>节点：{monthData.holiday}</span>
+          {weekTrend&&<span style={{fontSize:11,color:'#10b981',fontWeight:600}}>✓ 已加载本周趋势</span>}
+        </div>
+
+        {/* 自定义输入三行 */}
+        <div style={{background:'#f8fafc',borderRadius:10,padding:14,border:'1px solid #e2e8f0',display:'flex',flexDirection:'column',gap:8}}>
+          <div style={{fontSize:12,fontWeight:700,color:'#374151',marginBottom:2}}>🎛️ 自定义参数(可不填，AI会根据月度基调自动推导)</div>
+          <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+            <div>
+              <div style={{fontSize:11,color:'#64748b',marginBottom:4}}>情绪方向</div>
+              <input value={customEmotion} onChange={function(e){setCustomEmotion(e.target.value);}}
+                placeholder="如：骄傲、疲惫、温柔..."
+                style={{width:'100%',padding:'7px 10px',borderRadius:6,border:'1px solid #e2e8f0',fontSize:12,outline:'none'}} />
             </div>
-            <UrgBadge urgency={p.urgency} />
+            <div>
+              <div style={{fontSize:11,color:'#64748b',marginBottom:4}}>视觉风格</div>
+              <input value={customStyle} onChange={function(e){setCustomStyle(e.target.value);}}
+                placeholder="如：泼墨、星空、Rainbow..."
+                style={{width:'100%',padding:'7px 10px',borderRadius:6,border:'1px solid #e2e8f0',fontSize:12,outline:'none'}} />
+            </div>
+            <div>
+              <div style={{fontSize:11,color:'#64748b',marginBottom:4}}>主题节点</div>
+              <input value={customThemeInput} onChange={function(e){setCustomThemeInput(e.target.value);upd('customThemeInput',e.target.value);}}
+                placeholder="如：万圣节、Back to School..."
+                style={{width:'100%',padding:'7px 10px',borderRadius:6,border:'1px solid #e2e8f0',fontSize:12,outline:'none'}} />
+            </div>
+          </div>
+        </div>
+
+        {/* AI推导按钮 */}
+        <button onClick={generateSuggestions} disabled={loading}
+          style={{width:'100%',padding:'12px',background:loading?'#94a3b8':colors.ac,color:'white',
+            border:'none',borderRadius:10,fontWeight:800,fontSize:14,cursor:loading?'not-allowed':'pointer'}}>
+          {loading?'⏳ AI推导中...':suggestions.length>0?'🔄 重新推导开发方向':'🤖 AI自动推导本周开发方向'}
+        </button>
+
+        {/* AI推荐方向列表 */}
+        {suggestions.length>0&&<div style={{display:'flex',flexDirection:'column',gap:8}}>
+          <div style={{fontSize:12,color:'#64748b',fontWeight:600}}>💡 AI推荐方向(点击选择)</div>
+          {suggestions.map(function(s,i){
+            const sel=isSel(s);
+            const lineColor=s.line==='Milestone'?'#f59e0b':s.line==='Daily Bonding'?'#10b981':'#8b5cf6';
+            return <div key={i} onClick={function(){selectSuggestion(s);}}
+              style={{padding:'14px 16px',borderRadius:10,cursor:'pointer',transition:'all 0.2s',
+                border:'2px solid '+(sel?colors.ac:'#e2e8f0'),
+                background:sel?colors.ac+'08':'white'}}>
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:6}}>
+                <div style={{display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
+                  {s.type==='evergreen'&&<span style={{fontSize:10,padding:'2px 8px',background:'#f0fdf4',color:'#15803d',borderRadius:10,fontWeight:800,border:'1px solid #bbf7d0'}}>🌿 常青</span>}
+                  {s.type==='holiday'&&<span style={{fontSize:10,padding:'2px 8px',background:'#fef3c7',color:'#92400e',borderRadius:10,fontWeight:800,border:'1px solid #fde68a'}}>🎄 节日</span>}
+                  {s.type==='season'&&<span style={{fontSize:10,padding:'2px 8px',background:'#eff6ff',color:'#1d4ed8',borderRadius:10,fontWeight:800,border:'1px solid #bfdbfe'}}>🌸 季节</span>}
+                  <span style={{fontSize:10,padding:'2px 8px',background:lineColor+'20',color:lineColor,borderRadius:4,fontWeight:700}}>{s.line}</span>
+                  {s.sub&&<span style={{fontSize:10,padding:'2px 8px',background:lineColor+'10',color:lineColor,borderRadius:4,fontWeight:600}}>· {s.sub}</span>}
+                  <span style={{fontSize:10,padding:'2px 8px',background:'#fdf4ff',color:'#7e22ce',borderRadius:4,fontWeight:700}}>{s.emotion}</span>
+                  <span style={{fontSize:10,padding:'2px 8px',background:'#fff7ed',color:'#c2410c',borderRadius:4,fontWeight:700}}>{s.style}</span>
+                  <span style={{fontSize:10,padding:'2px 8px',background:'#f0fdf4',color:'#15803d',borderRadius:4,fontWeight:700}}>{s.theme}</span>
+                </div>
+                <div style={{display:'flex',alignItems:'center',gap:6}}>
+                  <span style={{fontSize:11,color:s.urgency>=8?'#ef4444':s.urgency>=6?'#f97316':'#10b981',fontWeight:700}}>
+                    {s.urgency>=8?'🔥':'⚡'} {s.urgency}分
+                  </span>
+                  {sel&&<span style={{color:colors.ac,fontWeight:700,fontSize:13}}>✓</span>}
+                </div>
+              </div>
+              <div style={{fontWeight:700,fontSize:14,color:'#1e293b',marginBottom:2}}>{s.concept_cn||s.concept}</div>
+              <div style={{fontSize:11,color:'#64748b'}}>{s.reason}</div>
+            </div>;
+          })}
+        </div>}
+
+        {/* 系统推荐主题(原有节日列表，作为备选) */}
+        {/* 常青主题 + 节日主题多选区 */}
+        {(function(){
+          const EVERGREEN_MAP = {
+            girl:{'0-2':['独角兽','彩虹','蝴蝶','猫咪','草莓','月亮星星','小兔子','花朵'],'2-5':['独角兽','芭蕾','美人鱼','仙女','彩虹','蝴蝶','甜甜圈','公主'],'6-10':['美人鱼','芭蕾','彩虹','猫咪','草莓','月亮星星','仙女','花朵'],'11-14':['月亮星星','彩虹','蝴蝶','猫咪','花朵','极简动物']},
+            boy:{'0-2':['恐龙','小汽车','大象','狮子','熊','农场动物','火车'],'2-5':['恐龙','卡车','飞机','机器人','鲨鱼','火箭','足球'],'6-10':['恐龙','足球','篮球','鲨鱼','机器人','火箭','卡车','飞机'],'11-14':['足球','篮球','滑板','机器人','鲨鱼','极简动物']},
+            unisex:{'0-2':['动物','彩虹','星星月亮','农场动物','海洋动物','丛林动物'],'2-5':['恐龙','彩虹','动物','丛林动物','海洋动物','农场动物'],'6-10':['彩虹','动物','星星月亮','丛林动物','海洋动物'],'11-14':['极简动物','星星月亮','彩虹','丛林动物']}
+          };
+          const gKey = data.gender||'unisex';
+          const aKey = data.ageGroup||'2-5';
+          const egList = ((EVERGREEN_MAP[gKey]||{})[aKey])||[];
+          const gLabel = {girl:'女童',boy:'男童',unisex:'通用'}[gKey]||'通用';
+          const selEG = data.selectedEvergreen||[];
+          const selHoliday = data.selectedHoliday||null;
+
+          function toggleEG(t){
+            const cur = data.selectedEvergreen||[];
+            const next = cur.includes(t) ? cur.filter(function(x){return x!==t;}) : [...cur,t];
+            upd('selectedEvergreen', next);
+          }
+          function selectHoliday(p){
+            const cur = data.selectedHoliday;
+            // 点同一个取消选中
+            if(cur&&cur.key===p.theme.key) { upd('selectedHoliday',null); }
+            else { upd('selectedHoliday', p.theme); }
+          }
+          function confirmAndNext(){
+            if(selEG.length===0&&!selHoliday){alert('请至少选择一个主题');return;}
+            // 构建叠加主题
+            const egNames = selEG.join('+');
+            const holidayName = selHoliday?(selHoliday.name||selHoliday.en):'';
+            const combined = selEG.length>0&&selHoliday
+              ? egNames+' × '+holidayName
+              : selEG.length>0 ? egNames : holidayName;
+            const combinedEn = selEG.length>0&&selHoliday
+              ? selEG.join(' ')+(selHoliday.en?' '+selHoliday.en:'')
+              : selEG.length>0 ? selEG.join(' ') : (selHoliday&&selHoliday.en)||holidayName;
+            upd('theme',{
+              name: combined,
+              nameCN: combined,
+              en: combinedEn,
+              emoji: selEG.length>0&&selHoliday ? '🌿🎄' : selEG.length>0 ? '🌿' : (selHoliday&&selHoliday.emoji)||'🎄',
+                type: selEG.length>0&&selHoliday ? 'combined' : selEG.length>0 ? 'evergreen' : 'holiday',
+              isEvergreen: selEG.length>0,
+              evergreens: selEG,
+              holiday: selHoliday,
+              line: data.productLine||'Identity',
+              key: 'combined_'+combined
+            });
+            setTimeout(onNext,180);
+          }
+
+          const hasSelection = selEG.length>0||!!selHoliday;
+
+          return <div style={{borderRadius:10,border:'1px solid #e2e8f0',overflow:'hidden'}}>
+            <div style={{padding:'10px 14px',background:'#f8fafc',borderBottom:'1px solid #f1f5f9',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:'#374151'}}>📋 快速选择主题</div>
+                <div style={{fontSize:11,color:'#64748b',marginTop:1}}>常青主题可多选，节日主题可叠加（如：恐龙×母亲节）</div>
+              </div>
+              {hasSelection&&<button onClick={confirmAndNext}
+                style={{padding:'7px 16px',background:colors.ac,color:'white',border:'none',
+                  borderRadius:8,fontWeight:700,fontSize:12,cursor:'pointer',whiteSpace:'nowrap'}}>
+                确认选择 →
+              </button>}
+            </div>
+
+            {/* 已选预览 */}
+            {hasSelection&&<div style={{padding:'8px 14px',background:colors.ac+'08',borderBottom:'1px solid '+colors.ac+'20',display:'flex',alignItems:'center',gap:8,flexWrap:'wrap'}}>
+              <span style={{fontSize:11,color:colors.ac,fontWeight:700}}>已选：</span>
+              {selEG.map(function(t){return <span key={t} style={{padding:'2px 10px',background:'#f0fdf4',color:'#15803d',borderRadius:10,fontSize:11,fontWeight:700,border:'1px solid #bbf7d0'}}>🌿 {t}</span>;})}
+              {selHoliday&&<span style={{padding:'2px 10px',background:'#fef3c7',color:'#92400e',borderRadius:10,fontSize:11,fontWeight:700,border:'1px solid #fde68a'}}>🎄 {selHoliday.name||selHoliday.en}</span>}
+              {selEG.length>0&&selHoliday&&<span style={{fontSize:11,color:'#64748b'}}>→ 叠加开发：{selEG.join('+')} × {selHoliday.name||selHoliday.en}</span>}
+            </div>}
+
+            {/* 常青主题多选 */}
+            {egList.length>0&&<div style={{padding:'10px 14px',borderBottom:'1px solid #f1f5f9'}}>
+              <div style={{fontSize:11,fontWeight:700,color:'#15803d',marginBottom:8}}>
+                🌿 常青主题 · {gLabel} {aKey}岁（可多选）
+              </div>
+              <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+                {egList.map(function(t){
+                  const isSel = selEG.includes(t);
+                  return <button key={t} onClick={function(){toggleEG(t);}}
+                    style={{padding:'6px 14px',borderRadius:20,cursor:'pointer',fontWeight:700,fontSize:12,
+                      border:'2px solid '+(isSel?'#15803d':'#bbf7d0'),
+                      background:isSel?'#15803d':'#f0fdf4',
+                      color:isSel?'white':'#15803d',transition:'all 0.15s'}}>
+                    {isSel?'✓ ':''}{t}
+                  </button>;
+                })}
+              </div>
+            </div>}
+
+            {/* 节日主题单选（可叠加到常青主题上） */}
+            <div style={{padding:'10px 14px'}}>
+              <div style={{fontSize:11,fontWeight:700,color:'#f59e0b',marginBottom:8}}>
+                🎄 节日主题（可与常青主题叠加，再次点击取消）
+              </div>
+              <div style={{display:'flex',flexDirection:'column',gap:5}}>
+                {priorities.slice(0,6).map(function(p,i){
+                  const isSel = selHoliday&&selHoliday.key===p.theme.key;
+                  const bc=p.urgency>=9?'#ef4444':p.urgency>=7?'#f97316':p.urgency>=5?'#3b82f6':'#10b981';
+                  return <div key={i} onClick={function(){selectHoliday(p);}}
+                    style={{padding:'9px 12px',borderRadius:8,cursor:'pointer',transition:'all 0.15s',
+                      border:'2px solid '+(isSel?colors.ac:bc+'40'),
+                      background:isSel?colors.ac+'08':'white',
+                      display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <span style={{fontSize:18}}>{p.theme.emoji}</span>
+                      <div>
+                        <div style={{fontWeight:600,fontSize:12,color:isSel?colors.ac:'#374151'}}>{isSel?'✓ ':''}{p.theme.name||p.theme.en}</div>
+                        <div style={{fontSize:10,color:'#64748b'}}>{p.reason}</div>
+                      </div>
+                    </div>
+                    <UrgBadge urgency={p.urgency} />
+                  </div>;
+                })}
+              </div>
+            </div>
           </div>;
-        })}
+        })()}
 
         {/* 自定义主题输入 */}
-        <div style={{marginTop:4,padding:14,borderRadius:10,
-          border:'2px solid '+(isCustomSel?colors.ac:'#e2e8f0'),
-          background:isCustomSel?colors.ac+'08':'#f8fafc'}}>
-          <div style={{fontWeight:700,fontSize:13,color:'#374151',marginBottom:8}}>
-            ✏️ 自定义主题
-            {isCustomSel&&<span style={{marginLeft:8,color:colors.ac,fontSize:12}}>✓ 已选择：{data.theme.name}</span>}
+        <div style={{padding:14,borderRadius:10,border:'2px solid '+(data.theme&&data.theme.isCustom?colors.ac:'#e2e8f0'),background:data.theme&&data.theme.isCustom?colors.ac+'08':'#f8fafc'}}>
+          <div style={{fontWeight:700,fontSize:12,color:'#374151',marginBottom:8}}>
+            ✏️ 完全自定义主题
+            {data.theme&&data.theme.isCustom&&<span style={{color:colors.ac,marginLeft:8}}>✓ 已选：{data.theme.name}</span>}
           </div>
           <div style={{display:'flex',gap:8}}>
-            <input
-              type="text"
-              value={customTheme}
-              onChange={function(e){setCustomTheme(e.target.value);}}
+            <input value={customThemeName} onChange={function(e){setCustomThemeName(e.target.value);}}
               onKeyDown={function(e){if(e.key==='Enter')selectCustomTheme();}}
-              placeholder="输入主题，例如：Familia Forever、拉丁鹰徽、蓝领工人、Cinco de Mayo..."
-              style={{flex:1,padding:'9px 12px',borderRadius:8,border:'1px solid #d1d5db',
-                fontSize:13,outline:'none',boxSizing:'border-box'}} />
+              placeholder="输入任意主题，如：Familia Forever、Cinco de Mayo..."
+              style={{flex:1,padding:'8px 12px',borderRadius:8,border:'1px solid #d1d5db',fontSize:12,outline:'none'}} />
             <button onClick={selectCustomTheme}
-              style={{padding:'9px 20px',background:colors.ac,color:'white',border:'none',
-                borderRadius:8,fontWeight:700,fontSize:13,cursor:'pointer',whiteSpace:'nowrap'}}>
+              style={{padding:'8px 16px',background:colors.ac,color:'white',border:'none',
+                borderRadius:8,fontWeight:700,fontSize:12,cursor:'pointer',whiteSpace:'nowrap'}}>
               选择并继续 →
             </button>
-          </div>
-          <div style={{fontSize:11,color:'#94a3b8',marginTop:6}}>
-            💡 支持中英文，AI会基于此主题自动生成元素组合方案
           </div>
         </div>
 
         <button className="btn" onClick={onBack} style={{background:'#f1f5f9',color:'#475569',width:'100%'}}>← 上一步</button>
+      </div>;
+    }
+
+
+    // ══════════════════════════════════════════════════════════════
+    // WFStep2b: 方向验证（Step2.5）
+    // ══════════════════════════════════════════════════════════════
+    function WFStep2b({data,upd,cat,colors,onNext,onBack}) {
+      const theme = data.theme||{};
+      const themeKey = theme.nameCN||theme.name||theme.en||'';
+      const lineInfo = data.productLineInfo||{};
+      const genderCN = {girl:'女童',boy:'男童',unisex:'通用'}[data.gender||'']||'';
+
+      const [autoLoading, setAutoLoading] = React.useState(false);
+      const [autoReport, setAutoReport] = React.useState(data.validationAuto||null);
+      const [manualText, setManualText] = React.useState(data.validationManual||'');
+      const [manualLoading, setManualLoading] = React.useState(false);
+      const [manualReport, setManualReport] = React.useState(data.validationManualReport||null);
+      const [skipped, setSkipped] = React.useState(false);
+
+      // 方式A：网页搜索自动验证
+      async function runAutoValidation() {
+        if(!getApiKey()){alert('请先设置Claude API Key');return;}
+        setAutoLoading(true);
+        try {
+          const searchQuery = themeKey+' '+(genderCN||'')+' '+(data.ageGroup||'')+' shirt Amazon';
+          const prompt =
+            '请帮我验证这个POD童装开发方向的市场可行性。\n\n'
+            +'开发方向：'+themeKey+'\n'
+            +'目标人群：'+genderCN+' '+(data.ageGroup||'')+'岁\n'
+            +'产品线：'+(lineInfo.line||'')+'\n\n'
+            +'请搜索Amazon和Etsy上的相关产品，分析：\n'
+            +'1. 市场规模（有多少竞品在卖）\n'
+            +'2. 定价区间（主流价格带）\n'
+            +'3. 热销产品的共同特征（图案风格/文案）\n'
+            +'4. 买家关键词（高频搜索词）\n'
+            +'5. 市场空白（竞品不足的细分方向）\n'
+            +'6. 综合评分（1-10分）和开发建议\n\n'
+            +'请用中文回答，输出结构化的验证报告。';
+
+          const resp = await fetch('https://api.anthropic.com/v1/messages', {
+            method:'POST',
+            headers:{
+              'Content-Type':'application/json',
+              'x-api-key':getApiKey(),
+              'anthropic-version':'2023-06-01',
+              'anthropic-dangerous-direct-browser-access':'true'
+            },
+            body: JSON.stringify({
+              model:'claude-sonnet-4-20250514',
+              max_tokens:2000,
+              system:'你是POD市场分析专家，擅长Amazon和Etsy童装市场分析。',
+              tools:[{type:'web_search_20250305',name:'web_search'}],
+              messages:[{role:'user',content:prompt}]
+            })
+          });
+          const d = await resp.json();
+          // 提取文本内容
+          const textBlocks = (d.content||[]).filter(function(b){return b.type==='text';});
+          const reportText = textBlocks.map(function(b){return b.text;}).join('\n');
+          const report = {text:reportText, searchQuery:searchQuery, time:Date.now()};
+          setAutoReport(report);
+          upd('validationAuto', report);
+        } catch(e) {
+          alert('自动验证失败：'+e.message);
+        }
+        setAutoLoading(false);
+      }
+
+      // 方式B：手动粘贴竞品数据分析
+      async function runManualAnalysis() {
+        if(!manualText.trim()){alert('请先粘贴竞品数据');return;}
+        if(!getApiKey()){alert('请先设置Claude API Key');return;}
+        setManualLoading(true);
+        try {
+          const prompt =
+            '你是POD市场分析专家。我粘贴了Amazon/Etsy上的竞品数据，请帮我分析这个开发方向的可行性。\n\n'
+            +'开发方向：'+themeKey+'\n'
+            +'目标人群：'+genderCN+' '+(data.ageGroup||'')+'岁\n\n'
+            +'竞品数据：\n'+manualText.trim()+'\n\n'
+            +'请分析：\n'
+            +'1. 竞品数量和市场热度\n'
+            +'2. 定价区间和利润空间\n'
+            +'3. 热销产品的共同特征\n'
+            +'4. 买家最常搜索的关键词\n'
+            +'5. 可以差异化的方向\n'
+            +'6. 综合评分（1-10分）：市场需求/竞争程度/开发建议\n\n'
+            +'输出中文结构化报告。';
+          const raw = await callClaudeAPI(prompt, 'POD市场分析专家。输出中文分析报告。');
+          const report = {text:raw, time:Date.now()};
+          setManualReport(report);
+          upd('validationManualReport', report);
+          upd('validationManual', manualText);
+        } catch(e) {
+          alert('分析失败：'+e.message);
+        }
+        setManualLoading(false);
+      }
+
+      const hasValidation = !!(autoReport||manualReport);
+
+      return <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>Step 3 — 方向验证</div>
+
+        {/* 当前方向摘要 */}
+        <div style={{background:colors.ac+'10',borderRadius:10,padding:'12px 16px',border:'1px solid '+colors.ac+'25',
+          display:'flex',alignItems:'center',gap:12,flexWrap:'wrap'}}>
+          <span style={{fontSize:24}}>{theme.emoji||'📦'}</span>
+          <div style={{flex:1}}>
+            <div style={{fontWeight:800,fontSize:15,color:colors.ac}}>{themeKey}</div>
+            <div style={{fontSize:11,color:'#64748b',marginTop:2}}>
+              {lineInfo.line||''} · {genderCN} {data.ageGroup||''}岁
+              {theme.type==='combined'?' · 叠加款':theme.type==='evergreen'?' · 常青款':theme.type==='holiday'?' · 节日款':''}
+            </div>
+          </div>
+          <div style={{fontSize:12,color:'#64748b'}}>
+            验证这个方向是否有市场需求
+          </div>
+        </div>
+
+        {/* 方式A：自动搜索验证 */}
+        <div style={{borderRadius:10,border:'2px solid '+(autoReport?'#10b981':'#e2e8f0'),overflow:'hidden'}}>
+          <div style={{padding:'12px 16px',background:autoReport?'#f0fdf4':'#f8fafc',
+            display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <div>
+              <div style={{fontWeight:700,fontSize:13,color:'#374151'}}>
+                🔍 方式A：AI自动搜索验证
+                {autoReport&&<span style={{color:'#10b981',marginLeft:8}}>✓ 已完成</span>}
+              </div>
+              <div style={{fontSize:11,color:'#64748b',marginTop:2}}>
+                自动搜索Amazon/Etsy竞品，分析市场规模和定价
+              </div>
+            </div>
+            <button onClick={runAutoValidation} disabled={autoLoading}
+              style={{padding:'8px 18px',background:autoLoading?'#94a3b8':autoReport?'#10b981':colors.ac,
+                color:'white',border:'none',borderRadius:8,fontWeight:700,fontSize:12,
+                cursor:autoLoading?'not-allowed':'pointer',whiteSpace:'nowrap'}}>
+              {autoLoading?'⏳ 搜索中...':autoReport?'🔄 重新搜索':'🔍 开始搜索'}
+            </button>
+          </div>
+          {autoReport&&<div style={{padding:'14px 16px',background:'white',maxHeight:300,overflowY:'auto'}}>
+            <div style={{fontSize:11,color:'#94a3b8',marginBottom:8}}>
+              搜索关键词：{autoReport.searchQuery}
+            </div>
+            <div style={{fontSize:12,color:'#374151',lineHeight:1.8,whiteSpace:'pre-wrap'}}>
+              {autoReport.text}
+            </div>
+          </div>}
+        </div>
+
+        {/* 方式B：手动粘贴竞品数据 */}
+        <div style={{borderRadius:10,border:'2px solid '+(manualReport?'#10b981':'#e2e8f0'),overflow:'hidden'}}>
+          <div style={{padding:'12px 16px',background:manualReport?'#f0fdf4':'#f8fafc'}}>
+            <div style={{fontWeight:700,fontSize:13,color:'#374151'}}>
+              📋 方式B：手动粘贴竞品数据
+              {manualReport&&<span style={{color:'#10b981',marginLeft:8}}>✓ 已分析</span>}
+            </div>
+            <div style={{fontSize:11,color:'#64748b',marginTop:2}}>
+              在Amazon/Etsy搜索后，粘贴前5-10个竞品的标题、价格、评论数
+            </div>
+          </div>
+          <div style={{padding:'12px 16px',background:'white',display:'flex',flexDirection:'column',gap:8}}>
+            <textarea value={manualText} onChange={function(e){setManualText(e.target.value);}}
+              placeholder="粘贴竞品数据，例如：1. 'Dinosaur Mom Boy Toddler Tee' - $18.99 - 342 reviews  2. 'T-Rex Little Boy Shirt' - $16.99 - 128 reviews..."
+              style={{width:'100%',minHeight:100,padding:'8px 12px',borderRadius:8,
+                border:'1px solid #e2e8f0',fontSize:12,outline:'none',
+                resize:'vertical',boxSizing:'border-box',lineHeight:1.6}} />
+            <button onClick={runManualAnalysis} disabled={manualLoading||!manualText.trim()}
+              style={{padding:'9px',background:manualLoading?'#94a3b8':manualText.trim()?'#475569':'#e2e8f0',
+                color:manualText.trim()?'white':'#94a3b8',border:'none',borderRadius:8,
+                fontWeight:700,fontSize:12,cursor:manualLoading?'not-allowed':'pointer'}}>
+              {manualLoading?'⏳ 分析中...':'📊 分析竞品数据'}
+            </button>
+            {manualReport&&<div style={{padding:'12px',background:'#f8fafc',borderRadius:8,
+              maxHeight:250,overflowY:'auto'}}>
+              <div style={{fontSize:12,color:'#374151',lineHeight:1.8,whiteSpace:'pre-wrap'}}>
+                {manualReport.text}
+              </div>
+            </div>}
+          </div>
+        </div>
+
+        {/* 底部操作 */}
+        <div style={{display:'flex',flexDirection:'column',gap:8}}>
+          {hasValidation&&<button onClick={onNext}
+            style={{width:'100%',padding:'13px',background:colors.ac,color:'white',
+              border:'none',borderRadius:10,fontWeight:800,fontSize:14,cursor:'pointer'}}>
+            ✅ 方向确认，进入元素融合 →
+          </button>}
+          <button onClick={function(){setSkipped(true);onNext();}}
+            style={{width:'100%',padding:'11px',
+              background:hasValidation?'#f1f5f9':'#10b981',
+              color:hasValidation?'#475569':'white',
+              border:'none',borderRadius:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>
+            {hasValidation?'跳过验证直接继续 →':'⏭ 跳过验证，直接开发 →'}
+          </button>
+          <button onClick={onBack}
+            style={{width:'100%',padding:'10px',background:'#f1f5f9',color:'#475569',
+              border:'none',borderRadius:10,fontSize:13,cursor:'pointer'}}>
+            ← 上一步（重新选择方向）
+          </button>
+        </div>
       </div>;
     }
 
@@ -1584,13 +2308,31 @@
         const ageInfo=cat==='家居'
           ?'适用空间：'+(data.rooms||[]).join('、')+'，氛围：'+(data.homeAtm||[]).join('、')
           :'年龄：'+(data.ageGroup||'toddler')+'，性别：'+(data.gender||'通用')+'，场景：'+(data.scenes||[]).join('、');
-        const isCustomTheme = !!(data.theme&&data.theme.isCustom);
+        const isCustomTheme = !!(data.theme&&(data.theme.isCustom||data.theme.isAISuggested||data.theme.isEvergreen||data.theme.type==='combined'));
+        const aiTheme = data.theme&&data.theme.isAISuggested;
+        const isCombined = data.theme&&data.theme.type==='combined';
+        const isEvergreen = data.theme&&data.theme.isEvergreen&&!isCombined;
+        const weekTrend = data.weekTrend||null;
+        const trendCtx = weekTrend
+          ?'【本周Reddit趋势情绪】'+(weekTrend.emotions||[]).join('、')+'；热门短句：'+(weekTrend.hot_phrases||[]).slice(0,2).join('、')
+          :'';
+        const emotionCtx = (data.theme&&data.theme.emotion)||data.customEmotion||'';
+        const styleCtx = (data.theme&&data.theme.style)||data.customStyle||'';
         const parts=[
-          '你是'+cat+' POD爆款图案设计专家。',
-          '目标：'+themeKey+'主题，'+cat+'品类，'+ageInfo,
-          isCustomTheme
-            ? '【自定义主题说明】这是用户自定义主题"'+themeKey+'"，请深入理解该主题的文化内涵、目标受众、视觉特征，自由发挥生成最适合的元素组合。'
-            : '【主题热卖元素】'+JSON.stringify(themeElems.hot)+'，避免：'+JSON.stringify(themeElems.avoid),
+          '你是'+cat+' POD爆款图案设计专家。主干：妈妈文化(Mom Culture)',
+          '产品线：'+(data.theme&&data.theme.line||'Identity')+' | 目标：'+themeKey+'主题，'+cat+'品类，'+ageInfo,
+          isCombined
+            ?'【叠加开发主题】常青主题：'+(data.theme.evergreens||[]).join('+')+'，叠加节日：'+((data.theme.holiday&&(data.theme.holiday.name||data.theme.holiday.en))||'')+'。请将常青主题元素与节日氛围融合，生成兼顾常青销售力和节日限定感的图案方案。'
+            :aiTheme
+              ?'【AI推导方向】产品线：'+(data.theme.line||'')+(data.theme.sub?' | 子分类：'+data.theme.sub:'')+' | 情绪：'+(data.theme.emotion||'')+' | 风格：'+(data.theme.style||'')+' | 主题节点：'+(data.theme.themeNode||'')
+              :isEvergreen
+                ?'【常青主题】"'+themeKey+'"，面向'+(data.gender==='girl'?'女童':data.gender==='boy'?'男童':'通用')+' '+(data.ageGroup||'')+'岁。请基于此常青主题生成多样化的图案元素方案。'
+                :isCustomTheme
+                  ?'【自定义主题】"'+themeKey+'"，请深入理解文化内涵、目标受众、视觉特征，自由发挥。'
+                  :'【主题热卖元素】'+JSON.stringify(themeElems.hot)+'，避免：'+JSON.stringify(themeElems.avoid),
+          emotionCtx?'【指定情绪方向】'+emotionCtx:'',
+          styleCtx?'【指定视觉风格】'+styleCtx+' —— 请围绕此风格生成元素方案':'',
+          trendCtx,
           '【市调流行元素】'+JSON.stringify(r1.trending_elements||[]),
           '【市调流行风格】'+JSON.stringify(r1.trending_styles||[]),
           '【市调流行配色】'+JSON.stringify(r1.trending_colors||[]),
@@ -1598,7 +2340,7 @@
           '【Amazon热卖文案】'+JSON.stringify(r2.hot_titles||[]),
           '【竞品新品方向】'+JSON.stringify(r2.new_arrivals||[]),
           '【跨界通用元素】'+JSON.stringify(r3.universal_elements||[]),
-          customInput?'【用户额外要求（请翻译成英文融入方案）】'+customInput:'',
+          customInput?'【用户额外要求(请翻译成英文融入方案)】'+customInput:'',
           '【版权禁用元素-绝对不能出现】'+JSON.stringify(getCpBanList().banned.slice(0,20)),
           '【版权禁用风格-绝对不能使用】'+JSON.stringify(getCpBanList().styleKws.slice(0,10)),
           'Formula: trending style + trending color + trending elements + theme hot elements = hit pattern. Generate 4 combos, 40% core + 30% trend + 30% connecting elements, max 6 colors, 100% original. STRICTLY avoid all banned elements and styles listed above.',
@@ -1646,7 +2388,7 @@
       return <div style={{display:'flex',flexDirection:'column',gap:14}}>
         <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>Step 3 — 元素融合设计</div>
         <div style={{padding:'12px 16px',borderRadius:10,background:colors.ac+'10',border:'1px solid '+colors.ac+'30'}}>
-          <div style={{fontWeight:600,fontSize:13,marginBottom:6}}>📊 市调数据（自动读取）</div>
+          <div style={{fontWeight:600,fontSize:13,marginBottom:6}}>📊 市调数据(自动读取)</div>
           {hasResearch?<div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:8,fontSize:11}}>
             {[['流行元素',r1.trending_elements||[],'🔑'],['流行风格',r1.trending_styles||[],'🎨'],['流行配色',r1.trending_colors||[],'🌈']].map(function(x){
               return <div key={x[0]}><div style={{color:'#64748b',fontWeight:600,marginBottom:4}}>{x[2]} {x[0]}</div>
@@ -1659,13 +2401,13 @@
           <strong>💡 融合公式：</strong>流行风格 + 流行配色 + 流行元素 + 主题热卖元素 = 爆款图案
         </div>
         {(r2.hot_titles||[]).length>0&&<div style={{padding:'10px 14px',borderRadius:8,background:'#fef9c3',border:'1px solid #fde68a'}}>
-          <div style={{fontWeight:700,fontSize:12,color:'#92400e',marginBottom:6}}>📝 热卖文案套路（融合参考）</div>
+          <div style={{fontWeight:700,fontSize:12,color:'#92400e',marginBottom:6}}>📝 热卖文案套路(融合参考)</div>
           <div style={{display:'flex',flexWrap:'wrap',gap:5}}>{(r2.hot_titles||[]).map(function(t,i){return <span key={i} style={{padding:'3px 8px',background:'#fde68a',borderRadius:4,color:'#78350f',fontSize:11}}>{t}</span>;})}</div>
         </div>}
         <div style={{background:'#f8fafc',borderRadius:10,padding:14,border:'1px solid #e2e8f0'}}>
-          <div style={{fontWeight:700,fontSize:13,marginBottom:6,color:'#374151'}}>✏️ 自定义开发要求（选填）</div>
+          <div style={{fontWeight:700,fontSize:13,marginBottom:6,color:'#374151'}}>✏️ 自定义开发要求(选填)</div>
           <textarea value={customInput} onChange={function(e){setCustomInput(e.target.value);}}
-            placeholder="可输入额外要求，例如：加入星星元素、要卡通可爱风、结合母亲节文案方向...（支持中文，AI会自动翻译融合）"
+            placeholder="可输入额外要求，例如：加入星星元素、要卡通可爱风、结合母亲节文案方向...(支持中文，AI会自动翻译融合)"
             style={{width:'100%',minHeight:72,padding:'8px 12px',borderRadius:8,border:'1px solid #d1d5db',fontSize:12,outline:'none',resize:'vertical',boxSizing:'border-box'}} />
           <div style={{fontSize:11,color:'#94a3b8',marginTop:4}}>💡 生成后自动清空，再次生成可重新填写</div>
         </div>
@@ -1674,7 +2416,7 @@
         </button>
         {loading&&<Spinner />}
         {combos.length>0&&<div>
-          <div style={{fontSize:13,color:'#64748b',marginBottom:8}}>选择要开发的方案（可多选）：</div>
+          <div style={{fontSize:13,color:'#64748b',marginBottom:8}}>选择要开发的方案(可多选)：</div>
           {combos.map(function(c,i){
             const isSel=!!selected.find(function(x){return x.name===c.name;});
             return <div key={i} className="combo-card" onClick={function(){toggleSel(c);}}
@@ -1792,10 +2534,10 @@
           var _tailFlag = isHome ? agCfg.ar+' --s '+agCfg.sty : agCfg.ar+' --s '+agCfg.sty;
           var _p1to5spec = isHome
             ? (spec&&spec.seamless ? 'seamless repeating pattern, tileable, surface design' : 'single centered composition, product design')
-            : 'seamless repeating pattern, tileable, surface design, --tile';
+            : 'TEXT + GRAPHIC combination (non-seamless). MUST include bold readable text/slogan/quote as the main visual element, combined with graphic illustration elements. White background, print-ready for T-shirt. NO --tile. The text should be the hero element.';
           var _p6to10spec = isHome
             ? 'single centered composition, product design, different style angle'
-            : 'single hero subject, centered composition, isolated on pure white background, NO pattern';
+            : 'seamless repeating pattern, tileable surface design, --tile. Pure graphic elements ONLY - absolutely NO text or words. Dense repeating pattern suitable for fabric/background printing.';
 
           const aiPrompt=
             'You are a professional Midjourney prompt writer for POD (print-on-demand) products.\n'
@@ -1825,11 +2567,12 @@
             +'6. Each of the 10 prompts must feel like a COMPLETELY DIFFERENT visual concept\n\n'
 
             +'GENERATE 10 PROMPTS:\n'
-            +'Prompts 1-5: '+_p1to5spec+'\n'
-            +'Prompts 6-10: '+_p6to10spec+'\n'
+            +'Prompts 1-5 (TEXT+GRAPHIC, non-seamless): '+_p1to5spec+'\n'
+            +'Prompts 6-10 (SEAMLESS PATTERN, no text): '+_p6to10spec+'\n'
             +'Each prompt ends with: '+_tailFlag+'\n'
             +'Each prompt starts with: /imagine prompt:\n'
-            +'Vary across: composition angle, element focus, level of detail, lighting mood, art medium (watercolor/vector/folk art/geometric/painterly/kawaii/boho/vintage/minimalist/pop art)\n'
+            +'For prompts 1-5: vary the text style (bold script/vintage block/hand-lettered/serif/brush), text layout (arched/stacked/diagonal/centered), and graphic element combination\n'
+            +'For prompts 6-10: vary pattern density (dense/scattered/geometric), element scale, and pattern arrangement. Ends with --tile\n'
             +'NO hex color codes in prompts - describe colors in words\n'
             +'NO banned or trademarked content\n\n'
 
@@ -1858,8 +2601,12 @@
               for(let i=0;i<10;i++){
                 const el=all[i%all.length]||core[0]||'';
                 const style=STYLE_MODS[i%STYLE_MODS.length];
-                const isSml=isHome?(spec&&spec.seamless):(i<5);
-                const mod=isSml?'seamless repeating pattern, tileable':'single '+el+', centered composition, isolated on white';
+                const isSml=isHome?(spec&&spec.seamless):(i>=5);
+                const mod=isHome
+                  ?(isSml?'seamless repeating pattern, tileable':'single centered composition, isolated on white')
+                  :(i<5
+                    ?'text and graphic combination, bold readable slogan with '+el+' illustration, white background, print-ready'
+                    :'seamless repeating pattern, tileable, NO text, pure '+el+' graphic elements --tile');
                 const candidate='/imagine prompt: '+el+', '+style+', '+mod+', '+colorStr+' '+agCfg.ar+' --s '+agCfg.sty;
                 const cLow=candidate.toLowerCase();
                 const hasBan=getCpBanList().banned.some(function(b){
@@ -1908,18 +2655,18 @@
             </span>
           </div>}
         </div>}
-        {!isHome && <div style={{fontSize:13,color:'#64748b'}}>每个方案10条：前5条无缝图（--tile，10种不同风格），后5条单主体单独图</div>}
+        {!isHome && <div style={{fontSize:13,color:'#64748b'}}>每个方案10条：前5条「文字+图案」组合（T恤印花），后5条「纯图案无缝」（面料/背景）</div>}
         <div style={{background:'#f8fafc',borderRadius:10,padding:14,border:'1px solid #e2e8f0'}}>
-          <div style={{fontWeight:700,fontSize:13,marginBottom:6,color:'#374151'}}>✏️ 自定义咒语要求（选填）</div>
+          <div style={{fontWeight:700,fontSize:13,marginBottom:6,color:'#374151'}}>✏️ 自定义咒语要求(选填)</div>
           <textarea value={mjCustom} onChange={function(e){setMjCustom(e.target.value);}}
-            placeholder="可输入额外要求，例如：要有宇航员形象、加彩虹元素、圣诞节风格...（支持中文，自动翻译成英文）"
+            placeholder="可输入额外要求，例如：要有宇航员形象、加彩虹元素、圣诞节风格...(支持中文，自动翻译成英文)"
             style={{width:'100%',minHeight:60,padding:'8px 12px',borderRadius:8,border:'1px solid #d1d5db',fontSize:12,outline:'none',resize:'vertical',boxSizing:'border-box'}} />
           <div style={{fontSize:11,color:'#94a3b8',marginTop:4}}>💡 中文会自动翻译成英文融入咒语，生成完自动清空</div>
         </div>
         <div style={{display:'flex',gap:10}}>
           <button className="btn" onClick={gen} disabled={loading||(isHome&&!homeSubcat)}
             style={{background:(isHome&&!homeSubcat)?'#cbd5e1':colors.ac,color:'white',flex:1}}>
-            {loading?'🔄 生成中...':'🎨 生成MJ咒语（10条/方案）'}
+            {loading?'🔄 生成中...':'🎨 生成MJ咒语(10条/方案)'}
           </button>
           {Object.keys(prompts).length>0&&!loading&&<button className="btn" onClick={function(){setPrompts({});upd('mjPrompts',{});}} style={{background:'#fee2e2',color:'#dc2626'}}>🗑️ 清除</button>}
         </div>
@@ -1937,7 +2684,7 @@
               {null /* 侵权词已在生成阶段直接过滤，不展示警告 */}
               {list.map(function(p,i){
                 return <div key={i} className="code-block">
-                  <div style={{color:'#94a3b8',fontSize:10,marginBottom:4}}>#{i+1} {isHome?(specInfo&&specInfo.seamless?'🔲 无缝图':'🖼️ 非无缝图'):(i<5?'🔲 无缝图':'🖼️ 单独图')}</div>
+                  <div style={{color:'#94a3b8',fontSize:10,marginBottom:4}}>#{i+1} {isHome?(specInfo&&specInfo.seamless?'🔲 无缝图':'🖼️ 非无缝图'):(i<5?'✍️ 文字+图案':'🔲 无缝图案')}</div>
                   <div style={{paddingRight:50}}>{p}</div>
                   <CopyBtnAbs text={p} />
                 </div>;
@@ -1994,7 +2741,7 @@
       return (data.data||[]).map(function(d){return d.url;});
     }
 
-    // 通过Worker下载图片为base64（解决跨域）
+    // 通过Worker下载图片为base64(解决跨域)
     async function fetchImgViaWorker(imgUrl) {
       const workerUrl = localStorage.getItem('pod_worker_url')||'';
       if(!workerUrl) throw new Error('无Worker URL');
@@ -2014,7 +2761,7 @@
       if(!apiKey) return {score:50, reason:'无Claude Key', verdict:'备选'};
       try {
         const b64 = await fetchImgViaWorker(imgUrl);
-        // 直接调Claude API，不用callClaudeWithImage（避免格式问题）
+        // 直接调Claude API，不用callClaudeWithImage(避免格式问题)
         const resp = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
           headers: {
@@ -2033,7 +2780,7 @@
                 {type:'image', source:{type:'base64', media_type:'image/png', data:b64}},
                 {type:'text', text:
                   '评估这张图案的POD印刷适配性。\n'
-                  +'评分标准（满分100）：颜色简洁≤4色25分、背景纯白20分、边缘清晰25分、构图居中15分、视觉冲击力15分。\n'
+                  +'评分标准(满分100)：颜色简洁≤4色25分、背景纯白20分、边缘清晰25分、构图居中15分、视觉冲击力15分。\n'
                   +'图案主题：'+promptContext+'\n'
                   +'输出JSON：{"score":85,"reason":"简短理由15字内","colors":"颜色数","verdict":"推荐/备选/不推荐"}'
                 }
@@ -2051,13 +2798,57 @@
       }
     }
 
+
+    // ── 图案侵权扫描（生图后调用）────────────────────────
+    async function scanImageForCopyright(imgUrl, context) {
+      const apiKey = getApiKey();
+      if(!apiKey) return {status:'pass', alerts:[], note:'无API Key，跳过扫描'};
+      try {
+        const b64 = await fetchImgViaWorker(imgUrl);
+        const cpBans = getCpBanList();
+        const banList = cpBans.banned.slice(0,30).join(', ');
+        const resp = await fetch('https://api.anthropic.com/v1/messages', {
+          method:'POST',
+          headers:{
+            'Content-Type':'application/json',
+            'x-api-key':apiKey,
+            'anthropic-version':'2023-06-01',
+            'anthropic-dangerous-direct-browser-access':'true'
+          },
+          body: JSON.stringify({
+            model:'claude-haiku-4-5-20251001',
+            max_tokens:300,
+            system:'POD版权风险专家。只输出JSON。',
+            messages:[{role:'user',content:[
+              {type:'image',source:{type:'base64',media_type:'image/png',data:b64}},
+              {type:'text',text:
+                '检查此图案是否存在版权/商标侵权风险。\n'
+                +'禁用元素列表：'+banList+'\n'
+                +'图案背景：'+context+'\n\n'
+                +'检查：1)是否包含已知IP/角色 2)是否有品牌logo/文字 3)是否模仿知名设计风格\n'
+                +'输出JSON：{"status":"pass/warning/danger","alerts":["风险描述1"],"note":"总结一句话","safe_to_use":true}'
+              }
+            ]}]
+          })
+        });
+        const d = await resp.json();
+        const text = (d.content&&d.content[0]&&d.content[0].text)||'';
+        const match = text.match(/\{[\s\S]*?\}/);
+        if(match) return JSON.parse(match[0]);
+        return {status:'pass',alerts:[],note:'扫描完成',safe_to_use:true};
+      } catch(e) {
+        return {status:'pass',alerts:[],note:'扫描出错:'+e.message.slice(0,20),safe_to_use:true};
+      }
+    }
+
     // ── WFStep3b: Ideogram生图 + Claude评分筛选 ──────────────────────
     function WFStep3b({data,upd,cat,colors,onNext,onBack}) {
       // Key/Worker 统一在生图工坊设置，这里只读取
       const [genState, setGenState] = React.useState(data.ideogramResults||{});
-      // {comboName: {status:'idle|generating|scoring|done|error', urls:[], scores:[], picks:{best,alt}}}
       const [loading, setLoading] = React.useState(false);
       const [currentCombo, setCurrentCombo] = React.useState('');
+      const [approvedImages, setApprovedImages] = React.useState(data.approvedImages||[]);
+      // approvedImages: [{url, comboName, label, score}] - 确认要上架的图
       const [selectedModel, setSelectedModel] = React.useState(localStorage.getItem('ideogram_model')||'V_3');
       const [customPrompt, setCustomPrompt] = React.useState('');
       const [customAspect, setCustomAspect] = React.useState('1x1');
@@ -2068,9 +2859,9 @@
       const prompts = data.mjPrompts||{};
 
       const MODELS = [
-        {value:'V_3', label:'V3（最新·最强）', desc:'细节最好，适合复杂图案'},
-        {value:'V_2', label:'V2（文字排版强）', desc:'文字+徽章类首选'},
-        {value:'V_2_TURBO', label:'V2 Turbo（快·省钱）', desc:'快速出图，费用减半'},
+        {value:'V_3', label:'V3(最新·最强)', desc:'细节最好，适合复杂图案'},
+        {value:'V_2', label:'V2(文字排版强)', desc:'文字+徽章类首选'},
+        {value:'V_2_TURBO', label:'V2 Turbo(快·省钱)', desc:'快速出图，费用减半'},
       ];
 
 
@@ -2090,7 +2881,7 @@
           .replace(/--no\s+[^-]+/g,'').trim();
       }
 
-      // Claude选出最优咒语（从候选列表里选1条）
+      // Claude选出最优咒语(从候选列表里选1条)
       async function pickBestPrompt(candidates, context) {
         if(candidates.length===1) return candidates[0];
         try {
@@ -2100,7 +2891,7 @@
             +'图案主题：'+context+'\n\n'
             +'候选咒语：\n'
             +candidates.map(function(p,i){return (i+1)+'. '+p;}).join('\n')
-            +'\n\n只输出数字（1到'+candidates.length+'），不含其他内容。';
+            +'\n\n只输出数字(1到'+candidates.length+')，不含其他内容。';
           const raw = await callClaudeAPI(pickPrompt, 'POD expert. Output number only.');
           const num = parseInt(raw.trim());
           if(num>=1&&num<=candidates.length) return candidates[num-1];
@@ -2177,7 +2968,7 @@
             results[name]={...results[name],status:'scoring',urls:allUrls,groups:groups};
             setGenState({...results});
 
-            // 评分（逐张评分，间隔800ms避免429）
+            // 评分(逐张评分，间隔800ms避免429)
             for(let ui=0;ui<allUrls.length;ui++){
               if(ui>0) await new Promise(function(r){setTimeout(r,800);});
               const sc = await scoreImageWithClaude(allUrls[ui], context);
@@ -2209,6 +3000,18 @@
         setLoading(false);
         setCurrentCombo('');
         upd('ideogramResults', results);
+      }
+
+      // 切换图片的"确认上架"状态
+      function toggleApprove(url, comboName, label, score) {
+        setApprovedImages(function(prev){
+          const exists = prev.find(function(x){return x.url===url;});
+          const updated = exists
+            ? prev.filter(function(x){return x.url!==url;})
+            : [...prev,{url,comboName,label,score:score||0}];
+          upd('approvedImages', updated);
+          return updated;
+        });
       }
 
       const allDone = combos.length>0 && combos.every(function(c){
@@ -2308,7 +3111,7 @@
           </button>
           {customResults.length>0&&(
             <div style={{marginTop:12}}>
-              <div style={{fontSize:11,color:'#92400e',fontWeight:600,marginBottom:8}}>生成结果（点击下载）</div>
+              <div style={{fontSize:11,color:'#92400e',fontWeight:600,marginBottom:8}}>生成结果(点击下载)</div>
               <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:8}}>
                 {customResults.map(function(url,i){
                   return <div key={i} style={{position:'relative',borderRadius:8,overflow:'hidden',border:'1px solid #e2e8f0',cursor:'pointer'}}
@@ -2339,7 +3142,7 @@
               padding:'14px',fontSize:15,fontWeight:800,cursor:loading?'not-allowed':'pointer'}}>
             {loading
               ? (currentCombo ? '⏳ 正在处理：'+currentCombo+' ...' : '⏳ 处理中...')
-              : '🚀 一键生图 + 自动筛选（'+combos.length+'个方案）'}
+              : '🚀 一键生图 + 自动筛选('+combos.length+'个方案)'}
           </button>
         )}
 
@@ -2381,7 +3184,7 @@
             {(r.status==='scoring'||r.status==='done') && r.urls.length>0 && (
               <div style={{padding:14}}>
                 {/* 全部图片缩略图 */}
-                <div style={{fontSize:11,color:'#64748b',marginBottom:10,fontWeight:600}}>全部生成结果（{r.urls.length}张）</div>
+                <div style={{fontSize:11,color:'#64748b',marginBottom:10,fontWeight:600}}>全部生成结果({r.urls.length}张)</div>
                 <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:8,marginBottom:14}}>
                   {r.urls.map(function(url,i){
                     const sc = r.scores[i];
@@ -2438,50 +3241,452 @@
           </div>;
         })}
 
+        {/* 推荐图选择上架 */}
+        {allDone&&<div style={{background:'#f8fafc',borderRadius:10,padding:14,border:'1px solid #e2e8f0'}}>
+          <div style={{fontWeight:700,fontSize:13,color:'#374151',marginBottom:10}}>
+            ✅ 选择要上架的图片
+            <span style={{fontSize:11,color:'#64748b',fontWeight:400,marginLeft:8}}>侵权扫描在下一步（Listing）进行</span>
+          </div>
+          <div style={{display:'flex',flexDirection:'column',gap:8}}>
+            {Object.entries(genState).map(function(entry){
+              const name=entry[0]; const r=entry[1];
+              if(r.status!=='done'||!r.urls.length) return null;
+              const groups=r.groups||[];
+              return groups.map(function(g){
+                const idx=r.picks&&r.picks[g.label];
+                const url=r.urls[idx];
+                if(!url) return null;
+                const isApproved=approvedImages.some(function(x){return x.url===url;});
+                return <div key={g.label+name} style={{display:'flex',gap:10,padding:'10px 12px',borderRadius:8,
+                  border:'2px solid '+(isApproved?colors.ac:'#e2e8f0'),
+                  background:isApproved?colors.ac+'08':'white',alignItems:'center'}}>
+                  <img src={url} style={{width:60,height:60,objectFit:'cover',borderRadius:6,flexShrink:0}} />
+                  <div style={{flex:1}}>
+                    <div style={{fontWeight:600,fontSize:12,color:'#374151'}}>{name}</div>
+                    <div style={{fontSize:11,color:'#94a3b8'}}>{g.label}</div>
+                  </div>
+                  <button onClick={function(){toggleApprove(url,name,g.label,0);}}
+                    style={{padding:'7px 14px',borderRadius:7,border:'2px solid '+(isApproved?colors.ac:'#e2e8f0'),
+                      background:isApproved?colors.ac:'white',color:isApproved?'white':'#374151',
+                      fontWeight:700,fontSize:12,cursor:'pointer',whiteSpace:'nowrap'}}>
+                    {isApproved?'✓ 已选':'选择上架'}
+                  </button>
+                </div>;
+              });
+            })}
+          </div>
+          {approvedImages.length>0&&<div style={{marginTop:10,padding:'8px 12px',background:'#f0fdf4',borderRadius:8,
+            border:'1px solid #bbf7d0',fontSize:12,color:'#15803d',fontWeight:600}}>
+            已选 {approvedImages.length} 张 → 下一步生成Listing文案
+          </div>}
+        </div>}
+
         {/* Navigation */}
-        {allDone && (
+        {allDone&&approvedImages.length>0&&(
           <button onClick={onNext}
             style={{background:colors.ac,color:'white',border:'none',borderRadius:10,
               padding:'14px',fontSize:15,fontWeight:800,cursor:'pointer',width:'100%'}}>
-            下一步 → 确认任务
+            下一步 → 生成Listing文案（{approvedImages.length}张）
+          </button>
+        )}
+        {allDone&&approvedImages.length===0&&(
+          <button onClick={onNext}
+            style={{background:'#94a3b8',color:'white',border:'none',borderRadius:10,
+              padding:'14px',fontSize:14,cursor:'pointer',width:'100%',opacity:0.7}}>
+            跳过 → 进入Listing（未选择上架图片）
           </button>
         )}
         <button onClick={onBack}
           style={{background:'#f1f5f9',color:'#475569',border:'none',borderRadius:10,
             padding:'12px',fontSize:13,cursor:'pointer',width:'100%'}}>
-          ← 上一步（重新生成提示词）
+          ← 上一步(重新生成提示词)
         </button>
       </div>;
     }
 
     function WFStep4({data,colors,cat,onConfirm,onBack}) {
-      const theme=data.theme||{};
-      const combos=data.selectedCombos||[];
-      const mjCount=Object.values(data.mjPrompts||{}).reduce(function(s,l){return s+l.length;},0);
+      const theme = data.theme||{};
+      const approvedImages = data.approvedImages||[];
+      const lineInfo = data.productLineInfo||{};
+      const [listings, setListings] = React.useState(data.wfListings||[]);
+      const [loading, setLoading] = React.useState(false);
+      const [customNote, setCustomNote] = React.useState(data.listingCustomNote||'');
+      const [selCat, setSelCat] = React.useState(data.listingSelCat||'');
+      const [uploadedImgs, setUploadedImgs] = React.useState([]);
+      // uploadedImgs: [{name, dataUrl}] - 手动上传的图片
+      const [cpScanState, setCpScanState] = React.useState({});
+      // {imgKey: {status, alerts, note}}
+      const [cpScanning, setCpScanning] = React.useState(false);
+
+      const kwDb = (KW_DB[cat])||{};
+
+      function persist(patch){Object.entries(patch).forEach(function(e){data[e[0]]=e[1];});}
+
+      // 处理图片上传
+      function handleImgUpload(e) {
+        const files = Array.from(e.target.files);
+        if(!files.length) return;
+        Promise.all(files.map(function(file){
+          return new Promise(function(res){
+            const reader = new FileReader();
+            reader.onload = function(ev){res({name:file.name, dataUrl:ev.target.result});};
+            reader.readAsDataURL(file);
+          });
+        })).then(function(imgs){
+          setUploadedImgs(function(prev){return [...prev,...imgs];});
+        });
+      }
+
+      // 侵权扫描（只扫上传的图）
+      async function runCpScan() {
+        const allImgs = [
+          ...approvedImages.map(function(x){return {key:x.url,src:'url',url:x.url,name:x.comboName||'生成图'};})
+          ,...uploadedImgs.map(function(x){return {key:x.name,src:'upload',dataUrl:x.dataUrl,name:x.name};})
+        ];
+        if(!allImgs.length){alert('没有图片可以扫描');return;}
+        setCpScanning(true);
+        const newState = {...cpScanState};
+        for(let i=0;i<allImgs.length;i++){
+          const img=allImgs[i];
+          if(newState[img.key]&&newState[img.key].status!=='scanning') continue; // 已扫过跳过
+          newState[img.key]={status:'scanning',alerts:[],note:''};
+          setCpScanState({...newState});
+          try{
+            let b64='';
+            if(img.src==='url'){b64=await fetchImgViaWorker(img.url);}
+            else{b64=img.dataUrl.split(',')[1]||img.dataUrl;}
+            const result = await scanImageForCopyright('data:image/png;base64,'+b64, img.name);
+            newState[img.key]={...result,name:img.name};
+          }catch(e){
+            newState[img.key]={status:'pass',alerts:[],note:'扫描出错:'+e.message.slice(0,20),name:img.name};
+          }
+          setCpScanState({...newState});
+          if(i<allImgs.length-1) await new Promise(function(r){setTimeout(r,600);});
+        }
+        setCpScanning(false);
+      }
+
+      async function generateListings() {
+        const allSrcImgs = [
+          ...approvedImages.map(function(x){return {type:'url',url:x.url,name:x.comboName||'生成图',label:x.label||''};}),
+          ...uploadedImgs.map(function(x){return {type:'upload',dataUrl:x.dataUrl,name:x.name,label:'上传图'};})
+        ];
+        if(!allSrcImgs.length){alert('请先选择图片或上传图片');return;}
+        if(!selCat){alert('请先选择子类目');return;}
+        setLoading(true);
+        const kwCat=(KW_DB[cat]||{})[selCat]||{p:[],s:[]};
+        const kwTop=kwCat.p.slice(0,12).join(' ');
+        const cpBansL=getCpBanList();
+        const banNote=cpBansL.banned.slice(0,20).join(', ');
+
+        // 开发流程上下文
+        const devCtx =
+          '产品线：'+(lineInfo.line||'')+
+          (lineInfo.sub?' / 子分类：'+lineInfo.subs:'')+
+          ' | 人群：'+({girl:'女童',boy:'男童',unisex:'通用'}[lineInfo.gender||data.gender||'']||'通用')+
+          ' '+(lineInfo.ageGroup||data.ageGroup||'')+'岁'+
+          ' | 主题：'+(theme.nameCN||theme.name||'')+
+          (theme.type==='combined'?' (常青×节日叠加)':theme.type==='evergreen'?' (常青款)':theme.type==='holiday'?' (节日款)':'')+
+          (data.weekTrend?' | 本周趋势情绪：'+(data.weekTrend.emotions||[]).join('、'):'');
+
+        const allListings = [];
+        for(let i=0;i<allSrcImgs.length;i++){
+          const img = allSrcImgs[i];
+          if(i>0) await new Promise(function(r){setTimeout(r,2500);});
+          try {
+            // Step1: 识图提取元素
+            let b64='';
+            if(img.type==='url'){b64=await fetchImgViaWorker(img.url);}
+            else{b64=(img.dataUrl||'').split(',')[1]||(img.dataUrl||'');}
+            const analyzeResp = await fetch('https://api.anthropic.com/v1/messages',{
+              method:'POST',
+              headers:{'Content-Type':'application/json','x-api-key':getApiKey(),'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+              body:JSON.stringify({
+                model:'claude-haiku-4-5-20251001',
+                max_tokens:400,
+                system:'POD产品图案分析专家。只输出JSON。',
+                messages:[{role:'user',content:[
+                  {type:'image',source:{type:'base64',media_type:'image/png',data:b64}},
+                  {type:'text',text:'分析此图案，输出JSON：{"elements":["元素1","元素2"],"style":"风格","colors":["颜色1"],"text_on_design":"图案上的文字，无则null","mood":"氛围"}'}
+                ]}]
+              })
+            });
+            const ad = await analyzeResp.json();
+            const aText = (ad.content&&ad.content[0]&&ad.content[0].text)||'{}';
+            let imgAnalysis = {};
+            try{const m=aText.match(/\{[\s\S]*\}/);if(m)imgAnalysis=JSON.parse(m[0]);}catch(e){}
+
+            // Step2: 生成Listing
+            const listingPrompt =
+              'You are a senior Amazon copywriter for '+cat+' POD products.\n\n'
+              +'DEVELOPMENT CONTEXT:\n'+devCtx+'\n'
+              +(customNote?'EXTRA INFO: '+customNote+'\n':'')
+              +'\nIMAGE ANALYSIS:\n'
+              +'Elements: '+(imgAnalysis.elements||[]).join(', ')+'\n'
+              +'Style: '+(imgAnalysis.style||'')+'\n'
+              +'Colors: '+(imgAnalysis.colors||[]).join(', ')+'\n'
+              +(imgAnalysis.text_on_design?'Text on design: '+imgAnalysis.text_on_design+'\n':'')
+              +'Mood: '+(imgAnalysis.mood||'')+'\n'
+              +'\nSUBCATEGORY: '+selCat+'\n'
+              +'TOP KEYWORDS: '+kwTop+'\n'
+              +'BANNED WORDS (never use): '+banNote+'\n\n'
+              +'Generate Amazon listing. Output JSON only:\n'
+              +'{"title":"(max 150 chars, Title Case)","color":"(2-3 words describing design)","bullets":["(benefit-focused, 150-200 chars each)","","","",""],"description":"(use HTML tags: <p> for paragraphs, <b> for emphasis, <br/> for line breaks, 150-200 words total, storytelling style)","search_terms":"(5 keyword phrases, comma separated)"}';
+
+            const raw = await callClaudeAPI(listingPrompt, 'Amazon listing expert. JSON only.');
+            const cleaned = raw.replace(/```json|```/g,'').trim();
+            const si=cleaned.indexOf('{'),ei=cleaned.lastIndexOf('}');
+            if(si>=0&&ei>=0){
+              const parsed = JSON.parse(cleaned.slice(si,ei+1));
+              // 过滤标题里的侵权词
+              cpBansL.banned.forEach(function(ban){
+                if(!ban||!parsed.title) return;
+                const re = new RegExp('(?<![a-z0-9])'+ban.replace(/[-.*+?^${}()|[\]\\]/g,'\\$&')+'(?![a-z0-9])','gi');
+                parsed.title = parsed.title.replace(re,'').replace(/  +/g,' ').trim();
+              });
+              parsed.imageUrl = img.type==='url'?img.url:(img.dataUrl||'');
+              parsed.imageName = img.name||('图片'+(i+1));
+              parsed.imageIdx = i+1;
+              parsed.comboName = img.name||'';
+              parsed.imgAnalysis = imgAnalysis;
+              allListings.push(parsed);
+            }
+          } catch(e) {
+            allListings.push({error:e.message, imageUrl:img.url, imageIdx:i+1});
+          }
+        }
+        setListings(allListings);
+        upd('wfListings', allListings);
+        setLoading(false);
+      }
+
+       function downloadCSV() {
+         const rows = [['图片文件名','变体标题','Color','Bullet1','Bullet2','Bullet3','Bullet4','Bullet5','描述(HTML)','关键词']];
+         listings.forEach(function(lst){
+           if(lst.error) return;
+           const bullets = lst.bullets||['','','','',''];
+           rows.push([
+             lst.imageName||lst.imageIdx||'',
+             lst.title||'',lst.color||'',
+             bullets[0]||'',bullets[1]||'',bullets[2]||'',bullets[3]||'',bullets[4]||'',
+             lst.description||'',lst.search_terms||''
+           ]);
+         });
+         const csv = rows.map(function(r){return r.map(function(c){return '"'+(c||'').replace(/"/g,'""')+'"';}).join(',');}).join('\n');
+         const blob = new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'});
+         const a = document.createElement('a');
+         a.href = URL.createObjectURL(blob);
+         a.download = 'listing_'+(theme.nameCN||theme.name||'export')+'_'+Date.now()+'.csv';
+         a.click();
+       }
+
+      function handleConfirm() {
+        onConfirm({
+          id:Date.now().toString(),
+          themeName:theme.nameCN||theme.name||theme.en,
+          emoji:theme.emoji||'📦',
+          cat:cat,
+          line:lineInfo.line||'',
+          gender:lineInfo.gender||data.gender||'',
+          ageGroup:lineInfo.ageGroup||data.ageGroup||'',
+          approvedCount:approvedImages.length,
+          listingCount:listings.length,
+          confirmedAt:new Date().toISOString(),
+          done:false
+        });
+      }
+
       return <div style={{display:'flex',flexDirection:'column',gap:14}}>
-        <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>Step 5 — 确认任务</div>
-        <div style={{borderRadius:12,padding:24,background:colors.ac+'12',textAlign:'center'}}>
-          <div style={{fontSize:48}}>{theme.emoji}</div>
-          <div style={{fontWeight:800,fontSize:20,marginTop:8}}>{theme.name||theme.en}</div>
-          <div style={{color:'#64748b',fontSize:13,marginTop:4}}>{cat}</div>
+        <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>Step 6 — Listing文案生成</div>
+
+        {/* 开发信息摘要 */}
+        <div style={{background:colors.ac+'10',borderRadius:10,padding:'10px 14px',border:'1px solid '+colors.ac+'25'}}>
+          <div style={{fontSize:11,color:'#64748b',fontWeight:600,marginBottom:4}}>本次开发信息（自动带入文案）</div>
+          <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+            <span style={{fontSize:11,padding:'2px 8px',background:colors.ac+'20',color:colors.ac,borderRadius:4,fontWeight:700}}>
+              {lineInfo.line||''}
+            </span>
+            <span style={{fontSize:11,padding:'2px 8px',background:'#f0fdf4',color:'#15803d',borderRadius:4,fontWeight:700}}>
+              {theme.nameCN||theme.name||''}
+            </span>
+            <span style={{fontSize:11,padding:'2px 8px',background:'#fdf4ff',color:'#7e22ce',borderRadius:4,fontWeight:700}}>
+              {{girl:'女童',boy:'男童',unisex:'通用'}[lineInfo.gender||data.gender||'']||'通用'} {lineInfo.ageGroup||data.ageGroup||''}岁
+            </span>
+            <span style={{fontSize:11,color:'#64748b'}}>
+              {approvedImages.length}张已选图
+            </span>
+          </div>
         </div>
-        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
-          {[['元素方案',combos.length,'🎨'],['MJ咒语',mjCount,'✏️'],['版权','上传检查','🛡️']].map(function(x){
-            return <div key={x[0]} className="card" style={{textAlign:'center',padding:'14px 8px'}}>
-              <div style={{fontSize:20}}>{x[2]}</div>
-              <div style={{fontSize:22,fontWeight:800,color:colors.ac}}>{x[1]}</div>
-              <div style={{fontSize:11,color:'#64748b'}}>{x[0]}</div>
+
+        {/* 图片来源区 */}
+        <div style={{background:'#f8fafc',borderRadius:10,padding:14,border:'1px solid #e2e8f0',display:'flex',flexDirection:'column',gap:10}}>
+          <div style={{fontWeight:700,fontSize:13,color:'#374151'}}>🖼️ 图片来源</div>
+
+          {/* 上一步选的图 */}
+          {approvedImages.length>0&&<div>
+            <div style={{fontSize:11,color:'#64748b',fontWeight:600,marginBottom:6}}>来自生图步骤（{approvedImages.length}张）</div>
+            <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
+              {approvedImages.map(function(img,i){
+                return <div key={i} style={{position:'relative'}}>
+                  <img src={img.url} style={{width:52,height:52,objectFit:'cover',borderRadius:6,border:'2px solid #10b981'}} />
+                  <div style={{position:'absolute',bottom:0,left:0,right:0,background:'rgba(0,0,0,0.5)',borderRadius:'0 0 4px 4px',fontSize:8,color:'white',textAlign:'center',padding:'1px'}}>{img.comboName||''}</div>
+                </div>;
+              })}
+            </div>
+          </div>}
+
+          {/* 手动上传 */}
+          <div>
+            <div style={{fontSize:11,color:'#64748b',fontWeight:600,marginBottom:6}}>手动上传图片（可多选，支持MJ/Ideogram生成的图）</div>
+            <label style={{display:'inline-flex',alignItems:'center',gap:6,padding:'8px 16px',background:'white',
+              border:'2px dashed #d1d5db',borderRadius:8,cursor:'pointer',fontSize:12,color:'#475569',fontWeight:600}}>
+              📁 选择图片（可多选）
+              <input type="file" accept="image/*" multiple onChange={handleImgUpload}
+                style={{display:'none'}} />
+            </label>
+            {uploadedImgs.length>0&&<div style={{marginTop:8,display:'flex',gap:6,flexWrap:'wrap',alignItems:'center'}}>
+              {uploadedImgs.map(function(img,i){
+                return <div key={i} style={{position:'relative'}}>
+                  <img src={img.dataUrl} style={{width:52,height:52,objectFit:'cover',borderRadius:6,border:'1px solid #e2e8f0'}} />
+                  <button onClick={function(){setUploadedImgs(function(prev){return prev.filter(function(_,j){return j!==i;});});}}
+                    style={{position:'absolute',top:-4,right:-4,width:16,height:16,borderRadius:'50%',
+                      background:'#ef4444',color:'white',border:'none',fontSize:9,cursor:'pointer',fontWeight:700,
+                      display:'flex',alignItems:'center',justifyContent:'center'}}>×</button>
+                  <div style={{position:'absolute',bottom:0,left:0,right:0,background:'rgba(0,0,0,0.5)',
+                    borderRadius:'0 0 4px 4px',fontSize:7,color:'white',textAlign:'center',padding:'1px',
+                    overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{img.name}</div>
+                </div>;
+              })}
+              <button onClick={function(){setUploadedImgs([]);}}
+                style={{padding:'4px 10px',background:'#fee2e2',color:'#dc2626',border:'none',borderRadius:6,fontSize:11,cursor:'pointer',fontWeight:700}}>
+                清除全部
+              </button>
+            </div>}
+          </div>
+
+          {/* 侵权扫描 */}
+          {(approvedImages.length>0||uploadedImgs.length>0)&&<div style={{borderTop:'1px solid #e2e8f0',paddingTop:10}}>
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8}}>
+              <div>
+                <div style={{fontSize:12,fontWeight:700,color:'#374151'}}>🛡️ 侵权扫描（可选）</div>
+                <div style={{fontSize:11,color:'#64748b'}}>需要检查时再点击，不强制</div>
+              </div>
+              <button onClick={runCpScan} disabled={cpScanning}
+                style={{padding:'7px 16px',background:cpScanning?'#94a3b8':'#ef4444',color:'white',
+                  border:'none',borderRadius:8,fontWeight:700,fontSize:12,cursor:cpScanning?'not-allowed':'pointer'}}>
+                {cpScanning?'⏳ 扫描中...':'🔍 开始扫描'}
+              </button>
+            </div>
+            {Object.keys(cpScanState).length>0&&<div style={{marginTop:8,display:'flex',flexDirection:'column',gap:4}}>
+              {Object.entries(cpScanState).map(function(entry){
+                const key=entry[0]; const sc=entry[1];
+                const color=sc.status==='danger'?'#ef4444':sc.status==='warning'?'#f59e0b':'#10b981';
+                const icon=sc.status==='danger'?'⛔':sc.status==='warning'?'⚠️':sc.status==='scanning'?'⏳':'✅';
+                return <div key={key} style={{padding:'6px 10px',background:'white',borderRadius:6,border:'1px solid '+color+'40',fontSize:11,display:'flex',gap:6,alignItems:'center'}}>
+                  <span>{icon}</span>
+                  <span style={{color:'#374151',fontWeight:600,flex:1,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{sc.name||key.slice(-20)}</span>
+                  <span style={{color:color,fontWeight:700}}>{sc.status==='scanning'?'扫描中':sc.status==='danger'?'高风险':sc.status==='warning'?'需注意':'安全'}</span>
+                  {sc.note&&<span style={{color:'#94a3b8',fontSize:10}}>{sc.note}</span>}
+                </div>;
+              })}
+            </div>}
+          </div>}
+        </div>
+
+        {/* 子类目选择 */}
+        <div>
+          <div style={{fontSize:12,fontWeight:700,color:'#374151',marginBottom:6}}>选择子类目（关键词库）</div>
+          <select value={selCat} onChange={function(e){setSelCat(e.target.value);upd('listingSelCat',e.target.value);}}
+            style={{width:'100%',padding:'9px 12px',borderRadius:8,border:'1px solid #d1d5db',fontSize:13,outline:'none'}}>
+            <option value=''>-- 选择类目 --</option>
+            {Object.entries(kwDb).map(function(entry){return <option key={entry[0]} value={entry[0]}>{entry[1].d}</option>;})}
+          </select>
+        </div>
+
+        {/* 自定义补充 */}
+        <div>
+          <div style={{fontSize:12,fontWeight:700,color:'#374151',marginBottom:6}}>✏️ 补充说明（选填）</div>
+          <textarea value={customNote} onChange={function(e){setCustomNote(e.target.value);upd('listingCustomNote',e.target.value);}}
+            placeholder="如识图不准，可补充：图案主题、特殊元素、目标节日、卖点等..."
+            style={{width:'100%',minHeight:56,padding:'8px 12px',borderRadius:8,border:'1px solid #e2e8f0',fontSize:12,outline:'none',resize:'vertical',boxSizing:'border-box'}} />
+        </div>
+
+        {/* 生成按钮 */}
+        <button onClick={generateListings} disabled={loading||(!approvedImages.length&&!uploadedImgs.length)||!selCat}
+          style={{width:'100%',padding:'13px',background:loading?'#94a3b8':((approvedImages.length||uploadedImgs.length)&&selCat)?colors.ac:'#e2e8f0',
+            color:((approvedImages.length||uploadedImgs.length)&&selCat&&!loading)?'white':'#94a3b8',
+            border:'none',borderRadius:10,fontWeight:800,fontSize:14,cursor:loading?'not-allowed':'pointer'}}>
+          {loading?'⏳ 识图+生成文案中...':'📝 生成Listing文案（'+(approvedImages.length+uploadedImgs.length)+'张）'}
+        </button>
+
+        {/* Listing结果 */}
+        {listings.length>0&&!loading&&<div style={{display:'flex',flexDirection:'column',gap:10}}>
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+            <div style={{fontWeight:700,fontSize:13,color:'#374151'}}>📋 生成结果（{listings.length}条）</div>
+            <button onClick={downloadCSV}
+              style={{padding:'6px 14px',background:'#16a34a',color:'white',border:'none',borderRadius:6,fontSize:12,fontWeight:700,cursor:'pointer'}}>
+              📥 下载CSV
+            </button>
+          </div>
+
+          {/* 父ASIN标题 */}
+          {listings[0]&&listings[0].title&&<div style={{border:'3px solid '+colors.ac,borderRadius:10,overflow:'hidden'}}>
+            <div style={{background:colors.ac,padding:'8px 14px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div style={{fontWeight:800,fontSize:13,color:'white'}}>📦 Listing标题参考</div>
+              <CopyBtn text={listings[0].title} label="复制" />
+            </div>
+            <div style={{padding:'12px 14px',background:'#f0fdf4'}}>
+              <div style={{fontSize:14,fontWeight:700,color:'#1e293b',lineHeight:1.6}}>{listings[0].title}</div>
+              <div style={{fontSize:11,color:'#64748b',marginTop:4}}>{listings[0].title.length}/150字符</div>
+            </div>
+          </div>}
+
+          {listings.map(function(lst,li){
+            if(lst.error) return <div key={li} style={{padding:12,background:'#fef2f2',borderRadius:8,border:'1px solid #fecaca',fontSize:12,color:'#dc2626'}}>❌ 第{lst.imageIdx}张生成失败：{lst.error}</div>;
+            return <div key={li} style={{border:'2px solid '+colors.ac+'40',borderRadius:10,overflow:'hidden'}}>
+              <div style={{background:colors.ac+'15',padding:'8px 14px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+                <div style={{display:'flex',alignItems:'center',gap:8}}>
+                  <img src={lst.imageUrl} style={{width:36,height:36,objectFit:'cover',borderRadius:4}} />
+                  <div style={{fontWeight:700,fontSize:13,color:colors.ac}}>图片{lst.imageIdx} · {lst.comboName}</div>
+                </div>
+                <CopyBtn text={[lst.title,'Color: '+lst.color,...(lst.bullets||[]),lst.description,lst.search_terms].join('\n\n')} label="📋 复制全部" />
+              </div>
+              <div style={{padding:'10px 14px',display:'flex',flexDirection:'column',gap:8}}>
+                {/* 识图结果 */}
+                {lst.imgAnalysis&&<div style={{padding:'6px 10px',background:'#f8fafc',borderRadius:6,fontSize:11,color:'#64748b'}}>
+                  识图：{(lst.imgAnalysis.elements||[]).join(' · ')} {lst.imgAnalysis.text_on_design?'| 文字："'+lst.imgAnalysis.text_on_design+'"':''}
+                </div>}
+                <div style={{background:'#f8fafc',borderRadius:6,padding:'8px 10px'}}>
+                  <div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:3}}>子变体标题</div>
+                  <div style={{fontSize:13,fontWeight:600,color:'#1e293b'}}>{lst.title}</div>
+                </div>
+                <div style={{background:'#f8fafc',borderRadius:6,padding:'8px 10px'}}>
+                  <div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:3}}>Color</div>
+                  <div style={{fontSize:12,color:'#374151'}}>{lst.color}</div>
+                </div>
+                {(lst.bullets||[]).map(function(b,bi){return <div key={bi} style={{padding:'6px 10px',background:'#f8fafc',borderRadius:6}}>
+                  <div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:2}}>Bullet {bi+1}</div>
+                  <div style={{fontSize:12,color:'#374151',lineHeight:1.5}}>{b}</div>
+                </div>;})}
+                <div style={{padding:'8px 10px',background:'#f8fafc',borderRadius:6}}>
+                  <div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:2}}>描述</div>
+                  <div style={{fontSize:12,color:'#374151',lineHeight:1.6}}>{lst.description}</div>
+                </div>
+                <div style={{padding:'8px 10px',background:'#eff6ff',borderRadius:6}}>
+                  <div style={{fontSize:10,color:'#1d4ed8',fontWeight:600,marginBottom:2}}>关键词</div>
+                  <div style={{fontSize:12,color:'#1e293b'}}>{lst.search_terms}</div>
+                </div>
+              </div>
             </div>;
           })}
-        </div>
-        <div style={{padding:'12px 16px',background:'#fff7ed',borderRadius:8,fontSize:13,color:'#92400e',border:'1px solid #fed7aa'}}>
-          ⚠️ 确认后请前往「Listing」页面，上传MJ生成的图片进行侵权检查和文案生成
-        </div>
-        <button className="btn" onClick={function(){onConfirm({id:Date.now().toString(),themeName:theme.name||theme.en,emoji:theme.emoji||'📦',cat:cat,combos:combos,comboNames:combos.map(function(c){return c.nameCN||c.name||'方案';}),mjCount:mjCount,confirmedAt:new Date().toISOString(),done:false});}}
-          style={{background:colors.ac,color:'white',width:'100%',padding:'14px',fontSize:16,fontWeight:800}}>
-          ✅ 确认任务，同步到看板
+        </div>}
+
+        {/* 确认完成 */}
+        <button onClick={handleConfirm}
+          style={{background:colors.ac,color:'white',width:'100%',padding:'14px',fontSize:16,fontWeight:800,border:'none',borderRadius:10,cursor:'pointer'}}>
+          ✅ 完成开发，同步到看板
         </button>
-        <button className="btn" onClick={onBack} style={{background:'#f1f5f9',color:'#475569',width:'100%'}}>← 上一步</button>
+        <button onClick={onBack} style={{background:'#f1f5f9',color:'#475569',border:'none',borderRadius:10,padding:'12px',fontSize:13,cursor:'pointer',width:'100%'}}>← 上一步</button>
       </div>;
     }
 
@@ -2645,7 +3850,7 @@
 
       return <div style={{display:'flex',flexDirection:'column',gap:10}}>
         <div style={{padding:'10px 12px',background:'#eff6ff',borderRadius:8,fontSize:11,color:'#1e40af',border:'1px solid #bfdbfe'}}>
-          📐 画布尺寸：<strong>1464×600px</strong>（符合Amazon A+模块规格）· 下载PNG直接上传使用
+          📐 画布尺寸：<strong>1464×600px</strong>(符合Amazon A+模块规格)· 下载PNG直接上传使用
         </div>
         <div style={{display:'flex',gap:6,flexWrap:'wrap'}}>
           {layouts.map(function(l){return <button key={l.id} onClick={function(){setLayout(l.id);}}
@@ -2655,7 +3860,7 @@
         </div>
 
         <div style={{border:'2px dashed '+acColor+'60',borderRadius:8,padding:'10px 14px',background:acColor+'06'}}>
-          <div style={{fontSize:12,fontWeight:700,color:acColor,marginBottom:6}}>📤 上传图片（支持多张）</div>
+          <div style={{fontSize:12,fontWeight:700,color:acColor,marginBottom:6}}>📤 上传图片(支持多张)</div>
           <div style={{display:'flex',gap:8,flexWrap:'wrap',alignItems:'center'}}>
             <label style={{padding:'6px 14px',background:acColor,color:'white',borderRadius:6,fontSize:12,cursor:'pointer',fontWeight:600}}>
               + 选择图片
@@ -2692,7 +3897,7 @@
             <input type="range" min="18" max="56" value={fontSize} onChange={function(e){setFontSize(Number(e.target.value));}} style={{width:'100%',marginTop:6}} />
           </div>
         </div>
-        <input type="text" value={headline} onChange={function(e){setHeadline(e.target.value);}} placeholder="主标题（留空自动生成）" style={{padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:6,fontSize:12}} />
+        <input type="text" value={headline} onChange={function(e){setHeadline(e.target.value);}} placeholder="主标题(留空自动生成)" style={{padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:6,fontSize:12}} />
         <input type="text" value={subtext} onChange={function(e){setSubtext(e.target.value);}} placeholder="副文字 / 卖点描述" style={{padding:'8px 10px',border:'1px solid #e2e8f0',borderRadius:6,fontSize:12}} />
         <canvas ref={canvasRef} width={CW} height={CH} style={{width:'100%',borderRadius:8,border:'1px solid #e2e8f0',background:'#f8fafc'}} />
         <button onClick={downloadAplus} style={{background:'#16a34a',color:'white',border:'none',borderRadius:8,padding:'12px',fontSize:14,fontWeight:700,cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:8}}>
@@ -2709,6 +3914,357 @@
     // ════════════════════════════════════════════════════════════════
     // APLUS CANVAS COMPONENT
     // ════════════════════════════════════════════════════════════════
+
+
+    // ══════════════════════════════════════════════════════
+    // 趋势库工具函数(KV优先，localStorage备用)
+    // ══════════════════════════════════════════════════════
+    function getTrendLib(cat) {
+      return JSON.parse(localStorage.getItem('trend_lib_'+cat)||'[]');
+    }
+    function saveTrendLib(cat, data) {
+      localStorage.setItem('trend_lib_'+cat, JSON.stringify(data));
+    }
+    function getLatestTrend(cat) {
+      const lib = getTrendLib(cat);
+      return lib.length>0 ? lib[0] : null;
+    }
+    async function fetchTrendFromKV(cat) {
+      const workerUrl = getPodWorkerUrl();
+      if(!workerUrl) return null;
+      try {
+        const resp = await fetch(workerUrl, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json','x-action':'trend-read'},
+          body: JSON.stringify({cat: cat})
+        });
+        const d = await resp.json();
+        if(d.ok && d.data && d.data.length>0) {
+          // 同步到localStorage作为离线缓存
+          saveTrendLib(cat, d.data);
+          return d.data;
+        }
+      } catch(e) { console.warn('KV读取失败，使用本地缓存:', e.message); }
+      return null;
+    }
+
+    // ══════════════════════════════════════════════════════
+    // PAGE: 趋势库
+    // ══════════════════════════════════════════════════════
+    function PageTrendLib({colors, cat}) {
+      const [activeTab, setActiveTab] = React.useState(cat==='童装'?'童装':'家居');
+      const [trendText, setTrendText] = React.useState('');
+      const [loading, setLoading] = React.useState(false);
+      const [lib, setLib] = React.useState(getTrendLib(activeTab));
+      const [expanded, setExpanded] = React.useState(null);
+
+      function reload(c){ setLib(getTrendLib(c||activeTab)); }
+
+      async function analyze() {
+        if(!trendText.trim()){alert('请输入趋势内容');return;}
+        if(!getApiKey()){alert('请先设置 Claude API Key');return;}
+        setLoading(true);
+        try {
+          const now = new Date();
+          const weekStr = now.getFullYear()+'W'+Math.ceil((now.getDate())/7)+'_'+(now.getMonth()+1)+'月';
+          const prompt =
+            '你是妈妈文化POD选品专家。以下是本周从Reddit/社媒整理的妈妈文化趋势内容，请深度分析提取：\n\n'
+            + trendText.trim() + '\n\n'
+            + '请严格输出以下JSON(不含markdown)：\n'
+            + '{\n'
+            + '  "week": "'+weekStr+'",\n'
+            + '  "summary": "本周趋势一句话总结",\n'
+            + '  "emotions": ["情绪词1","情绪词2","情绪词3"],\n'
+            + '  "identities": ["身份标签1","身份标签2"],\n'
+            + '  "scenes": ["场景词1","场景词2"],\n'
+            + '  "hot_phrases": ["热门短句1","热门短句2","热门短句3"],\n'
+            + '  "dev_directions": [\n'
+            + '    {"line":"Milestone/Daily Bonding/Identity","emotion":"情绪","style_hint":"风格建议","concept":"开发概念","reason":"原因"}\n'
+            + '  ],\n'
+            + '  "raw_keywords": ["关键词1","关键词2"]\n'
+            + '}';
+          const raw = await callClaudeAPI(prompt, 'POD趋势分析专家，只输出JSON');
+          const cleaned = raw.replace(/```json|```/g,'').trim();
+          const si=cleaned.indexOf('{'), ei=cleaned.lastIndexOf('}');
+          if(si<0||ei<0) throw new Error('解析失败');
+          const parsed = JSON.parse(cleaned.slice(si,ei+1));
+          parsed.uploadTime = Date.now();
+          parsed.rawText = trendText.trim().slice(0,500);
+          const updated = [parsed, ...getTrendLib(activeTab)].slice(0,52);
+          saveTrendLib(activeTab, updated);
+          setLib(updated);
+          setTrendText('');
+          setExpanded(0);
+        } catch(e) {
+          alert('分析失败：'+e.message);
+        }
+        setLoading(false);
+      }
+
+      function deleteTrend(idx) {
+        if(!window.confirm('删除这条趋势记录？')) return;
+        const updated = lib.filter(function(_,i){return i!==idx;});
+        saveTrendLib(activeTab, updated);
+        setLib(updated);
+      }
+
+      const tabs = ['童装','家居'];
+
+      return <div style={{display:'flex',flexDirection:'column',gap:16,maxWidth:860,margin:'0 auto'}}>
+        <div style={{fontWeight:800,fontSize:20,color:colors.ac}}>📚 趋势库</div>
+        <div style={{fontSize:13,color:'#64748b'}}>每周上传Reddit/社媒妈妈文化趋势，AI自动提取开发方向，长期积累成数据资产。</div>
+
+        {/* 品类切换 */}
+        <div style={{display:'flex',gap:8}}>
+          {tabs.map(function(t){
+            return <button key={t} onClick={function(){setActiveTab(t);reload(t);}}
+              style={{padding:'7px 20px',borderRadius:8,border:'2px solid '+(activeTab===t?colors.ac:'#e2e8f0'),
+                background:activeTab===t?colors.ac:'white',color:activeTab===t?'white':'#475569',
+                fontWeight:700,fontSize:13,cursor:'pointer'}}>
+              {t==='童装'?'👶 童装趋势库':'🏠 家居趋势库'}
+              {t==='家居'&&<span style={{fontSize:10,marginLeft:4,opacity:0.6}}>(即将开放)</span>}
+            </button>;
+          })}
+        </div>
+
+        {/* 云端同步 + 备用上传区 */}
+        {activeTab==='童装'&&<div className="card" style={{display:'flex',flexDirection:'column',gap:12}}>
+          {/* 从KV同步按钮 */}
+          <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8}}>
+            <div>
+              <div style={{fontWeight:700,fontSize:14,color:'#374151'}}>☁️ 云端趋势库</div>
+              <div style={{fontSize:11,color:'#64748b',marginTop:2}}>由本地Claude Code脚本分析后自动上传，点击同步最新数据</div>
+            </div>
+            <button onClick={async function(){
+              setLoading(true);
+              const data = await fetchTrendFromKV(activeTab);
+              if(data&&data.length>0){setLib(data);alert('✅ 同步成功，共'+data.length+'条记录');}
+              else alert('暂无云端数据\n请先在本地运行 analyze_trend.py 分析脚本');
+              setLoading(false);
+            }} disabled={loading}
+              style={{padding:'9px 20px',background:colors.ac,color:'white',border:'none',
+                borderRadius:8,fontWeight:700,fontSize:13,cursor:'pointer',whiteSpace:'nowrap'}}>
+              {loading?'⏳ 同步中...':'🔄 从云端同步'}
+            </button>
+          </div>
+          <div style={{padding:'10px 12px',background:'#f8fafc',borderRadius:8,border:'1px solid #e2e8f0',fontSize:12,color:'#475569'}}>
+            <div style={{fontWeight:700,marginBottom:4}}>📋 使用步骤：</div>
+            <div>1. 把本周Reddit/TikTok趋势内容存为 <code style={{background:'#e2e8f0',padding:'1px 5px',borderRadius:3}}>trend_input.txt</code></div>
+            <div>2. 本地运行：<code style={{background:'#e2e8f0',padding:'1px 5px',borderRadius:3}}>python analyze_trend.py</code></div>
+            <div>3. 脚本自动分析并上传，点击"从云端同步"即可</div>
+          </div>
+          {/* 备用：手动粘贴JSON */}
+          <details>
+            <summary style={{cursor:'pointer',fontSize:12,color:'#94a3b8',fontWeight:600,userSelect:'none',padding:'4px 0'}}>
+              📋 备用：手动粘贴JSON(脚本无法自动上传时使用)
+            </summary>
+            <div style={{marginTop:10,display:'flex',flexDirection:'column',gap:8}}>
+              <textarea value={trendText} onChange={function(e){setTrendText(e.target.value);}}
+                placeholder='粘贴 analyze_trend.py 输出的JSON内容...'
+                style={{width:'100%',minHeight:80,padding:'8px 10px',borderRadius:8,border:'1px solid #e2e8f0',
+                  fontSize:11,outline:'none',resize:'vertical',boxSizing:'border-box',fontFamily:'monospace'}} />
+              <button onClick={function(){
+                if(!trendText.trim()){alert('请粘贴JSON内容');return;}
+                try{
+                  const parsed=JSON.parse(trendText.trim());
+                  parsed.uploadTime=parsed.uploadTime||Date.now();
+                  const updated=[parsed,...getTrendLib(activeTab)].slice(0,52);
+                  saveTrendLib(activeTab,updated);setLib(updated);setTrendText('');setExpanded(0);
+                  alert('✅ 导入成功');
+                }catch(e){alert('JSON格式有误：'+e.message);}
+              }} disabled={!trendText.trim()}
+                style={{padding:'8px',background:'#475569',color:'white',border:'none',
+                  borderRadius:8,fontWeight:700,fontSize:12,cursor:'pointer'}}>
+                导入JSON到本地趋势库
+              </button>
+            </div>
+          </details>
+        </div>}
+
+
+        {/* 趋势库列表 */}
+        {lib.length===0
+          ? <div className="card" style={{textAlign:'center',padding:40,color:'#94a3b8'}}>
+              暂无趋势记录，上传第一条开始积累数据 📊
+            </div>
+          : <div style={{display:'flex',flexDirection:'column',gap:10}}>
+              <div style={{fontSize:12,color:'#64748b',fontWeight:600}}>共 {lib.length} 条趋势记录(最多保留52周)</div>
+              {lib.map(function(item,idx){
+                const isOpen = expanded===idx;
+                return <div key={idx} className="card" style={{padding:0,overflow:'hidden'}}>
+                  {/* 标题行 */}
+                  <div style={{padding:'12px 16px',display:'flex',alignItems:'center',justifyContent:'space-between',
+                    cursor:'pointer',background:isOpen?colors.ac+'08':'white'}}
+                    onClick={function(){setExpanded(isOpen?null:idx);}}>
+                    <div style={{display:'flex',alignItems:'center',gap:10}}>
+                      <span style={{fontSize:18}}>{idx===0?'🔥':'📌'}</span>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:13,color:colors.ac}}>{item.week||'未知周'}</div>
+                        <div style={{fontSize:11,color:'#64748b',marginTop:1}}>{item.summary||''}</div>
+                      </div>
+                    </div>
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      {idx===0&&<span style={{fontSize:10,padding:'2px 8px',background:'#fef3c7',color:'#92400e',borderRadius:4,fontWeight:700}}>最新</span>}
+                      <span style={{fontSize:11,color:'#94a3b8'}}>{new Date(item.uploadTime||0).toLocaleDateString('zh-CN')}</span>
+                      <button onClick={function(e){e.stopPropagation();deleteTrend(idx);}}
+                        style={{padding:'2px 8px',background:'#fee2e2',color:'#dc2626',border:'none',borderRadius:4,fontSize:10,cursor:'pointer',fontWeight:700}}>删除</button>
+                      <span style={{color:'#94a3b8',fontSize:14}}>{isOpen?'▲':'▼'}</span>
+                    </div>
+                  </div>
+                  {/* 展开内容 */}
+                  {isOpen&&<div style={{padding:'14px 16px',borderTop:'1px solid #f1f5f9',display:'flex',flexDirection:'column',gap:12}}>
+                    {/* 标签行 */}
+                    <div style={{display:'flex',gap:16,flexWrap:'wrap'}}>
+                      {item.emotions&&item.emotions.length>0&&<div>
+                        <div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:4}}>情绪词</div>
+                        <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+                          {item.emotions.map(function(e,i){return <span key={i} style={{padding:'2px 8px',background:'#fdf4ff',color:'#7e22ce',borderRadius:10,fontSize:11,fontWeight:600}}>{e}</span>;})}
+                        </div>
+                      </div>}
+                      {item.identities&&item.identities.length>0&&<div>
+                        <div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:4}}>身份标签</div>
+                        <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+                          {item.identities.map(function(e,i){return <span key={i} style={{padding:'2px 8px',background:'#eff6ff',color:'#1d4ed8',borderRadius:10,fontSize:11,fontWeight:600}}>{e}</span>;})}
+                        </div>
+                      </div>}
+                      {item.scenes&&item.scenes.length>0&&<div>
+                        <div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:4}}>场景词</div>
+                        <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+                          {item.scenes.map(function(e,i){return <span key={i} style={{padding:'2px 8px',background:'#f0fdf4',color:'#15803d',borderRadius:10,fontSize:11,fontWeight:600}}>{e}</span>;})}
+                        </div>
+                      </div>}
+                    </div>
+                    {/* 热门短句 */}
+                    {item.hot_phrases&&item.hot_phrases.length>0&&<div>
+                      <div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:6}}>🔥 热门短句参考</div>
+                      <div style={{display:'flex',flexDirection:'column',gap:4}}>
+                        {item.hot_phrases.map(function(p,i){return <div key={i} style={{padding:'6px 10px',background:'#fef9c3',borderRadius:6,fontSize:12,color:'#92400e',fontWeight:600}}>"{p}"</div>;})}
+                      </div>
+                    </div>}
+                    {/* 开发方向 */}
+                    {item.dev_directions&&item.dev_directions.length>0&&<div>
+                      <div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:6}}>💡 AI推荐开发方向</div>
+                      <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                        {item.dev_directions.map(function(d,i){
+                          return <div key={i} style={{padding:'10px 12px',background:'#f8fafc',borderRadius:8,border:'1px solid #e2e8f0'}}>
+                            <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:4}}>
+                              <span style={{fontSize:10,padding:'2px 8px',background:colors.ac+'15',color:colors.ac,borderRadius:4,fontWeight:700}}>{d.line}</span>
+                              <span style={{fontSize:10,padding:'2px 8px',background:'#fdf4ff',color:'#7e22ce',borderRadius:4,fontWeight:700}}>{d.emotion}</span>
+                              <span style={{fontSize:10,padding:'2px 8px',background:'#fff7ed',color:'#c2410c',borderRadius:4,fontWeight:700}}>{d.style_hint}</span>
+                            </div>
+                            <div style={{fontWeight:700,fontSize:13,color:'#1e293b',marginBottom:2}}>{d.concept}</div>
+                            <div style={{fontSize:11,color:'#64748b'}}>{d.reason}</div>
+                          </div>;
+                        })}
+                      </div>
+                    </div>}
+                  </div>}
+                </div>;
+              })}
+            </div>
+        }
+      </div>;
+    }
+
+    // ══════════════════════════════════════════════════════
+    // 趋势导入步骤(开发流程Step0之前)
+    // ══════════════════════════════════════════════════════
+    function TrendImportStep({colors, cat, onDone}) {
+      const latest = getLatestTrend(cat);
+      const [useTrend, setUseTrend] = React.useState(!!latest);
+      const now = new Date();
+      const monthData = MONTHLY_CALENDAR[now.getMonth()+1]||{};
+
+      return <div style={{display:'flex',flexDirection:'column',gap:14}}>
+        <div style={{fontWeight:800,fontSize:18,color:colors.ac}}>📡 本周趋势导入</div>
+
+        {/* 当月情绪日历 */}
+        <div style={{background:'linear-gradient(135deg,'+colors.ac+'15,'+colors.ac+'05)',borderRadius:12,padding:16,border:'1px solid '+colors.ac+'30'}}>
+          <div style={{fontWeight:700,fontSize:13,color:colors.ac,marginBottom:10}}>
+            📅 {now.getMonth()+1}月开发基调 · {monthData.theme||''}
+          </div>
+          <div style={{display:'flex',gap:16,flexWrap:'wrap'}}>
+            <div>
+              <div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:4}}>本月核心情绪</div>
+              <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+                {(monthData.emotions||[]).map(function(e,i){return <span key={i} style={{padding:'3px 10px',background:'#fdf4ff',color:'#7e22ce',borderRadius:10,fontSize:11,fontWeight:700}}>{e}</span>;})}
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:4}}>推荐视觉风格</div>
+              <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+                {(monthData.styles||[]).map(function(s,i){return <span key={i} style={{padding:'3px 10px',background:'#fff7ed',color:'#c2410c',borderRadius:10,fontSize:11,fontWeight:700}}>{s}</span>;})}
+              </div>
+            </div>
+            <div>
+              <div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:4}}>主题节点</div>
+              <span style={{padding:'3px 10px',background:'#fef9c3',color:'#92400e',borderRadius:10,fontSize:11,fontWeight:700}}>{monthData.holiday||''}</span>
+            </div>
+            <div>
+              <div style={{fontSize:10,color:'#94a3b8',fontWeight:600,marginBottom:4}}>主推产品线</div>
+              <div style={{display:'flex',gap:4,flexWrap:'wrap'}}>
+                {(monthData.lines||[]).map(function(l,i){return <span key={i} style={{padding:'3px 10px',background:colors.ac+'15',color:colors.ac,borderRadius:10,fontSize:11,fontWeight:700}}>{l}</span>;})}
+              </div>
+            </div>
+          </div>
+          <div style={{marginTop:10,fontSize:11,color:'#64748b'}}>
+            参考文案：{(monthData.refs||[]).join(' · ')}
+          </div>
+        </div>
+
+        {/* 最新趋势数据 */}
+        {latest ? (
+          <div style={{borderRadius:10,border:'2px solid '+(useTrend?'#10b981':'#e2e8f0'),overflow:'hidden'}}>
+            <div style={{padding:'10px 16px',background:useTrend?'#f0fdf4':'#f8fafc',
+              display:'flex',alignItems:'center',justifyContent:'space-between'}}>
+              <div>
+                <span style={{fontWeight:700,fontSize:13,color:useTrend?'#15803d':'#374151'}}>
+                  🔥 趋势库最新数据：{latest.week}
+                </span>
+                <span style={{fontSize:11,color:'#64748b',marginLeft:8}}>{latest.summary}</span>
+              </div>
+              <label style={{display:'flex',alignItems:'center',gap:6,cursor:'pointer'}}>
+                <input type="checkbox" checked={useTrend} onChange={function(e){setUseTrend(e.target.checked);}}
+                  style={{width:15,height:15}} />
+                <span style={{fontSize:12,fontWeight:600,color:useTrend?'#15803d':'#94a3b8'}}>
+                  {useTrend?'✓ 已加载':'加载到本次开发'}
+                </span>
+              </label>
+            </div>
+            {useTrend&&<div style={{padding:'10px 16px',background:'white'}}>
+              <div style={{display:'flex',gap:12,flexWrap:'wrap'}}>
+                {latest.emotions&&<div style={{fontSize:11,color:'#64748b'}}>
+                  情绪：{latest.emotions.join(' · ')}
+                </div>}
+                {latest.hot_phrases&&latest.hot_phrases[0]&&<div style={{fontSize:11,color:'#92400e',fontWeight:600}}>
+                  热词："{latest.hot_phrases[0]}"
+                </div>}
+              </div>
+            </div>}
+          </div>
+        ) : (
+          <div style={{padding:'12px 16px',background:'#fef9c3',borderRadius:10,border:'1px solid #fde047',
+            display:'flex',alignItems:'center',justifyContent:'space-between',flexWrap:'wrap',gap:8}}>
+            <span style={{fontSize:12,color:'#92400e'}}>暂无趋势数据，建议先上传本周趋势以获得更精准的开发方向</span>
+            <span style={{fontSize:11,color:'#92400e',opacity:0.7}}>(也可直接跳过，仅使用月度情绪日历)</span>
+          </div>
+        )}
+
+        {/* 操作按钮 */}
+        <div style={{display:'flex',gap:10}}>
+          <button onClick={function(){onDone(useTrend?latest:null);}}
+            style={{flex:1,padding:'13px',background:colors.ac,color:'white',border:'none',
+              borderRadius:10,fontWeight:800,fontSize:14,cursor:'pointer'}}>
+            ✅ 确认，开始开发 →
+          </button>
+          <button onClick={function(){window.open('#trendlib','_self');}}
+            style={{padding:'13px 20px',background:'#f1f5f9',color:'#475569',border:'none',
+              borderRadius:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>
+            📚 去上传趋势
+          </button>
+        </div>
+      </div>;
+    }
 
     // ── 可复用：Ideogram Key 输入组件 ────────────────────────
     function IdeogramKeyInput({colors}) {
@@ -2771,7 +4327,7 @@
     }
 
     // ══════════════════════════════════════════════════════
-    // PAGE: 生图工坊（独立自定义生图）
+    // PAGE: 生图工坊(独立自定义生图)
     // ══════════════════════════════════════════════════════
     function PageImageGen({colors}) {
       const MODELS = [
@@ -2865,7 +4421,7 @@
 
         {/* API Key + Worker URL 设置 */}
         <div className="card" style={{display:'flex',flexDirection:'column',gap:10}}>
-          <div style={{fontWeight:700,fontSize:13,color:'#374151',marginBottom:2}}>🔑 API 设置（设置一次全局生效）</div>
+          <div style={{fontWeight:700,fontSize:13,color:'#374151',marginBottom:2}}>🔑 API 设置(设置一次全局生效)</div>
           <IdeogramKeyInput colors={colors} />
           <WorkerUrlInput colors={colors} />
         </div>
@@ -2942,13 +4498,13 @@
             style={{width:'100%',padding:'14px',background:loading?'#94a3b8':colors.ac,
               color:'white',border:'none',borderRadius:10,fontWeight:800,fontSize:15,
               cursor:loading?'not-allowed':'pointer',letterSpacing:1}}>
-            {loading?'⏳ 生图中，请稍候...':'🚀 立即生图  （Ctrl+Enter）'}
+            {loading?'⏳ 生图中，请稍候...':'🚀 立即生图  (Ctrl+Enter)'}
           </button>
         </div>
 
         {/* 当前结果 */}
         {results.length>0&&<div className="card">
-          <div style={{fontWeight:700,fontSize:14,color:'#374151',marginBottom:12}}>✅ 生成结果（点击下载）</div>
+          <div style={{fontWeight:700,fontSize:14,color:'#374151',marginBottom:12}}>✅ 生成结果(点击下载)</div>
           <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(180px,1fr))',gap:12}}>
             {results.map(function(url,i){
               return <div key={i} style={{position:'relative',borderRadius:10,overflow:'hidden',
@@ -2967,7 +4523,7 @@
         {/* 历史记录 */}
         {history.length>0&&<div className="card">
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
-            <div style={{fontWeight:700,fontSize:14,color:'#374151'}}>🕐 历史记录（最近{history.length}条）</div>
+            <div style={{fontWeight:700,fontSize:14,color:'#374151'}}>🕐 历史记录(最近{history.length}条)</div>
             <button onClick={function(){setHistory([]);localStorage.removeItem('imagegen_history');}}
               style={{padding:'4px 12px',background:'#fee2e2',color:'#dc2626',border:'none',borderRadius:6,fontSize:11,fontWeight:700,cursor:'pointer'}}>
               清除历史
@@ -3379,7 +4935,7 @@
       async function runAplus() {
         setLoadAplus(true);
         const imgNames=images.map(function(i){return i.name;}).join('，');
-        const parts=['为'+cat+'产品（图案：'+imgNames+'）生成3种A+图片MidJourney提示词。3种版式：1)左图右文 2)全图叠字 3)上图下文。','只输JSON：{"aplus":[{"style":"左图右文","prompt":"MJ提示词"},{"style":"全图叠字","prompt":"MJ提示词"},{"style":"上图下文","prompt":"MJ提示词"}]}'];
+        const parts=['为'+cat+'产品(图案：'+imgNames+')生成3种A+图片MidJourney提示词。3种版式：1)左图右文 2)全图叠字 3)上图下文。','只输JSON：{"aplus":[{"style":"左图右文","prompt":"MJ提示词"},{"style":"全图叠字","prompt":"MJ提示词"},{"style":"上图下文","prompt":"MJ提示词"}]}'];
         try{
           const r=await callClaudeAPI(parts.join(' '),'电商A+图片设计师，只输JSON');
           let p=null;try{const c=r.replace(/```json|```/g,'').trim();const si=c.indexOf('{'),ei=c.lastIndexOf('}');if(si>=0&&ei>=0)p=JSON.parse(c.slice(si,ei+1));}catch(e){}
@@ -3391,7 +4947,7 @@
       async function runVideo() {
         setLoadVideo(true);
         const imgList=images.map(function(im,i){return (i+1)+'. '+im.name;}).join(', ');
-        const parts=['为以下'+cat+'图案生成Google Flow视频提示词（每张一条，风格各不同，有动态感）：'+imgList+'。','只输JSON：{"videos":[{"image":"文件名","style":"视频风格","prompt":"提示词"}]}'];
+        const parts=['为以下'+cat+'图案生成Google Flow视频提示词(每张一条，风格各不同，有动态感)：'+imgList+'。','只输JSON：{"videos":[{"image":"文件名","style":"视频风格","prompt":"提示词"}]}'];
         try{
           const r=await callClaudeAPI(parts.join(' '),'电商视频创作专家，只输JSON');
           let p=null;try{const c=r.replace(/```json|```/g,'').trim();const si=c.indexOf('{'),ei=c.lastIndexOf('}');if(si>=0&&ei>=0)p=JSON.parse(c.slice(si,ei+1));}catch(e){}
@@ -3419,7 +4975,7 @@
 
         <div style={{display:'grid',gridTemplateColumns:'2fr 1fr',gap:12}}>
           <div className="card">
-            <div style={{fontWeight:600,fontSize:13,marginBottom:10}}>📤 上传图案（可多张）</div>
+            <div style={{fontWeight:600,fontSize:13,marginBottom:10}}>📤 上传图案(可多张)</div>
             <input type="file" accept="image/*" multiple onChange={handleImg} style={{width:'100%',fontSize:13,marginBottom:images.length?10:0}} />
             {images.length>0&&<div>
               <div style={{display:'flex',gap:8,flexWrap:'wrap',marginBottom:6}}>
@@ -3467,7 +5023,7 @@
                   {r.parsed.target_audience&&<div style={{fontSize:11,color:'#64748b',marginBottom:2}}>👥 受众：{r.parsed.target_audience}</div>}
                   {r.parsed.product_context&&<div style={{fontSize:11,color:'#64748b',marginBottom:4}}>📦 效果图：{r.parsed.product_context}</div>}
                   {ok?<div style={{fontSize:11,color:'#16a34a',marginTop:4}}>✅ 未检测到侵权风险</div>:
-                  <div style={{marginTop:6}}>{r.alerts.map(function(a,j){return <div key={j} style={{fontSize:11,padding:'4px 8px',background:'#fee2e2',borderRadius:4,marginBottom:3,color:'#dc2626'}}>⚠️ {a.entry.artist}（{a.level==='high'?'高风险':'中风险'}）{a.elHits.length>0?' 禁用：'+a.elHits.join(','):''}</div>;})}</div>}
+                  <div style={{marginTop:6}}>{r.alerts.map(function(a,j){return <div key={j} style={{fontSize:11,padding:'4px 8px',background:'#fee2e2',borderRadius:4,marginBottom:3,color:'#dc2626'}}>⚠️ {a.entry.artist}({a.level==='high'?'高风险':'中风险'}){a.elHits.length>0?' 禁用：'+a.elHits.join(','):''}</div>;})}</div>}
                 </div>;
               })}
               {hasHighRisk&&<div style={{padding:'8px 12px',background:'#fef2f2',borderRadius:8,color:'#dc2626',fontSize:12,fontWeight:700}}>⛔ 含高风险图案，建议重新设计</div>}
@@ -3480,7 +5036,7 @@
             {hasHighRisk&&<div style={{padding:'8px',background:'#fff7ed',borderRadius:6,fontSize:11,color:'#92400e',marginBottom:8}}>⚠️ 有高风险图案，建议先更换</div>}
             {/* 自定义内容输入 */}
             <div style={{background:'#f8fafc',borderRadius:8,padding:'10px 12px',marginBottom:10,border:'1px solid #e2e8f0'}}>
-              <div style={{fontWeight:700,fontSize:12,color:'#374151',marginBottom:6}}>✏️ 自定义补充信息（选填）</div>
+              <div style={{fontWeight:700,fontSize:12,color:'#374151',marginBottom:6}}>✏️ 自定义补充信息(选填)</div>
               <textarea value={listingCustom}
                 onChange={function(e){setListingCustom(e.target.value);persist({listingCustom:e.target.value});}}
                 placeholder="例如：图案主题是德克萨斯州徽章、蓝领工人文化；目标客群是墨西哥裔男性；关键词重点包含 Cinco de Mayo..."
@@ -3490,7 +5046,7 @@
             </div>
             <div style={{display:'flex',gap:8,marginBottom:10,flexWrap:'wrap'}}>
               <button className="btn" onClick={runListing} disabled={loadListing||!images.length} style={{background:colors.ac,color:'white',flex:1,opacity:(loadListing||!images.length)?0.5:1}}>
-                {loadListing?'🔄 逐图生成中...':'📝 生成Listing（每图一条）'}
+                {loadListing?'🔄 逐图生成中...':'📝 生成Listing(每图一条)'}
               </button>
               {listings.length>0&&!loadListing&&<button className="btn" onClick={downloadCSV} style={{background:'#16a34a',color:'white',padding:'10px 16px'}}>📥 下载CSV表格</button>}
             </div>
@@ -3499,7 +5055,7 @@
               {/* Parent ASIN Title Card */}
               {listings[0]&&listings[0].parentTitle&&<div style={{border:'3px solid '+colors.ac,borderRadius:10,overflow:'hidden'}}>
                 <div style={{background:colors.ac,padding:'8px 14px',display:'flex',alignItems:'center',justifyContent:'space-between'}}>
-                  <div style={{fontWeight:800,fontSize:13,color:'white'}}>📦 父ASIN标题（所有变体共用）</div>
+                  <div style={{fontWeight:800,fontSize:13,color:'white'}}>📦 父ASIN标题(所有变体共用)</div>
                   <CopyBtn text={listings[0].parentTitle} label="复制" />
                 </div>
                 <div style={{padding:'12px 14px',background:'#f0fdf4'}}>
@@ -3565,7 +5121,7 @@
 
           {/* Panel 4: 视频咒语 */}
           <div className="listing-panel">
-            <PH num="4" icon="🎬" title="视频咒语（Google Flow）" />
+            <PH num="4" icon="🎬" title="视频咒语(Google Flow)" />
             <button className="btn" onClick={runVideo} disabled={loadVideo||!images.length} style={{background:colors.ac,color:'white',width:'100%',marginBottom:10,opacity:(loadVideo||!images.length)?0.5:1}}>
               {loadVideo?'🔄 生成中...':'🎬 生成视频提示词'}
             </button>
@@ -3667,12 +5223,12 @@
           var testUrl='https://api.github.com/repos/'+ghOwner+'/'+ghRepo;
           var testR=await fetch(testUrl,{headers:{'Authorization':'token '+ghToken}});
           if(!testR.ok){
-            alert('⚠️ GitHub配置已保存，但Token验证失败（'+testR.status+'）\n请确认Token有repo权限且仓库名正确');
+            alert('⚠️ GitHub配置已保存，但Token验证失败('+testR.status+')\n请确认Token有repo权限且仓库名正确');
             return;
           }
           alert('✅ GitHub配置已保存，Token验证成功！\n刷新页面后将自动从GitHub同步最新数据。');
         } catch(e) {
-          alert('✅ 配置已保存（Token网络验证跳过）');
+          alert('✅ 配置已保存(Token网络验证跳过)');
         }
       }
 
@@ -3999,7 +5555,7 @@
               max_tokens:500,
               messages:[{role:'user',content:[
                 {type:'image',source:{type:'base64',media_type:mediaType,data:imgB64}},
-                {type:'text',text:'分析这张侵权图案图片，提取关键视觉元素。输出JSON（不要markdown）：{"elements":["元素1","元素2","元素3"],"style":"风格描述","composition":"构图特征","colors":["主色1","主色2"]}'}
+                {type:'text',text:'分析这张侵权图案图片，提取关键视觉元素。输出JSON(不要markdown)：{"elements":["元素1","元素2","元素3"],"style":"风格描述","composition":"构图特征","colors":["主色1","主色2"]}'}
               ]}]
             })
           });
@@ -4070,7 +5626,7 @@
         setExtracted(null);
         setTab('library');
         setUploading(false);
-        alert('✅ 已录入侵权图库，共'+savedImages.length+'张图片'+(ghToken?'（已同步GitHub）':'（本地存储）')+'\n侵权词汇已同步到元素融合/MJ咒语/Listing等全流程版权检查。');
+        alert('✅ 已录入侵权图库，共'+savedImages.length+'张图片'+(ghToken?'(已同步GitHub)':'(本地存储)')+'\n侵权词汇已同步到元素融合/MJ咒语/Listing等全流程版权检查。');
       }
 
       // ── Delete entry ───────────────────────────────────────────
@@ -4102,7 +5658,7 @@
 
           {/* Tabs */}
           <div style={{display:'flex',gap:8}}>
-            {[['library','📚 图库（'+cpImages.length+'）'],['import','📄 PDF导入'],['settings','⚙️ GitHub设置']].map(function(x){
+            {[['library','📚 图库('+cpImages.length+')'],['import','📄 PDF导入'],['settings','⚙️ GitHub设置']].map(function(x){
               return <button key={x[0]} onClick={function(){setTab(x[0]);}} className="btn"
                 style={{background:tab===x[0]?colors.ac:'#f1f5f9',color:tab===x[0]?'white':'#475569',fontSize:13}}>
                 {x[1]}
@@ -4126,7 +5682,7 @@
                 <button className="btn" style={{fontSize:11,padding:'4px 10px',background:'#10b981',color:'white'}} onClick={async function(){
                   if(!ghOwner||!ghRepo){alert('请先配置GitHub信息');return;}
                   var data=await loadJsonFromGitHub('cp_images_index.json');
-                  if(!data||data.length===0){alert('GitHub上暂无数据（pod-data/cp_images_index.json不存在）');return;}
+                  if(!data||data.length===0){alert('GitHub上暂无数据(pod-data/cp_images_index.json不存在)');return;}
                   S.s(CP_IMG_KEY,data);setCpImages(data);
                   var dbData=await loadJsonFromGitHub('cp_db.json');
                   if(dbData) S.s('cp_db',dbData);
@@ -4208,7 +5764,7 @@
           {tab==='import'&&<div style={{display:'flex',flexDirection:'column',gap:14}}>
             {/* Queue status panel */}
           {pdfQueue.length>0&&<div className="card" style={{border:'2px solid #7c3aed30'}}>
-            <div style={{fontWeight:700,fontSize:14,color:'#7c3aed',marginBottom:8}}>📋 处理队列（{pdfQueue.filter(function(q){return q.status==='done';}).length}/{pdfQueue.length} 完成）</div>
+            <div style={{fontWeight:700,fontSize:14,color:'#7c3aed',marginBottom:8}}>📋 处理队列({pdfQueue.filter(function(q){return q.status==='done';}).length}/{pdfQueue.length} 完成)</div>
             {pdfQueue.map(function(q){
               const statusIcon=q.status==='done'?'✅':q.status==='error'?'❌':q.status==='processing'?'🔄':'⏳';
               const statusText=q.status==='done'?'已完成':q.status==='error'?('失败: '+(q.error||'')):q.status==='processing'?(q.error||'处理中...'):'等待中';
@@ -4253,7 +5809,7 @@
 
             {extracted&&<div style={{display:'flex',flexDirection:'column',gap:12}}>
               <div className="card" style={{border:'2px solid '+colors.ac+'50'}}>
-                <div style={{fontWeight:700,fontSize:15,color:colors.ac,marginBottom:12}}>✅ AI提取结果（可编辑）</div>
+                <div style={{fontWeight:700,fontSize:15,color:colors.ac,marginBottom:12}}>✅ AI提取结果(可编辑)</div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:12}}>
                   <div>
                     <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>品牌/原告名 *</div>
@@ -4282,11 +5838,11 @@
                 </div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
                   <div>
-                    <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>禁用元素（每行一个）</div>
+                    <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>禁用元素(每行一个)</div>
                     <textarea value={(extracted.banned_elements||[]).join('\n')} onChange={function(e){setExtracted(function(p){return {...p,banned_elements:e.target.value.split('\n')};});}} rows={4} style={{width:'100%',boxSizing:'border-box'}} />
                   </div>
                   <div>
-                    <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>风格关键词（每行一个）</div>
+                    <div style={{fontSize:12,fontWeight:600,marginBottom:4}}>风格关键词(每行一个)</div>
                     <textarea value={(extracted.style_keywords||[]).join('\n')} onChange={function(e){setExtracted(function(p){return {...p,style_keywords:e.target.value.split('\n')};});}} rows={4} style={{width:'100%',boxSizing:'border-box'}} />
                   </div>
                 </div>
@@ -4298,7 +5854,7 @@
 
               {/* Image upload and management */}
               <div className="card">
-                <div style={{fontWeight:700,fontSize:14,marginBottom:6,color:colors.ac}}>🖼️ 侵权图片（{(extracted.images||[]).length}张）</div>{extracted._imgFound>0&&<div style={{fontSize:11,color:"#10b981",marginBottom:8,padding:"4px 10px",background:"#f0fdf4",borderRadius:6}}>✅ PDF.js自动提取{extracted._imgFound}张图片（共{extracted._pageCount}页）</div>}{(extracted._imgFound===0||extracted._imgFound===undefined)&&extracted._pageCount>0&&<div style={{fontSize:11,color:"#f59e0b",marginBottom:8,padding:"4px 10px",background:"#fffbeb",borderRadius:6}}>⚠️ 未找到嵌入图片，已使用整页截图（{extracted._pageCount}页）</div>}
+                <div style={{fontWeight:700,fontSize:14,marginBottom:6,color:colors.ac}}>🖼️ 侵权图片({(extracted.images||[]).length}张)</div>{extracted._imgFound>0&&<div style={{fontSize:11,color:"#10b981",marginBottom:8,padding:"4px 10px",background:"#f0fdf4",borderRadius:6}}>✅ PDF.js自动提取{extracted._imgFound}张图片(共{extracted._pageCount}页)</div>}{(extracted._imgFound===0||extracted._imgFound===undefined)&&extracted._pageCount>0&&<div style={{fontSize:11,color:"#f59e0b",marginBottom:8,padding:"4px 10px",background:"#fffbeb",borderRadius:6}}>⚠️ 未找到嵌入图片，已使用整页截图({extracted._pageCount}页)</div>}
                 <label className="btn" style={{background:'#475569',color:'white',cursor:'pointer',marginBottom:12,display:'inline-flex',alignItems:'center',gap:6}}>
                   ＋ 添加侵权图片
                   <input type="file" accept="image/*" multiple onChange={handleImageUpload} style={{display:'none'}} />
@@ -4384,7 +5940,7 @@
                 </div>
 
                 {(entry.images||[]).length>0&&<div>
-                  <div style={{fontSize:11,color:'#64748b',fontWeight:600,marginBottom:6}}>侵权图片（{entry.images.length}张）</div>
+                  <div style={{fontSize:11,color:'#64748b',fontWeight:600,marginBottom:6}}>侵权图片({entry.images.length}张)</div>
                   <div style={{display:'flex',gap:8,overflowX:'auto',paddingBottom:4}}>
                     {entry.images.map(function(img,ii){
                       return <div key={ii} style={{flexShrink:0,width:120,borderRadius:6,overflow:'hidden',border:'1px solid #e2e8f0'}}>
@@ -4464,7 +6020,7 @@
         </div>
         {tab==='copyright'&&<div style={{display:'flex',flexDirection:'column',gap:12}}>
           <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
-            <div style={{fontWeight:700}}>侵权数据库（{cpDb.length}条）</div>
+            <div style={{fontWeight:700}}>侵权数据库({cpDb.length}条)</div>
             <button className="btn" onClick={function(){setShowForm(!showForm);}} style={{background:colors.ac,color:'white',fontSize:13,padding:'8px 16px'}}>{showForm?'× 取消':'＋ 添加'}</button>
           </div>
           {showForm&&<div className="card" style={{border:'2px solid '+colors.ac+'60'}}>
@@ -4479,8 +6035,8 @@
                 </select></div>
             </div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
-              <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>禁用元素（每行一个）</div><textarea value={form.banned_text} onChange={function(e){sf('banned_text',e.target.value);}} rows={4} placeholder="capybara"></textarea></div>
-              <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>风格关键词（每行一个）</div><textarea value={form.keywords_text} onChange={function(e){sf('keywords_text',e.target.value);}} rows={4} placeholder="kawaii cute"></textarea></div>
+              <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>禁用元素(每行一个)</div><textarea value={form.banned_text} onChange={function(e){sf('banned_text',e.target.value);}} rows={4} placeholder="capybara"></textarea></div>
+              <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>风格关键词(每行一个)</div><textarea value={form.keywords_text} onChange={function(e){sf('keywords_text',e.target.value);}} rows={4} placeholder="kawaii cute"></textarea></div>
             </div>
             <div style={{marginBottom:10}}><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>备注</div><input type="text" value={form.notes} placeholder="执法情况..." onChange={function(e){sf('notes',e.target.value);}} /></div>
             <button className="btn" onClick={saveCp} style={{background:colors.ac,color:'white',width:'100%',padding:'12px'}}>💾 保存记录</button>
@@ -4633,14 +6189,14 @@
           + '产品标题: ' + (pastedTitle||'(未提供)') + '\n'
           + 'Bullet Points: ' + (pastedBullets||'(未提供)') + '\n'
           + '评论摘录: ' + (pastedReviews||'(未提供)') + '\n\n'
-          + '请用中文输出完整分析报告（Markdown格式，##开头的章节标题）：\n\n'
+          + '请用中文输出完整分析报告(Markdown格式，##开头的章节标题)：\n\n'
           + '## 一、畅销原因分析\n分析畅销核心原因：价格定位、视觉卖点、差异化因素、目标人群匹配度\n\n'
-          + '## 二、文案诊断\n- 标题结构分析（关键词布局、前80字符、品类词）\n- Bullet Points质量问题\n- 具体改写建议（至少3条）\n\n'
+          + '## 二、文案诊断\n- 标题结构分析(关键词布局、前80字符、品类词)\n- Bullet Points质量问题\n- 具体改写建议(至少3条)\n\n'
           + '## 三、产品改进建议\n基于' + catDesc + '经验，分析改进方向：材质/设计/尺寸/包装/配件\n\n'
           + '## 四、Q&A关键信息\n买家最常问的问题类型？卖家应提前在文案中解答哪些内容？\n\n'
           + '## 五、评论洞察\n- 好评核心：客户最喜欢什么\n- 差评痛点：最不满意什么\n- 新需求信号：评论中潜在需求\n\n'
           + '## 六、竞品优缺点总结\n用表格列出5-6个维度的优势和劣势\n| 维度 | 优势 | 劣势 |\n|---|---|---|\n\n'
-          + '## 七、超车策略建议\n- 产品层面（如何差异化）\n- 价格层面（如何定价）\n- 文案层面（给出优化后标题示例）\n- 图片/视觉层面\n- 推广层面\n\n'
+          + '## 七、超车策略建议\n- 产品层面(如何差异化)\n- 价格层面(如何定价)\n- 文案层面(给出优化后标题示例)\n- 图片/视觉层面\n- 推广层面\n\n'
           + '请分析全面、具体、实用，避免泛泛而谈。';
         try {
           var r = await callClaudeAPI(p, '你是Amazon ' + catDesc + '资深运营专家，请用中文输出详细专业的分析报告。');
@@ -4656,14 +6212,14 @@
           + '类目名称: ' + catName + '\n'
           + '品类大类: ' + catDescShort + '\n'
           + '补充说明: ' + (catNotes||'无') + '\n\n'
-          + '请用中文输出完整类目分析报告（Markdown格式）：\n\n'
-          + '## 一、类目基本面\n市场规模与增长趋势、竞争烈度（1-10分）、进入门槛、季节性规律\n\n'
+          + '请用中文输出完整类目分析报告(Markdown格式)：\n\n'
+          + '## 一、类目基本面\n市场规模与增长趋势、竞争烈度(1-10分)、进入门槛、季节性规律\n\n'
           + '## 二、价格带分布\n| 价格区间 | 市场占比 | 竞争程度 | 建议定位 |\n|---|---|---|---|\n低价/中价/高价区间，最优竞争价格带建议\n\n'
           + '## 三、当前热卖款式\n主流图案/设计风格、热卖颜色、尺寸规格偏好、具体爆款特征\n\n'
-          + '## 四、新品趋势（未来6-12个月）\n正在崛起的新风格/元素、值得押注的细分方向、具体款式趋势\n\n'
-          + '## 五、类目优势与风险\n优势（至少3点）、风险/劣势（至少3点）、适合进入的卖家画像\n\n'
+          + '## 四、新品趋势(未来6-12个月)\n正在崛起的新风格/元素、值得押注的细分方向、具体款式趋势\n\n'
+          + '## 五、类目优势与风险\n优势(至少3点)、风险/劣势(至少3点)、适合进入的卖家画像\n\n'
           + '## 六、开发建议\n\n'
-          + '### 产品开发方向\n3-5个具体产品开发方向（越具体越好）\n\n'
+          + '### 产品开发方向\n3-5个具体产品开发方向(越具体越好)\n\n'
           + '### 定价策略\n新品期/成熟期定价、促销节点建议\n\n'
           + '### 文案写法\n标题公式模板、核心卖点提炼、差异化措辞\n\n'
           + '### 图片/视觉建议\n主图、场景图、细节图的制作重点\n\n'
@@ -4687,14 +6243,14 @@
           + '请从以下维度深入分析，给出具体可执行的实操建议：\n\n'
           + '## 一、价格优化空间\n当前定价合理性、调价时机与幅度、捆绑销售、优惠券策略\n\n'
           + '## 二、文案优化方案\n\n'
-          + '### 标题优化\n问题诊断 + 优化后标题示例（直接给出2-3个版本）\n\n'
+          + '### 标题优化\n问题诊断 + 优化后标题示例(直接给出2-3个版本)\n\n'
           + '### Bullet Points优化\n逐条诊断 + 优化建议与示例\n\n'
           + '### Search Terms优化\n关键词布局建议、长尾词挖掘方向\n\n'
           + '## 三、A+页面制作建议\n推荐模块组合、每个模块内容方向、视觉风格、差异化卖点呈现\n\n'
-          + '## 四、视频制作方向\n视频类型、内容脚本框架（开场→卖点→场景→CTA）、时长与节奏、视觉要素清单\n\n'
+          + '## 四、视频制作方向\n视频类型、内容脚本框架(开场→卖点→场景→CTA)、时长与节奏、视觉要素清单\n\n'
           + '## 五、变体开发建议\n| 变体维度 | 扩展方向 | 市场潜力 | 优先级 |\n|---|---|---|---|\n颜色/尺寸/图案/材质/套装等高潜力方向\n\n'
           + '## 六、评论运营策略\n系统积累好评方法、差评应对话术框架、把差评转化为产品改进\n\n'
-          + '## 七、增量优先级排序\n按ROI从高到低：立即可做（1周内）、短期计划（1个月）、中期规划（3个月）\n\n'
+          + '## 七、增量优先级排序\n按ROI从高到低：立即可做(1周内)、短期计划(1个月)、中期规划(3个月)\n\n'
           + '请确保每条建议都有具体操作步骤，不要泛泛而谈。';
         try {
           var r = await callClaudeAPI(p, '你是Amazon ' + catDesc + '增长运营专家，请用中文输出专业详细的增量分析报告。');
@@ -4765,19 +6321,19 @@
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
               <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>竞品ASIN</div>
                 <input value={asin} onChange={function(e){setAsin(e.target.value);}} placeholder="B0XXXXXXXXX" style={{width:'100%',boxSizing:'border-box'}} /></div>
-              <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>产品标题（粘贴）</div>
+              <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>产品标题(粘贴)</div>
                 <input value={pastedTitle} onChange={function(e){setPastedTitle(e.target.value);}} placeholder="粘贴Amazon产品标题..." style={{width:'100%',boxSizing:'border-box'}} /></div>
             </div>
-            <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>Bullet Points（可选）</div>
+            <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>Bullet Points(可选)</div>
               <textarea value={pastedBullets} onChange={function(e){setPastedBullets(e.target.value);}} rows={3} placeholder="粘贴产品的5条Bullet Points..." style={{width:'100%',boxSizing:'border-box'}} /></div>
-            <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>评论摘录（可选）</div>
+            <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>评论摘录(可选)</div>
               <textarea value={pastedReviews} onChange={function(e){setPastedReviews(e.target.value);}} rows={3} placeholder="粘贴一些典型评论，尤其是差评..." style={{width:'100%',boxSizing:'border-box'}} /></div>
             <div style={{padding:'8px 12px',background:'#f0f9ff',borderRadius:8,fontSize:12,color:'#0369a1'}}>
               💡 提供越多原始文案，分析越精准。至少填写ASIN或标题中的一项。
             </div>
             <button onClick={runAsinAnalysis} disabled={loading} className="btn"
               style={{background:colors.ac,color:'white',padding:'12px',fontSize:14,fontWeight:700,opacity:loading?0.6:1}}>
-              {loading?'🔄 AI分析中（约30-60秒）...':'🚀 开始竞品分析'}
+              {loading?'🔄 AI分析中(约30-60秒)...':'🚀 开始竞品分析'}
             </button>
           </div>}
 
@@ -4786,7 +6342,7 @@
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10}}>
               <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>类目名称 *</div>
                 <input value={catName} onChange={function(e){setCatName(e.target.value);}} placeholder={cat==='童装'?'例如：儿童睡衣、婴儿连体衣':'例如：门盖、窗帘、桌布'} style={{width:'100%',boxSizing:'border-box'}} /></div>
-              <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>补充说明（可选）</div>
+              <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>补充说明(可选)</div>
                 <input value={catNotes} onChange={function(e){setCatNotes(e.target.value);}} placeholder="例如：主要做节日款、价格$15-25..." style={{width:'100%',boxSizing:'border-box'}} /></div>
             </div>
             <div style={{padding:'8px 12px',background:'#f0fdf4',borderRadius:8,fontSize:12,color:'#16a34a'}}>
@@ -4794,7 +6350,7 @@
             </div>
             <button onClick={runCategoryAnalysis} disabled={loading} className="btn"
               style={{background:colors.ac,color:'white',padding:'12px',fontSize:14,fontWeight:700,opacity:loading?0.6:1}}>
-              {loading?'🔄 AI分析中（约30-60秒）...':'🚀 开始类目分析'}
+              {loading?'🔄 AI分析中(约30-60秒)...':'🚀 开始类目分析'}
             </button>
           </div>}
 
@@ -4806,16 +6362,16 @@
               <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>产品标题</div>
                 <input value={growthTitle} onChange={function(e){setGrowthTitle(e.target.value);}} placeholder="粘贴当前产品标题..." style={{width:'100%',boxSizing:'border-box'}} /></div>
             </div>
-            <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>当前Bullet Points（可选）</div>
+            <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>当前Bullet Points(可选)</div>
               <textarea value={growthBullets} onChange={function(e){setGrowthBullets(e.target.value);}} rows={3} placeholder="粘贴当前产品Bullet Points..." style={{width:'100%',boxSizing:'border-box'}} /></div>
-            <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>目前遇到的问题/痛点（可选）</div>
+            <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>目前遇到的问题/痛点(可选)</div>
               <textarea value={growthIssues} onChange={function(e){setGrowthIssues(e.target.value);}} rows={2} placeholder="例如：转化率低、好评少、流量上不去..." style={{width:'100%',boxSizing:'border-box'}} /></div>
             <div style={{padding:'8px 12px',background:'#fdf4ff',borderRadius:8,fontSize:12,color:'#7c3aed'}}>
               💡 将从价格、文案、A+、视频、变体、评论6个维度给出具体实操方案。
             </div>
             <button onClick={runGrowthAnalysis} disabled={loading} className="btn"
               style={{background:colors.ac,color:'white',padding:'12px',fontSize:14,fontWeight:700,opacity:loading?0.6:1}}>
-              {loading?'🔄 AI分析中（约30-60秒）...':'🚀 开始增量分析'}
+              {loading?'🔄 AI分析中(约30-60秒)...':'🚀 开始增量分析'}
             </button>
           </div>}
 
@@ -4869,8 +6425,8 @@
           const bad=records.filter(function(r){return r.feedback==='bad';}).slice(-5);
           const parts=[
             '分析POD产品销售反馈，总结规律：',
-            '有销量图案（'+good.length+'条）：'+good.map(function(r){return '主题:'+r.theme+' 风格:'+r.style+' 配色:'+r.colors+' 元素:'+r.elements+' 销量:'+r.sales;}).join('；'),
-            '无销量图案（'+bad.length+'条）：'+bad.map(function(r){return '主题:'+r.theme+' 风格:'+r.style+' 配色:'+r.colors;}).join('；'),
+            '有销量图案('+good.length+'条)：'+good.map(function(r){return '主题:'+r.theme+' 风格:'+r.style+' 配色:'+r.colors+' 元素:'+r.elements+' 销量:'+r.sales;}).join('；'),
+            '无销量图案('+bad.length+'条)：'+bad.map(function(r){return '主题:'+r.theme+' 风格:'+r.style+' 配色:'+r.colors;}).join('；'),
             '分析：①主题规律 ②风格规律 ③配色规律 ④热卖元素 ⑤下次建议 ⑥避坑建议'
           ];
           const r=await callClaudeAPI(parts.join(' '),'你是POD销售数据分析专家');
@@ -4896,19 +6452,19 @@
         <div className="card">
           <div style={{fontWeight:700,fontSize:15,marginBottom:14}}>➕ 录入反馈</div>
           <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:10}}>
-            {[['主题 *','theme','Easter, Dinosaur...'],['图案风格','style','kawaii, watercolor...'],['配色','colors','pastel pink, mint...'],['元素（逗号分隔）','elements','bunny, egg, flower...']].map(function(x){
+            {[['主题 *','theme','Easter, Dinosaur...'],['图案风格','style','kawaii, watercolor...'],['配色','colors','pastel pink, mint...'],['元素(逗号分隔)','elements','bunny, egg, flower...']].map(function(x){
               return <div key={x[1]}><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>{x[0]}</div><input type="text" value={form[x[1]]} placeholder={x[2]} onChange={function(e){sf(x[1],e.target.value);}} /></div>;
             })}
-            {[['销量（件）','sales'],['收入（$）','revenue']].map(function(x){
+            {[['销量(件)','sales'],['收入($)','revenue']].map(function(x){
               return <div key={x[1]}><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>{x[0]}</div><input type="number" value={form[x[1]]} placeholder="0" onChange={function(e){sf(x[1],e.target.value);}} /></div>;
             })}
             <div><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>评价</div>
               <select value={form.feedback} onChange={function(e){sf('feedback',e.target.value);}}>
-                <option value="good">✅ 有销量（好）</option><option value="ok">😐 一般</option><option value="bad">❌ 无销量（差）</option>
+                <option value="good">✅ 有销量(好)</option><option value="ok">😐 一般</option><option value="bad">❌ 无销量(差)</option>
               </select></div>
           </div>
           <div style={{marginBottom:10}}><div style={{fontSize:12,fontWeight:600,marginBottom:4}}>备注</div><textarea value={form.notes} onChange={function(e){sf('notes',e.target.value);}} rows={2} placeholder="为什么好卖/不好卖..."></textarea></div>
-          <button className="btn" onClick={save} style={{background:colors.ac,color:'white',width:'100%',padding:'12px'}}>💾 保存反馈（AI将学习）</button>
+          <button className="btn" onClick={save} style={{background:colors.ac,color:'white',width:'100%',padding:'12px'}}>💾 保存反馈(AI将学习)</button>
         </div>
         <div className="card" style={{border:'2px solid '+colors.ac+'40'}}>
           <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:12}}>
@@ -4923,7 +6479,7 @@
           {!insight&&!loading&&<div style={{textAlign:'center',padding:30,color:'#94a3b8',fontSize:13}}>录入5条以上反馈后，AI分析客户喜好规律</div>}
         </div>
         {records.length>0&&<div className="card">
-          <div style={{fontWeight:700,fontSize:15,marginBottom:12}}>📊 历史反馈（{records.length}条）</div>
+          <div style={{fontWeight:700,fontSize:15,marginBottom:12}}>📊 历史反馈({records.length}条)</div>
           {records.slice(-8).reverse().map(function(r,i){
             return <div key={i} style={{padding:'10px 12px',borderRadius:8,marginBottom:8,border:'1px solid #e2e8f0',background:r.feedback==='good'?'#f0fdf4':r.feedback==='bad'?'#fef2f2':'#f8fafc'}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center'}}>
