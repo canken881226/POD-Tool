@@ -3933,10 +3933,10 @@
       const workerUrl = getPodWorkerUrl();
       if(!workerUrl) return null;
       try {
-        const resp = await fetch(workerUrl, {
-          method: 'POST',
-          headers: {'Content-Type':'application/json','x-action':'trend-read'},
-          body: JSON.stringify({cat: cat})
+        // 使用专用路径避免Bot检测
+        const resp = await fetch(workerUrl.replace(/\/+$/,'')+'/trend-read?cat='+encodeURIComponent(cat), {
+          method: 'GET',
+          headers: {'Content-Type':'application/json'}
         });
         const d = await resp.json();
         if(d.ok && d.data && d.data.length>0) {
