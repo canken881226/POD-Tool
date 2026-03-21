@@ -4170,8 +4170,23 @@
     // 趋势导入步骤(开发流程Step0之前)
     // ══════════════════════════════════════════════════════
     function TrendImportStep({colors, cat, onDone}) {
-      const latest = getLatestTrend(cat);
-      const [useTrend, setUseTrend] = React.useState(!!latest);
+      const [latest, setLatest] = React.useState(getLatestTrend(cat));
+      const [useTrend, setUseTrend] = React.useState(!!getLatestTrend(cat));
+      const [syncing, setSyncing] = React.useState(false);
+
+      // 页面加载时自动从KV拉取最新数据
+      React.useEffect(function(){
+        async function autoSync(){
+          setSyncing(true);
+          const data = await fetchTrendFromKV(cat);
+          if(data&&data.length>0){
+            setLatest(data[0]);
+            setUseTrend(true);
+          }
+          setSyncing(false);
+        }
+        autoSync();
+      },[]);
       const now = new Date();
       const monthData = MONTHLY_CALENDAR[now.getMonth()+1]||{};
 
@@ -4257,10 +4272,16 @@
               borderRadius:10,fontWeight:800,fontSize:14,cursor:'pointer'}}>
             ✅ 确认，开始开发 →
           </button>
-          <button onClick={function(){window.open('#trendlib','_self');}}
+          <button onClick={function(){
+              // 触发导航到趋势库页面
+              var navBtns = document.querySelectorAll('.nav-tab');
+              for(var i=0;i<navBtns.length;i++){
+                if(navBtns[i].textContent.includes('趋势库')){navBtns[i].click();break;}
+              }
+            }}
             style={{padding:'13px 20px',background:'#f1f5f9',color:'#475569',border:'none',
               borderRadius:10,fontWeight:700,fontSize:13,cursor:'pointer'}}>
-            📚 去上传趋势
+            📚 去趋势库同步
           </button>
         </div>
       </div>;
