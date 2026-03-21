@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -198,13 +199,72 @@
       }
     };
 
-    // ══ 视觉风格定义 ════════════════════════════════════
+    // ══ 视觉风格定义（完整规则）═══════════════════════════
     const VISUAL_STYLES = {
-      '泼墨': {en:'Paint Splash', desc:'活力/大胆/街头感', seasons:['夏季','全年'], emotions:['活力','玩乐','大胆','趣味']},
-      'Neon':  {en:'Neon', desc:'情绪/夜感/秋冬强', seasons:['秋季','冬季'], emotions:['真实','累但坚持','情绪爆发','趣味']},
-      '星空':  {en:'Galaxy', desc:'深情/治愈/高客单', seasons:['全年'], emotions:['爱','深情','成长','团聚']},
-      'Rainbow':{en:'Rainbow', desc:'柔和/礼物/春夏', seasons:['春季','夏季','全年'], emotions:['温柔','爱','骄傲','温暖']}
+      '泼墨': {
+        en:'Paint Splash',
+        desc:'大胆/爆发/活力/街头感',
+        visual:'高饱和对比色，爆炸感构图，颜料飞溅效果',
+        emotions:['幽默自嘲','疲惫爆发','混乱日常','活力大胆'],
+        colorHint:'任意高饱和色，强对比，不限性别配色',
+        examples:['男童恐龙泼墨爆炸版','女童独角兽泼墨彩色','Tired as a Mother泼墨大字'],
+        seasons:['全年','夏季最强'],
+        lines:['Daily Bonding','Identity','Emotional']
+      },
+      'Neon': {
+        en:'Neon',
+        desc:'霓虹发光/夜感/情绪强烈',
+        visual:'深色底+荧光色，发光线条，高反差',
+        emotions:['真实','累但坚持','个性表达','情绪爆发'],
+        colorHint:'深底色（黑/深紫/深蓝）+荧光绿/粉/橙，男女童均可',
+        examples:['男童鲨鱼Neon霓虹','女童猫咪Neon粉紫','Real Mom Life夜光版'],
+        seasons:['秋季','冬季','全年'],
+        lines:['Identity','Emotional','Daily Bonding']
+      },
+      '星空': {
+        en:'Galaxy',
+        desc:'深邃/治愈/仪式感/温柔闪耀',
+        visual:'深底色+星光点缀，可调配色方向适配性别',
+        emotions:['深情','成长纪念','被爱','仪式感'],
+        colorHint:'深蓝紫底通用；加粉紫→女童；加金蓝→男童；加玫瑰金→节日',
+        examples:['女童粉色星空独角兽','男童深蓝星空恐龙','You are my universe星空版'],
+        seasons:['全年','节日款首选'],
+        lines:['Milestone','Emotional','Identity']
+      },
+      'Rainbow': {
+        en:'Rainbow',
+        desc:'明亮/柔和/欢乐/礼物感',
+        visual:'彩虹渐变或柔色系，糖果色，温暖明亮',
+        emotions:['爱','骄傲','温暖','仪式感'],
+        colorHint:'柔彩虹→低龄/女童；饱和彩虹→高龄/男童；暖彩虹→节日礼物',
+        examples:['女童彩虹芭蕾渐变','男童彩虹恐龙鲜艳版',"First Mother's Day彩虹暖色"],
+        seasons:['春季','夏季','礼物节点'],
+        lines:['Milestone','Daily Bonding','Holiday']
+      }
     };
+
+    // 根据情绪+主题+人群自动匹配最合适的风格
+    function matchStyle(emotion, theme, gender, ageGroup, holiday) {
+      const scores = {};
+      Object.entries(VISUAL_STYLES).forEach(function(entry){
+        const name=entry[0]; const s=entry[1];
+        let score = 0;
+        // 情绪匹配
+        s.emotions.forEach(function(e){
+          if((emotion||'').includes(e)||(theme||'').toLowerCase().includes(e.toLowerCase())) score+=3;
+        });
+        // 产品线匹配（通过theme判断）
+        if(holiday) { if(name==='Rainbow'||name==='星空') score+=2; }
+        // 季节匹配
+        const month = new Date().getMonth()+1;
+        if(month>=3&&month<=6&&(name==='Rainbow')) score+=2;
+        if(month>=9&&month<=11&&(name==='Neon')) score+=2;
+        if(month>=6&&month<=8&&(name==='泼墨')) score+=2;
+        scores[name] = score;
+      });
+      const sorted = Object.entries(scores).sort(function(a,b){return b[1]-a[1];});
+      return sorted[0]?sorted[0][0]:'泼墨';
+    }
 
     const getApiKey = function() { return localStorage.getItem('pod_api_key')||''; };
     const setApiKeyStore = function(k) { localStorage.setItem('pod_api_key', k); };
@@ -1815,14 +1875,19 @@
             +(customStyle?'【指定风格】'+customStyle+'\n':'')
             +(customThemeInput?'【指定主题】'+customThemeInput+'\n':'')
             +'\n【产品线子分类参考】\n'+subRef
-            +'【可选风格】泼墨、Neon、星空、Rainbow\n'
+            +'【视觉风格匹配规则】\n'
+          +'泼墨：大胆爆发/街头活力/任意高饱和色，适合幽默自嘲/混乱日常/爆发情绪\n'
+          +'Neon：霓虹夜感/深底荧光/情绪强烈，适合真实妈妈/个性表达/秋冬款\n'
+          +'星空：深邃治愈/星光闪耀/仪式感，深蓝可加粉紫(女童)或金蓝(男童)，适合纪念/深情/节日\n'
+          +'Rainbow：明亮柔和/彩虹渐变/糖果色，柔彩虹(低龄)/饱和彩虹(高龄)/暖彩虹(礼物)，适合春夏/礼物节点\n'
+          +'→ 根据情绪+主题+当月季节自动匹配最合适风格，给出匹配理由\n'
             +'【年份】当前'+curYear+'年\n\n'
             +'【开发比例要求】\n'
             +'常青款60%(至少3个)：从热销常青主题选取，type:evergreen\n'
             +'节日款30%(1-2个)：结合本月节点，type:holiday\n'
             +'季节款10%(0-1个)：结合当前季节，type:season\n\n'
             +'输出JSON数组(不含markdown)，共4-5个方向：\n'
-            +'[{"type":"evergreen/holiday/season","line":"Milestone/Identity/Daily Bonding之一","sub":"子分类名","emotion":"核心情绪","style":"视觉风格","theme":"具体主题","concept":"英文开发概念","concept_cn":"中文说明","urgency":8,"reason":"推荐理由一句话"}]\n'
+            +'[{"type":"evergreen/holiday/season","line":"Milestone/Identity/Daily Bonding之一","sub":"子分类名","emotion":"核心情绪","style":"泼墨/Neon/星空/Rainbow之一","style_reason":"风格匹配理由一句话","color_hint":"针对该人群的配色方向","theme":"具体主题","concept":"英文开发概念","concept_cn":"中文说明","urgency":8,"reason":"推荐理由一句话"}]\n'
             +'如已指定产品线则重点推导该线。常青款urgency基础分6-7，节日近则8-10。'
           const raw = await callClaudeAPI(prompt, 'POD选品专家，只输出JSON数组');
           const cleaned = raw.replace(/```json|```/g,'').trim();
@@ -1929,6 +1994,7 @@
                   {s.sub&&<span style={{fontSize:10,padding:'2px 8px',background:lineColor+'10',color:lineColor,borderRadius:4,fontWeight:600}}>· {s.sub}</span>}
                   <span style={{fontSize:10,padding:'2px 8px',background:'#fdf4ff',color:'#7e22ce',borderRadius:4,fontWeight:700}}>{s.emotion}</span>
                   <span style={{fontSize:10,padding:'2px 8px',background:'#fff7ed',color:'#c2410c',borderRadius:4,fontWeight:700}}>{s.style}</span>
+                  {s.color_hint&&<span style={{fontSize:10,padding:'2px 8px',background:'#f8fafc',color:'#475569',borderRadius:4}}>{s.color_hint}</span>}
                   <span style={{fontSize:10,padding:'2px 8px',background:'#f0fdf4',color:'#15803d',borderRadius:4,fontWeight:700}}>{s.theme}</span>
                 </div>
                 <div style={{display:'flex',alignItems:'center',gap:6}}>
@@ -1940,6 +2006,7 @@
               </div>
               <div style={{fontWeight:700,fontSize:14,color:'#1e293b',marginBottom:2}}>{s.concept_cn||s.concept}</div>
               <div style={{fontSize:11,color:'#64748b'}}>{s.reason}</div>
+              {s.style_reason&&<div style={{fontSize:10,color:'#c2410c',marginTop:2}}>🎨 {s.style_reason}</div>}
             </div>;
           })}
         </div>}
@@ -2271,10 +2338,37 @@
 
         {/* 底部操作 */}
         <div style={{display:'flex',flexDirection:'column',gap:8}}>
-          {hasValidation&&<button onClick={onNext}
+          {hasValidation&&<button onClick={async function(){
+            // 提取验证报告关键信息，传入后续步骤
+            const reportText = (autoReport?autoReport.text:'') + (manualReport?manualReport.text:'');
+            if(reportText) {
+              try {
+                const extractPrompt =
+                  '从以下市场验证报告中提取关键开发信息，输出JSON：\n'+reportText.slice(0,3000)+'\n\n'
+                  +'{"competitor_elements":["竞品高频元素1","竞品高频元素2"],'
+                  +'"buyer_keywords":["买家关键词1","买家关键词2"],'
+                  +'"diff_directions":["差异化方向1","差异化方向2"],'
+                  +'"recommended_style":"推荐风格（泼墨/Neon/星空/Rainbow之一）",'
+                  +'"price_range":"定价区间",'
+                  +'"validation_score":8}';
+                const raw = await callClaudeAPI(extractPrompt, '市场分析专家，只输出JSON');
+                const cleaned = raw.replace(/```json|```/g,'').trim();
+                const si=cleaned.indexOf('{'),ei=cleaned.lastIndexOf('}');
+                if(si>=0&&ei>=0){
+                  const extracted = JSON.parse(cleaned.slice(si,ei+1));
+                  upd('validationExtracted', extracted);
+                  upd('validationReportText', reportText.slice(0,2000));
+                }
+              } catch(e) {
+                // 提取失败不影响流程
+                upd('validationReportText', reportText.slice(0,2000));
+              }
+            }
+            onNext();
+          }}
             style={{width:'100%',padding:'13px',background:colors.ac,color:'white',
               border:'none',borderRadius:10,fontWeight:800,fontSize:14,cursor:'pointer'}}>
-            ✅ 方向确认，进入元素融合 →
+            ✅ 方向确认，提取数据并继续 →
           </button>}
           <button onClick={function(){setSkipped(true);onNext();}}
             style={{width:'100%',padding:'11px',
@@ -2317,10 +2411,23 @@
           ?'【本周Reddit趋势情绪】'+(weekTrend.emotions||[]).join('、')+'；热门短句：'+(weekTrend.hot_phrases||[]).slice(0,2).join('、')
           :'';
         const emotionCtx = (data.theme&&data.theme.emotion)||data.customEmotion||'';
-        const styleCtx = (data.theme&&data.theme.style)||data.customStyle||'';
+        // 风格：优先用验证报告推荐，其次AI推导选的，最后自动匹配
+        const validated = data.validationExtracted||{};
+        const styleCtx = validated.recommended_style||(data.theme&&data.theme.style)||data.customStyle
+          ||matchStyle(emotionCtx, themeKey, data.gender, data.ageGroup, data.theme&&data.theme.holiday);
+        const styleInfo = VISUAL_STYLES[styleCtx]||{};
+        // 验证数据上下文
+        const validationCtx = validated.competitor_elements
+          ?'【竞品高频元素（来自市场验证）】'+(validated.competitor_elements||[]).join('、')+'\n'
+           +'【买家搜索关键词】'+(validated.buyer_keywords||[]).join('、')+'\n'
+           +'【差异化方向】'+(validated.diff_directions||[]).join('、')+'\n'
+           +(validated.price_range?'【竞品定价】'+validated.price_range+'\n':'')
+          :'';
         const parts=[
           '你是'+cat+' POD爆款图案设计专家。主干：妈妈文化(Mom Culture)',
           '产品线：'+(data.theme&&data.theme.line||'Identity')+' | 目标：'+themeKey+'主题，'+cat+'品类，'+ageInfo,
+          '【确定视觉风格】'+styleCtx+'（'+(styleInfo.desc||'')+' | 配色：'+(styleInfo.colorHint||'')+' | 视觉：'+(styleInfo.visual||'')+'）',
+          validationCtx,
           isCombined
             ?'【叠加开发主题】常青主题：'+(data.theme.evergreens||[]).join('+')+'，叠加节日：'+((data.theme.holiday&&(data.theme.holiday.name||data.theme.holiday.en))||'')+'。请将常青主题元素与节日氛围融合，生成兼顾常青销售力和节日限定感的图案方案。'
             :aiTheme
