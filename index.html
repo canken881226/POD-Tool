@@ -2960,7 +2960,7 @@
       const [customPrompt, setCustomPrompt] = React.useState('');
       const [customAspect, setCustomAspect] = React.useState('1x1');
       const [customSeamless, setCustomSeamless] = React.useState(false);
-      const [customResults, setCustomResults] = React.useState([]);
+      const [customResults, setCustomResults] = React.useState(data.customGenResults||[]);
       const [customLoading, setCustomLoading] = React.useState(false);
       const combos = data.selectedCombos||[];
       const prompts = data.mjPrompts||{};
@@ -3207,6 +3207,8 @@
             try {
               const urls = await ideogramGenerate(customPrompt.trim(), customSeamless, customAspect, selectedModel);
               setCustomResults(urls);
+              upd('customGenResults', urls);
+              upd('customGenPrompt', customPrompt.trim());
             } catch(e) {
               alert('生图失败：'+e.message);
             }
@@ -3400,7 +3402,14 @@
           <button onClick={onNext}
             style={{background:'#94a3b8',color:'white',border:'none',borderRadius:10,
               padding:'14px',fontSize:14,cursor:'pointer',width:'100%',opacity:0.7}}>
-            跳过 → 进入Listing（未选择上架图片）
+            跳过 → 进入Listing文案（未选择图片）
+          </button>
+        )}
+        {!allDone&&(
+          <button onClick={onNext}
+            style={{background:'#64748b',color:'white',border:'none',borderRadius:10,
+              padding:'12px',fontSize:13,cursor:'pointer',width:'100%',opacity:0.8}}>
+            跳过生图 → 直接进入Listing文案
           </button>
         )}
         <button onClick={onBack}
@@ -3411,7 +3420,7 @@
       </div>;
     }
 
-    function WFStep4({data,colors,cat,onConfirm,onBack}) {
+    function WFStep4({data,upd,colors,cat,onConfirm,onBack}) {
       const theme = data.theme||{};
       const approvedImages = data.approvedImages||[];
       const lineInfo = data.productLineInfo||{};
@@ -3525,9 +3534,9 @@
 
             // Step2: 生成Listing
             const listingPrompt =
-              'You are a senior Amazon copywriter for '+cat+' POD products.\n\n'
+              'You are a senior Amazon copywriter expert in A9, COSMO, and RUFUS optimization for '+cat+' POD products.\n\n'
               +'DEVELOPMENT CONTEXT:\n'+devCtx+'\n'
-              +(customNote?'EXTRA INFO: '+customNote+'\n':'')
+              +(customNote?'EXTRA CONTEXT: '+customNote+'\n':'')
               +'\nIMAGE ANALYSIS:\n'
               +'Elements: '+(imgAnalysis.elements||[]).join(', ')+'\n'
               +'Style: '+(imgAnalysis.style||'')+'\n'
@@ -3535,10 +3544,31 @@
               +(imgAnalysis.text_on_design?'Text on design: '+imgAnalysis.text_on_design+'\n':'')
               +'Mood: '+(imgAnalysis.mood||'')+'\n'
               +'\nSUBCATEGORY: '+selCat+'\n'
-              +'TOP KEYWORDS: '+kwTop+'\n'
-              +'BANNED WORDS (never use): '+banNote+'\n\n'
-              +'Generate Amazon listing. Output JSON only:\n'
-              +'{"title":"(max 150 chars, Title Case)","color":"(2-3 words describing design)","bullets":["(benefit-focused, 150-200 chars each)","","","",""],"description":"(use HTML tags: <p> for paragraphs, <b> for emphasis, <br/> for line breaks, 150-200 words total, storytelling style)","search_terms":"(5 keyword phrases, comma separated)"}';
+              +'TOP KEYWORDS (Layer 1 core): '+kwTop+'\n'
+              +'BANNED WORDS: '+banNote+'\n\n'
+              +'=== WRITING RULES (STRICT) ===\n'
+              +'TITLE (A9+RUFUS): [Core Keyword] [Key Spec] - for [Main Use Scene], Helps [Core Result], [Bonus]\n'
+              +'  - Max 150 chars, Title Case\n'
+              +'  - Front: A9 keyword indexing | Back: RUFUS understands product purpose\n'
+              +'  - Remove all keywords: must still clearly describe the product\n'
+              +'  - Zero duplicate words\n\n'
+              +'BULLETS (all 3 engines): [Scene/Condition] + [Problem] → [How product solves] + [Result]\n'
+              +'  - Bullet 1: Primary use scene + main benefit\n'
+              +'  - Bullet 2: Secondary scene + specific feature\n'
+              +'  - Bullet 3: Comparison to basic alternative (Instead of X, this Y)\n'
+              +'  - Bullet 4: Address a worry/concern (If you worry about X, this Y)\n'
+              +'  - Bullet 5: Best for [ideal user]. Not recommended for [edge case]\n'
+              +'  - Each bullet 150-200 chars\n\n'
+              +'DESCRIPTION (RUFUS long text): Use HTML tags <p><b><br/>\n'
+              +'  - Para 1: Who this is for + what problem it solves\n'
+              +'  - Para 2: How it is used in real life\n'
+              +'  - Para 3: How it differs from basic alternatives\n'
+              +'  - 150-200 words total\n\n'
+              +'SEARCH TERMS (A9 only): Layer 3 supplement words not in title/bullets\n'
+              +'  - Word roots, phrases, synonyms, alternate spellings\n'
+              +'  - No repeats from title\n\n'
+              +'Output JSON only:\n'
+              +'{"title":"...","color":"(2-3 words describing design pattern)","bullets":["...","...","...","...","..."],"description":"(HTML formatted)","search_terms":"(supplement keywords only)"}';
 
             const raw = await callClaudeAPI(listingPrompt, 'Amazon listing expert. JSON only.');
             const cleaned = raw.replace(/```json|```/g,'').trim();
